@@ -67,7 +67,14 @@ class FeaturePipeline(TransformerMixin, BaseEstimator):  # type: ignore[misc]
             prefixed = out.copy()
             prefixed.columns = [f"{name}__{c}" for c in prefixed.columns]
             frames.append(prefixed)
-        return pd.concat(frames, axis=1)
+        if len(frames) > 1:
+            for frame in frames[1:]:
+                if not frame.index.equals(frames[0].index):
+                    raise ValueError(
+                        "FeaturePipeline: transformer outputs have misaligned indices — "
+                        "all transformers must return a frame with the same index as X."
+                    )
+        return pd.concat(frames, axis=1, join="inner")
 
     def fit_transform(
         self,

@@ -237,6 +237,17 @@ fn sim_run_weights<'py>(
     let close_v = close_panel.as_array();
     let tw_v = target_weights.as_array();
     let tbi_v = target_bar_indices.as_array();
+    assert_eq!(
+        open_v.dim(),
+        close_v.dim(),
+        "open and close panels must have the same shape"
+    );
+    assert!(
+        tbi_v.len() <= tw_v.nrows(),
+        "target_bar_indices length ({}) exceeds target_weights rows ({})",
+        tbi_v.len(),
+        tw_v.nrows()
+    );
     let cfg = core_sim::SimCfg {
         cash,
         cost_kind,
@@ -295,6 +306,13 @@ fn sim_run_orders<'py>(
     let on = order_notional.as_array();
     let ok_ = order_kind.as_array();
     let olp = order_limit_price.as_array();
+    let n_orders = ob.len();
+    assert_eq!(oa.len(), n_orders, "order_asset length mismatch");
+    assert_eq!(os.len(), n_orders, "order_side length mismatch");
+    assert_eq!(oq.len(), n_orders, "order_qty length mismatch");
+    assert_eq!(on.len(), n_orders, "order_notional length mismatch");
+    assert_eq!(ok_.len(), n_orders, "order_kind length mismatch");
+    assert_eq!(olp.len(), n_orders, "order_limit_price length mismatch");
     let out = py.allow_threads(|| core_sim::run_orders(op, cl, ob, oa, os, oq, on, ok_, olp, cfg));
     sim_output_to_dict(py, out)
 }
@@ -331,6 +349,8 @@ fn sim_run_signals<'py>(
     let cl = close_panel.as_array();
     let en = entries.as_array();
     let ex = exits.as_array();
+    assert_eq!(en.dim(), cl.dim(), "entries shape must match close_panel");
+    assert_eq!(ex.dim(), cl.dim(), "exits shape must match close_panel");
     let out = py.allow_threads(|| core_sim::run_signals(op, cl, en, ex, size, cfg));
     sim_output_to_dict(py, out)
 }

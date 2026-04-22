@@ -130,7 +130,8 @@ class Catalog:
         if prefer_store and self._store.exists(spec.store_key):
             return self._store.read(spec.store_key, start=eff_start, end=eff_end)
         df = spec.source.read(start=eff_start, end=eff_end)
-        self._store.write(spec.store_key, df, mode="overwrite")
+        if start is None and end is None:
+            self._store.write(spec.store_key, df, mode="overwrite")
         return df
 
     # ------------------------------------------------------------------ refresh
@@ -190,6 +191,12 @@ class Catalog:
         now = datetime.now(timezone.utc)
         for spec in specs:
             last = self._store.last_index(spec.store_key)
+            if last is not None:
+                ts = pd.Timestamp(last)
+                utc_ts = ts.tz_convert("UTC") if ts.tzinfo is not None else ts.tz_localize("UTC")
+                lag = now - utc_ts
+            else:
+                lag = None
             rows.append({
                 "name": spec.name,
                 "source": _qualname(spec.source),
@@ -197,7 +204,7 @@ class Catalog:
                 "interval": getattr(spec.source, "interval", None),
                 "store_key": spec.store_key,
                 "last_index": last,
-                "lag": (now - pd.Timestamp(last).tz_localize("UTC") if last is not None else None),
+                "lag": lag,
                 "tags": list(spec.tags),
             })
         return pd.DataFrame(rows)

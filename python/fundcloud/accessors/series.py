@@ -487,5 +487,6 @@ class SeriesAccessor:
     # --- conversions --------------------------------------------------------
     def to_returns(self, *, method: str = "simple", dropna: bool = True) -> pd.Series:
         result = _bars.to_returns(self._obj, method=method, dropna=dropna)  # type: ignore[arg-type]
-        assert isinstance(result, pd.Series)
+        if not isinstance(result, pd.Series):
+            raise TypeError(f"Expected Series, got {type(result).__name__}")
         return result

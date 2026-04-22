@@ -18,7 +18,11 @@ pub fn returns_from_prices(prices: ArrayView1<'_, f64>) -> Array1<f64> {
     }
     for i in 1..n {
         let prev = prices[i - 1];
-        out[i] = prices[i] / prev - 1.0;
+        out[i] = if prev.is_finite() && prev != 0.0 && prices[i].is_finite() {
+            prices[i] / prev - 1.0
+        } else {
+            f64::NAN
+        };
     }
     out
 }
@@ -40,6 +44,20 @@ mod tests {
         let p = arr1(&[100.0]);
         let r = returns_from_prices(p.view());
         assert!(r[0].is_nan());
+    }
+
+    #[test]
+    fn zero_price_gives_nan_return() {
+        let prices = arr1(&[0.0, 1.0, 2.0]);
+        let out = returns_from_prices(prices.view());
+        assert!(out[1].is_nan());
+    }
+
+    #[test]
+    fn non_finite_price_gives_nan_return() {
+        let prices = arr1(&[1.0, f64::NAN, 2.0]);
+        let out = returns_from_prices(prices.view());
+        assert!(out[2].is_nan());
     }
 
     #[test]

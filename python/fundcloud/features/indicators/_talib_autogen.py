@@ -21,11 +21,12 @@ from typing import Any
 
 from fundcloud.features.indicators.base import IndicatorSpec
 
-__all__ = ["GENERATED", "GROUPS", "TALIB_AVAILABLE", "TALIB_ERROR"]
+__all__ = ["FAILED", "GENERATED", "GROUPS", "TALIB_AVAILABLE", "TALIB_ERROR"]
 
 
 TALIB_ERROR: Exception | None = None
 GENERATED: dict[str, type[IndicatorSpec]] = {}
+FAILED: dict[str, str] = {}
 GROUPS: dict[str, list[str]] = {}
 
 
@@ -96,5 +97,6 @@ if TALIB_AVAILABLE:
     for _fn in talib.get_functions():
         try:
             GENERATED[_fn] = _make_class(_fn)
-        except Exception:  # pragma: no cover — skip unintrospectable functions
+        except Exception as exc:  # pragma: no cover
+            FAILED[_fn] = f"{type(exc).__name__}: {exc}"
             continue

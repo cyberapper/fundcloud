@@ -297,6 +297,8 @@ struct Pending {
     notional: f64,
     kind: u8,
     limit_price: f64,
+    /// Index into `out.order_filled` so the drain loop can mark the order filled.
+    order_idx: usize,
 }
 
 fn drain_pending(
@@ -336,6 +338,7 @@ fn drain_pending(
             out.trade_price.push(price);
             out.trade_fee.push(f);
             out.trade_slip_bps.push(slip);
+            out.order_filled[p.order_idx] = true;
         }
     }
     *pending = keep;
@@ -377,7 +380,8 @@ fn submit_order(
     out.order_notional.push(notional);
     out.order_kind.push(kind);
     out.order_limit_price.push(limit_price);
-    out.order_filled.push(true);
+    out.order_filled.push(false);
+    let order_idx = out.order_filled.len() - 1;
     let fill_i = fill_i as usize;
     if fill_i == i {
         let ref_price = exec_price_at(open, close, cfg.exec_kind, i, asset);
@@ -402,6 +406,7 @@ fn submit_order(
             out.trade_price.push(price);
             out.trade_fee.push(f);
             out.trade_slip_bps.push(slip);
+            *out.order_filled.last_mut().expect("order just pushed") = true;
         }
     } else {
         pending.push(Pending {
@@ -412,6 +417,7 @@ fn submit_order(
             notional,
             kind,
             limit_price,
+            order_idx,
         });
     }
 }

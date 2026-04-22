@@ -7,27 +7,28 @@ providers, see :mod:`fundcloud.data` (``YF``, ``FMP``, ``AV``, ``Binance``).
 
 from __future__ import annotations
 
-from importlib import resources
-from pathlib import Path
+import importlib.resources
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
-__all__ = ["DATASET_DIR", "available_datasets", "load_example_panel"]
+if TYPE_CHECKING:
+    from importlib.abc import Traversable
 
+__all__ = ["available_datasets", "load_example_panel"]
 
-def _dataset_dir() -> Path:
-    with resources.as_file(resources.files("fundcloud.datasets") / "_data") as p:
-        return p
-
-
-DATASET_DIR: Path = _dataset_dir()
+# Store the Traversable reference — safe to keep as a module-level variable
+# because Traversable does not open a file handle (unlike as_file()).
+_DATA_REF: Traversable = importlib.resources.files("fundcloud.datasets") / "_data"
 
 
 def available_datasets() -> list[str]:
     """Names of datasets (file stems) bundled with the package."""
-    if not DATASET_DIR.exists():
+    try:
+        entries = list(_DATA_REF.iterdir())
+    except (FileNotFoundError, NotADirectoryError):
         return []
-    return sorted(p.stem for p in DATASET_DIR.glob("*.parquet"))
+    return sorted(e.name[: -len(".parquet")] for e in entries if e.name.endswith(".parquet"))
 
 
 def load_example_panel(name: str = "toy_equities_5y") -> pd.DataFrame:
@@ -38,9 +39,11 @@ def load_example_panel(name: str = "toy_equities_5y") -> pd.DataFrame:
     FileNotFoundError
         If no such dataset ships with this version.
     """
-    path = DATASET_DIR / f"{name}.parquet"
-    if not path.exists():
+    ref = _DATA_REF / f"{name}.parquet"
+    try:
+        with importlib.resources.as_file(ref) as path:
+            return pd.read_parquet(path)
+    except (FileNotFoundError, TypeError):
         available = available_datasets()
         msg = f"dataset {name!r} not found. Available: {available}"
-        raise FileNotFoundError(msg)
-    return pd.read_parquet(path)
+        raise FileNotFoundError(msg) from None

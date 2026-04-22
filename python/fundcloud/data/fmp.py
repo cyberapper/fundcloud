@@ -98,7 +98,8 @@ class FMP(BaseBackend):
         with HttpClient(base_url=self._base_url, params={"apikey": self._api_key}) as client:
             for sym in self.symbols:
                 frames[sym] = self._fetch_symbol(client, sym, start=start, end=end)
-        if not any(len(df) for df in frames.values()):
+        frames = {sym: df for sym, df in frames.items() if not df.empty}
+        if not frames:
             return pd.DataFrame()
         wide = pd.concat(frames, axis=1)
         wide.columns = wide.columns.swaplevel(0, 1)

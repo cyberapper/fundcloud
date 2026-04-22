@@ -11,7 +11,22 @@ from __future__ import annotations
 
 import pandas as pd
 
-__all__ = ["default_start_one_year_back"]
+__all__ = ["default_start_one_year_back", "interval_aware_default_start"]
+
+
+def interval_aware_default_start(
+    interval: str,
+    end: pd.Timestamp | None = None,
+) -> pd.Timestamp:
+    """Return a default start date appropriate for the given data interval."""
+    _end = end if end is not None else pd.Timestamp.utcnow()
+    _days: dict[str, int] = {
+        "1m": 7,
+        "2m": 60, "5m": 60, "15m": 60, "30m": 60, "90m": 60,
+        "60m": 730, "1h": 730, "2h": 730, "4h": 730,
+    }
+    days = _days.get(interval, 365)
+    return (_end - pd.Timedelta(days=days)).normalize()
 
 
 def default_start_one_year_back(

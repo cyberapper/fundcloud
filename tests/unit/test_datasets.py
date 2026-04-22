@@ -29,8 +29,9 @@ def test_load_example_panel_reads_bundled_parquet(tmp_path: Path, monkeypatch) -
     fake_data_dir.mkdir()
     frame.to_parquet(fake_data_dir / "sample.parquet")
 
-    # Swap the module-level DATASET_DIR constant without reimporting the library.
-    monkeypatch.setattr(datasets.loaders, "DATASET_DIR", fake_data_dir)
+    # Swap the module-level _DATA_REF traversable without reimporting the library.
+    # pathlib.Path implements the Traversable protocol so it works as a drop-in.
+    monkeypatch.setattr(datasets.loaders, "_DATA_REF", fake_data_dir)
 
     assert "sample" in available_datasets()  # type: ignore[operator]
     # available_datasets() reads from the module-level dir, which we've just patched.

@@ -462,6 +462,7 @@ class DataFrameAccessor:
             if orders_cols.issubset(set(what.columns)):
                 return self.run_orders(what, **sim_kwargs)
             if what.dtypes.eq(bool).all():
+                # exits inferred as ~entries when a bool DataFrame is passed
                 return self.run_signals(what, ~what, **sim_kwargs)
             return self.run_weights(what, **sim_kwargs)
         msg = (
@@ -552,5 +553,6 @@ class DataFrameAccessor:
         self, *, field: str = "close", method: str = "simple", dropna: bool = True
     ) -> pd.DataFrame:
         result = _bars.to_returns(self._obj, field=field, method=method, dropna=dropna)  # type: ignore[arg-type]
-        assert isinstance(result, pd.DataFrame)
+        if not isinstance(result, pd.DataFrame):
+            raise TypeError(f"Expected DataFrame, got {type(result).__name__}")
         return result

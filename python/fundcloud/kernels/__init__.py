@@ -57,7 +57,10 @@ def kernel_version() -> str:
 
 
 def _as_1d(x: np.ndarray) -> np.ndarray:
-    return np.asarray(x, dtype=float).ravel()
+    arr = np.asarray(x, dtype=float)
+    if arr.ndim != 1:
+        raise ValueError(f"_as_1d: expected 1-D array, got shape {arr.shape}")
+    return arr
 
 
 def _as_2d(x: np.ndarray) -> np.ndarray:

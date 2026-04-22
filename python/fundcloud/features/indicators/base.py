@@ -70,13 +70,13 @@ class IndicatorSpec(TransformerMixin, BaseEstimator):  # type: ignore[misc]
             assets = sorted(set(X.columns.get_level_values(-1)))
             per_asset: dict[str, pd.DataFrame] = {}
             for asset in assets:
-                sub = {f: X[(f, asset)] for f in self.inputs if (f, asset) in X.columns}
-                if not sub:
-                    msg = (
-                        f"Indicator {type(self).__name__} needs fields {self.inputs}; "
-                        f"asset {asset!r} missing"
+                missing = [f for f in self.inputs if (f, asset) not in X.columns]
+                if missing:
+                    raise KeyError(
+                        f"{type(self).__name__} requires fields {self.inputs!r}; "
+                        f"asset {asset!r} is missing: {missing}"
                     )
-                    raise KeyError(msg)
+                sub = {f: X[(f, asset)] for f in self.inputs}
                 per_asset[asset] = self._compute(sub, X.index)
             return _stack(per_asset, outputs=self.outputs)
         # Wide single-field frame: one column per asset, close-field assumed.

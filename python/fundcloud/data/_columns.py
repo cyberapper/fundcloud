@@ -68,7 +68,7 @@ def normalize_ohlcv_columns(df: pd.DataFrame) -> pd.DataFrame:
     MultiIndex layout. Returns the same frame (column relabel is in
     place); pass a copy in if the caller cares about identity.
     """
-    if df.empty:
+    if len(df.columns) == 0:
         return df
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = pd.MultiIndex.from_tuples([
@@ -86,16 +86,11 @@ def canonicalize_ohlcv_order(df: pd.DataFrame) -> pd.DataFrame:
     already appear. Works for both flat and ``(field, symbol)`` MultiIndex
     layouts. Returns the reordered frame.
     """
-    if df.empty:
+    if len(df.columns) == 0:
         return df
     if isinstance(df.columns, pd.MultiIndex):
-        symbols: list[str] = []
-        seen: set[str] = set()
-        for _, sym in df.columns:
-            if sym not in seen:
-                seen.add(sym)
-                symbols.append(sym)
-        present_fields = {field for field, _ in df.columns}
+        symbols: list[str] = list(dict.fromkeys(sym for _, sym in df.columns))
+        present_fields = list(dict.fromkeys(field for field, _ in df.columns))
         ordered_fields = [f for f in OHLCV_COLUMNS if f in present_fields]
         ordered_fields += [f for f in present_fields if f not in OHLCV_COLUMNS]
         new_cols = [

@@ -56,7 +56,7 @@ def main() -> int:
 
     # 5 purged folds with a 5-day embargo — defensible on daily data.
     cv = PurgedKFold(n_splits=5, purge=5)
-    oos_returns = pd.Series(0.0, index=returns.index)
+    oos_returns = pd.Series(np.nan, index=returns.index)
     weights_per_fold: dict[str, pd.Series] = {}
     in_sample_sharpes: list[float] = []
 
@@ -71,19 +71,19 @@ def main() -> int:
         fold_r = test.to_numpy() @ w
         oos_returns.iloc[test_idx] = fold_r
 
-    oos_returns = oos_returns.loc[oos_returns != 0.0]
+    oos_returns = oos_returns.dropna()
 
     # --- EmbargoedKFold variant: also silences the next train fold ---
     cv_emb = EmbargoedKFold(n_splits=5, purge=5, embargo=5)
-    oos_returns_emb = pd.Series(0.0, index=returns.index)
-    for fold_e, (train_idx_e, test_idx_e) in enumerate(cv_emb.split(returns), start=1):
+    oos_returns_emb = pd.Series(np.nan, index=returns.index)
+    for _fold_e, (train_idx_e, test_idx_e) in enumerate(cv_emb.split(returns), start=1):
         train_e = returns.iloc[train_idx_e]
         test_e  = returns.iloc[test_idx_e]
         est_e = MeanRisk(risk_measure=RiskMeasure.CVAR)
         est_e.fit(train_e)
         w_e = np.asarray(est_e.weights_, dtype=float)
         oos_returns_emb.iloc[test_idx_e] = test_e.to_numpy() @ w_e
-    oos_returns_emb = oos_returns_emb.loc[oos_returns_emb != 0.0]
+    oos_returns_emb = oos_returns_emb.dropna()
     portfolio_emb = Portfolio(returns=oos_returns_emb, name="walk_forward_embargoed")
 
     portfolio = Portfolio(returns=oos_returns, name="walk_forward_meanrisk")
@@ -95,7 +95,7 @@ def main() -> int:
     print(f"OOS ann. return:       {portfolio.summary()['cagr'] * 100:>5.2f}%")
     print(f"OOS max drawdown:      {portfolio.max_drawdown() * 100:>5.2f}%")
 
-    print(f"\nEmbargoedKFold comparison:")
+    print("\nEmbargoedKFold comparison:")
     print(f"  OOS Sharpe (PurgedKFold):    {portfolio.sharpe():>6.2f}")
     print(f"  OOS Sharpe (EmbargoedKFold): {portfolio_emb.sharpe():>6.2f}")
 

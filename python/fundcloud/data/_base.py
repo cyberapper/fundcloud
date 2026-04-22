@@ -148,7 +148,9 @@ class BaseBackend(ABC):
         the key, a single-frame format backend resolves to its lone entry).
         """
         df = self.read(source_key, start=start, end=end)
-        target_key = key if key is not None else self._default_key()
+        target_key = key if key is not None else (
+            source_key if source_key is not None else self._default_key()
+        )
         sink.write(target_key, df, mode=mode)
         return df
 

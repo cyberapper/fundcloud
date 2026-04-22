@@ -132,32 +132,32 @@ def _execute_one(
     cost_p2: float,
     slip_kind: int,
     slip_p1: float,
-) -> tuple[bool, float, float, float]:
+) -> tuple[bool, float, float, float, float]:
     """Try to execute a single order against the given price row.
 
     Returns ``(filled, signed_qty, fill_price, fee, slippage_bps)`` — but
-    packed as a 4-tuple because Python dataclass allocation per order
+    packed as a 5-tuple because Python dataclass allocation per order
     would dominate the loop. ``filled`` is False when the fill can't
     happen (price NaN / zero, limit violated, zero qty).
     """
     ref = float(prices_row[asset_idx])
     if not np.isfinite(ref) or ref <= 0:
-        return False, 0.0, 0.0, 0.0
+        return False, 0.0, 0.0, 0.0, 0.0
 
     qty_abs = qty_req
     if qty_abs <= 0 and notional_req > 0:
         qty_abs = notional_req / ref
     if qty_abs <= 0:
-        return False, 0.0, 0.0, 0.0
+        return False, 0.0, 0.0, 0.0, 0.0
 
     fill_price, slip_bps = _apply_slippage(ref, side, slip_kind, slip_p1)
 
     # Limit-order gating (matches Simulator._execute).
     if kind == KIND_LIMIT and np.isfinite(limit_price) and limit_price > 0:
         if side == SIDE_BUY and fill_price > limit_price:
-            return False, 0.0, 0.0, 0.0
+            return False, 0.0, 0.0, 0.0, 0.0
         if side == SIDE_SELL and fill_price < limit_price:
-            return False, 0.0, 0.0, 0.0
+            return False, 0.0, 0.0, 0.0, 0.0
 
     signed = qty_abs if side == SIDE_BUY else -qty_abs
     fee = _fee(fill_price, signed, cost_kind, cost_p1, cost_p2)
@@ -173,7 +173,7 @@ def _execute_one(
     book.qty[asset_idx] = new_qty
     book.cash -= signed * fill_price + fee
     book.last_price[asset_idx] = fill_price
-    return True, signed, fill_price, fee, slip_bps  # type: ignore[return-value]
+    return True, signed, fill_price, fee, slip_bps
 
 
 def _mark_to_market(book: _LiveBook, close_row: np.ndarray) -> tuple[float, np.ndarray]:
@@ -253,7 +253,7 @@ def _weights_to_orders_at_bar(
     return orders
 
 
-def _empty_output(n_bars: int, index_len: int) -> dict[str, Any]:
+def _empty_output(n_bars: int) -> dict[str, Any]:
     """Result scaffolding used by all three loops."""
     return {
         "equity": np.zeros(n_bars, dtype=float),
@@ -328,7 +328,7 @@ def run_weights_loop(
     """Deterministic weights-path backtest. No Python callbacks."""
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
-    out = _empty_output(n_bars, n_bars)
+    out = _empty_output(n_bars)
 
     # Bars that trigger a rebalance — exactly the ones the caller passed in
     # ``target_bar_indices``. Matches the original Python simulator, which
@@ -338,14 +338,14 @@ def run_weights_loop(
     for r in range(target_bar_indices.size):
         rebalance_at[int(target_bar_indices[r])] = target_weights[r]
 
-    # Pending orders: list[(fill_idx, asset, side, qty, notional, kind, limit_price)].
-    pending: list[tuple[int, int, int, float, float, int, float]] = []
+    # Pending orders: list[(fill_idx, asset, side, qty, notional, kind, limit_price, order_idx)].
+    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
 
     for i in range(n_bars):
         # 1. Drain pending fills scheduled for this bar.
-        remaining: list[tuple[int, int, int, float, float, int, float]] = []
+        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px = entry
+            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -366,8 +366,9 @@ def run_weights_loop(
                 cfg.slip_param1,
             )
             if ok[0]:
-                _, signed, price, fee, slip = ok  # type: ignore[misc]
+                _, signed, price, fee, slip = ok
                 _record_trade(out, i, asset, signed, price, fee, slip)
+                out["order_filled"][order_idx] = True
         pending = remaining
 
         # 2. Produce new orders only on user-specified rebalance bars.
@@ -381,7 +382,7 @@ def run_weights_loop(
                 if fill_idx < 0:
                     _record_order(out, i, asset, side, qty, 0.0, KIND_MARKET, 0.0, False)
                     continue
-                _record_order(out, i, asset, side, qty, 0.0, KIND_MARKET, 0.0, True)
+                _record_order(out, i, asset, side, qty, 0.0, KIND_MARKET, 0.0, False)
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
@@ -400,10 +401,11 @@ def run_weights_loop(
                         cfg.slip_param1,
                     )
                     if ok[0]:
-                        _, signed, price, fee, slip = ok  # type: ignore[misc]
+                        _, signed, price, fee, slip = ok
                         _record_trade(out, i, asset, signed, price, fee, slip)
+                        out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, asset, side, qty, 0.0, KIND_MARKET, 0.0))
+                    pending.append((fill_idx, asset, side, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])
@@ -438,20 +440,20 @@ def run_orders_loop(
     """Deterministic orders-path backtest."""
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
-    out = _empty_output(n_bars, n_bars)
+    out = _empty_output(n_bars)
 
     # Group orders by submission bar for O(1) per-bar lookup.
     by_bar: dict[int, list[int]] = {}
     for k in range(order_bar.shape[0]):
         by_bar.setdefault(int(order_bar[k]), []).append(k)
 
-    pending: list[tuple[int, int, int, float, float, int, float]] = []
+    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
 
     for i in range(n_bars):
         # 1. Drain pending.
-        remaining: list[tuple[int, int, int, float, float, int, float]] = []
+        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px = entry
+            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -472,8 +474,9 @@ def run_orders_loop(
                 cfg.slip_param1,
             )
             if ok[0]:
-                _, signed, price, fee, slip = ok  # type: ignore[misc]
+                _, signed, price, fee, slip = ok
                 _record_trade(out, i, asset, signed, price, fee, slip)
+                out["order_filled"][order_idx] = True
         pending = remaining
 
         # 2. Submit new orders from the explicit log.
@@ -494,7 +497,7 @@ def run_orders_loop(
             if fill_idx < 0:
                 _record_order(out, i, asset, side, qty, notional, kind, limit_px, False)
                 continue
-            _record_order(out, i, asset, side, qty, notional, kind, limit_px, True)
+            _record_order(out, i, asset, side, qty, notional, kind, limit_px, False)
             if fill_idx == i:
                 prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                 ok = _execute_one(
@@ -513,10 +516,11 @@ def run_orders_loop(
                     cfg.slip_param1,
                 )
                 if ok[0]:
-                    _, signed, price, fee, slip = ok  # type: ignore[misc]
+                    _, signed, price, fee, slip = ok
                     _record_trade(out, i, asset, signed, price, fee, slip)
+                    out["order_filled"][-1] = True
             else:
-                pending.append((fill_idx, asset, side, qty, notional, kind, limit_px))
+                pending.append((fill_idx, asset, side, qty, notional, kind, limit_px, len(out["order_filled"]) - 1))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])
@@ -548,15 +552,15 @@ def run_signals_loop(
     ``size`` fraction of current cash; ``exits`` close the position."""
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
-    out = _empty_output(n_bars, n_bars)
+    out = _empty_output(n_bars)
 
-    pending: list[tuple[int, int, int, float, float, int, float]] = []
+    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
 
     for i in range(n_bars):
         # 1. Drain pending.
-        remaining: list[tuple[int, int, int, float, float, int, float]] = []
+        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px = entry
+            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -577,8 +581,9 @@ def run_signals_loop(
                 cfg.slip_param1,
             )
             if ok[0]:
-                _, signed, price, fee, slip = ok  # type: ignore[misc]
+                _, signed, price, fee, slip = ok
                 _record_trade(out, i, asset, signed, price, fee, slip)
+                out["order_filled"][order_idx] = True
         pending = remaining
 
         # 2. Emit entry / exit orders for this bar.
@@ -596,7 +601,7 @@ def run_signals_loop(
                 if fill_idx < 0:
                     _record_order(out, i, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0, False)
                     continue
-                _record_order(out, i, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0, True)
+                _record_order(out, i, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0, False)
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
@@ -615,10 +620,11 @@ def run_signals_loop(
                         cfg.slip_param1,
                     )
                     if ok[0]:
-                        _, signed, price, fee, slip = ok  # type: ignore[misc]
+                        _, signed, price, fee, slip = ok
                         _record_trade(out, i, j, signed, price, fee, slip)
+                        out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0))
+                    pending.append((fill_idx, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
         # Exits: flatten any held position.
         for j in range(n_assets):
             if exits[i, j] and book.qty[j] > 0:
@@ -626,7 +632,7 @@ def run_signals_loop(
                 if fill_idx < 0:
                     _record_order(out, i, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0, False)
                     continue
-                _record_order(out, i, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0, True)
+                _record_order(out, i, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0, False)
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
@@ -645,10 +651,11 @@ def run_signals_loop(
                         cfg.slip_param1,
                     )
                     if ok[0]:
-                        _, signed, price, fee, slip = ok  # type: ignore[misc]
+                        _, signed, price, fee, slip = ok
                         _record_trade(out, i, j, signed, price, fee, slip)
+                        out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0))
+                    pending.append((fill_idx, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])

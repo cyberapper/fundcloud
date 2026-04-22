@@ -34,6 +34,7 @@ _HIGH_KURTOSIS = 7.0
 _QUASI_CONST_PCT = 95.0
 _KS_CRITICAL = 0.2
 _MEAN_SHIFT_SIGMA = 1.0
+_TARGET_CORR_SHIFT = 0.2
 
 
 def profile_alerts(stats: pd.DataFrame, corr: pd.DataFrame | None) -> list[Alert]:
@@ -173,7 +174,7 @@ def compare_alerts(
                     )
     if target_shifts:
         for col, delta in target_shifts.items():
-            if pd.notna(delta) and abs(delta) > 0.2:
+            if pd.notna(delta) and abs(delta) > _TARGET_CORR_SHIFT:
                 alerts.append(
                     Alert(
                         "warning",

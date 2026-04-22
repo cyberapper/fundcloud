@@ -60,8 +60,9 @@ def _table_name(key: str) -> str:
 
 
 def _key_from_table(name: str) -> str:
-    key = name.removeprefix("t_")
-    return key.replace("__", "/")
+    if name.startswith("t_") and len(name) > 2 and name[2].isdigit():
+        name = name[2:]
+    return name.replace("__", "/")
 
 
 class DuckDB(BaseBackend):

@@ -23,3 +23,20 @@ repos:
       - id: fmt
       - id: clippy
         args: ["--workspace", "--", "-D", "warnings"]
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        language: system
+        entry: uv run mypy
+        args: [python/fundcloud]
+        pass_filenames: false
+        types: [python]
+      - id: cargo-test
+        name: cargo test
+        language: system
+        entry: cargo
+        args: [test, --workspace, --no-fail-fast]
+        pass_filenames: false
+        stages: [manual]

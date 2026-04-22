@@ -20,6 +20,7 @@ Examples
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -96,7 +97,7 @@ class ProfileReport:
             alert_html = (
                 "<ul style='margin-top:12px;'>"
                 + "".join(
-                    f"<li><strong>{a.severity}</strong> · {a.code}: {a.message}</li>"
+                    f"<li><strong>{html.escape(a.severity)}</strong> · {html.escape(a.code)}: {html.escape(a.message)}</li>"
                     for a in self.alerts[:10]
                 )
                 + "</ul>"
