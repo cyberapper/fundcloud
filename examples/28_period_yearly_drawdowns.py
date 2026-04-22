@@ -22,7 +22,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from fundcloud.portfolio import Portfolio
 from fundcloud.reports import Tearsheet
 

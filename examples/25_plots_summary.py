@@ -41,7 +41,11 @@ def _synthetic() -> tuple[pd.DataFrame, pd.DataFrame]:
     # Drifting equity allocation: between 50% and 75% stocks.
     rng = np.random.default_rng(17)
     n = len(returns)
-    stocks_w = 0.6 + 0.05 * np.sin(np.linspace(0, 6.0, n)) + 0.02 * rng.standard_normal(n).cumsum() / np.sqrt(n)
+    stocks_w = (
+        0.6
+        + 0.05 * np.sin(np.linspace(0, 6.0, n))
+        + 0.02 * rng.standard_normal(n).cumsum() / np.sqrt(n)
+    )
     stocks_w = np.clip(stocks_w, 0.5, 0.75)
     weights = pd.DataFrame(
         {"STOCKS": stocks_w, "BONDS": 1.0 - stocks_w},
@@ -60,7 +64,9 @@ def main() -> None:
     simple.write_html(simple_path)
 
     # 2. Multi-asset summary with composition row
-    strategy_returns = (returns * weights.shift(1).fillna(weights.iloc[0])).sum(axis=1).rename("60/40 blend")
+    strategy_returns = (
+        (returns * weights.shift(1).fillna(weights.iloc[0])).sum(axis=1).rename("60/40 blend")
+    )
     combined = pd.concat([strategy_returns, returns["STOCKS"].rename("pure stocks")], axis=1)
     full = plots.summary(
         combined,

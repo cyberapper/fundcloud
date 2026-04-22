@@ -76,7 +76,13 @@ class YF(BaseBackend):
         end: pd.Timestamp | str | None = None,
         columns: Sequence[str] | None = None,
     ) -> pd.DataFrame:
-        start = interval_aware_default_start(self.interval, pd.Timestamp(end) if end is not None else None) if start is None else start
+        start = (
+            interval_aware_default_start(
+                self.interval, pd.Timestamp(end) if end is not None else None
+            )
+            if start is None
+            else start
+        )
         yf = _require_yfinance()
         yf_interval = _YF_INTERVAL_MAP[self.interval]
         df = yf.download(

@@ -78,7 +78,7 @@ def main() -> int:
     oos_returns_emb = pd.Series(np.nan, index=returns.index)
     for _fold_e, (train_idx_e, test_idx_e) in enumerate(cv_emb.split(returns), start=1):
         train_e = returns.iloc[train_idx_e]
-        test_e  = returns.iloc[test_idx_e]
+        test_e = returns.iloc[test_idx_e]
         est_e = MeanRisk(risk_measure=RiskMeasure.CVAR)
         est_e.fit(train_e)
         w_e = np.asarray(est_e.weights_, dtype=float)

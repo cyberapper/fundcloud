@@ -26,7 +26,6 @@ from pathlib import Path
 
 import numpy as np
 from _data import pull_closes
-
 from fundcloud.portfolio import Population
 
 HERE = Path(__file__).parent

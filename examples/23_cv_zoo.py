@@ -30,7 +30,6 @@ from pathlib import Path
 
 import numpy as np
 from _data import pull_closes
-
 from fundcloud.validate import EmbargoedKFold, PurgedKFold
 
 HERE = Path(__file__).parent
@@ -82,17 +81,14 @@ def main() -> int:
         return 1
     returns = closes["SPY"].pct_change().dropna()
     n = len(returns)
-    print(f"Sample size:  {n} trading days "
-          f"({returns.index[0].date()} → {returns.index[-1].date()})\n")
+    print(
+        f"Sample size:  {n} trading days ({returns.index[0].date()} → {returns.index[-1].date()})\n"
+    )
 
     splitters: dict[str, object] = {
         "PurgedKFold(k=5, purge=5)": PurgedKFold(n_splits=5, purge=5),
-        "EmbargoedKFold(k=5, purge=5, embargo=3)": EmbargoedKFold(
-            n_splits=5, purge=5, embargo=3
-        ),
-        "WalkForward(train=252, test=21)": WalkForward(
-            train_size=252, test_size=21, purged_size=1
-        ),
+        "EmbargoedKFold(k=5, purge=5, embargo=3)": EmbargoedKFold(n_splits=5, purge=5, embargo=3),
+        "WalkForward(train=252, test=21)": WalkForward(train_size=252, test_size=21, purged_size=1),
         "CombinatorialPurgedCV(10, m=8, purge=5)": CombinatorialPurgedCV(
             n_folds=10, n_test_folds=8, purged_size=5
         ),
@@ -126,9 +122,7 @@ def main() -> int:
             if tr_arr.size == 0 or te_arr.size == 0:
                 continue
             mu = float(y[tr_arr].mean())
-            errs.append(
-                mean_squared_error(y[te_arr], np.full(te_arr.size, mu))
-            )
+            errs.append(mean_squared_error(y[te_arr], np.full(te_arr.size, mu)))
         mse = np.array(errs)
         if len(mse) == 0:
             print(f"  {label:<45}  no folds produced")

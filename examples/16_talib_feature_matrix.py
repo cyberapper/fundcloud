@@ -27,8 +27,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from _data import pull_closes
-
 HERE = Path(__file__).parent
 OUT = HERE / "out"
 OUT.mkdir(exist_ok=True)
@@ -45,14 +43,13 @@ def _pull_ohlcv() -> pd.DataFrame | None:
     try:
         from fundcloud.data import YF
     except ImportError:
-        print("This example needs yfinance — `uv add 'fundcloud[data-yf]'`",
-              file=sys.stderr)
+        print("This example needs yfinance — `uv add 'fundcloud[data-yf]'`", file=sys.stderr)
         return None
     end = pd.Timestamp.today().normalize()
     start = end - pd.DateOffset(years=2)
     try:
         return YF(symbols=["SPY", "QQQ"], interval="1d").read(start=start, end=end)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"yfinance request failed: {e}", file=sys.stderr)
         return None
 
@@ -69,8 +66,7 @@ def catalog_overview() -> None:
         return
 
     total = len(list_indicators())
-    print(f"Fundcloud auto-generated {total} TA-Lib indicators across "
-          f"{len(GROUPS)} groups:\n")
+    print(f"Fundcloud auto-generated {total} TA-Lib indicators across {len(GROUPS)} groups:\n")
     for group, names in GROUPS.items():
         sample = ", ".join(names[:5]) + (" …" if len(names) > 5 else "")
         print(f"  {group:<22} {len(names):>3}  ({sample})")
@@ -89,20 +85,18 @@ def curated_pipeline(bars: pd.DataFrame) -> pd.DataFrame | None:
         return None
 
     pipe = FeaturePipeline([
-        ("sma_50",    SMA(timeperiod=50)),
-        ("ema_20",    EMA(timeperiod=20)),
-        ("rsi_14",    RSI(timeperiod=14)),
-        ("macd",      MACD()),                    # multi-output (macd/signal/hist)
-        ("bbands_20", BBANDS(timeperiod=20)),     # multi-output (upper/mid/lower)
-        ("atr_14",    ATR(timeperiod=14)),
+        ("sma_50", SMA(timeperiod=50)),
+        ("ema_20", EMA(timeperiod=20)),
+        ("rsi_14", RSI(timeperiod=14)),
+        ("macd", MACD()),  # multi-output (macd/signal/hist)
+        ("bbands_20", BBANDS(timeperiod=20)),  # multi-output (upper/mid/lower)
+        ("atr_14", ATR(timeperiod=14)),
     ])
     out = pipe.fit_transform(bars)
     print(f"Pipeline output: {out.shape[0]} rows × {out.shape[1]} columns")
-    print(f"Stable from:      {out.dropna().index[0].date()}  "
-          f"(after 50-bar SMA warm-up)")
+    print(f"Stable from:      {out.dropna().index[0].date()}  (after 50-bar SMA warm-up)")
     print(f"Column sample:    {list(out.columns[:6])} …")
-    print(f"Pipeline hash:    {pipe.pipeline_hash}   "
-          f"(use it as a cache key)")
+    print(f"Pipeline hash:    {pipe.pipeline_hash}   (use it as a cache key)")
     return out
 
 
@@ -128,9 +122,9 @@ def full_feature_matrix(bars: pd.DataFrame) -> pd.DataFrame | None:
         for name in names:
             cls = getattr(ind, name)
             try:
-                inst = cls()                  # use default params
+                inst = cls()  # use default params
                 out = inst.fit_transform(bars)
-            except Exception as e:            # noqa: BLE001
+            except Exception as e:
                 failures[name] = type(e).__name__
                 continue
             if out is None or out.empty:
@@ -172,8 +166,9 @@ def full_feature_matrix(bars: pd.DataFrame) -> pd.DataFrame | None:
     return matrix
 
 
-def _group_success_rates(ok_names: list[str], failed_names: list[str],
-                         groups: dict[str, list[str]]) -> dict[str, tuple[int, int]]:
+def _group_success_rates(
+    ok_names: list[str], failed_names: list[str], groups: dict[str, list[str]]
+) -> dict[str, tuple[int, int]]:
     ok = set(ok_names)
     tried = set(ok_names) | set(failed_names)
     out: dict[str, tuple[int, int]] = {}
@@ -190,7 +185,7 @@ def _group_success_rates(ok_names: list[str], failed_names: list[str],
 def preview_and_save(matrix: pd.DataFrame) -> None:
     _section("4. Preview + save for downstream use")
     # Non-null percentage per indicator — identifies long-warm-up indicators.
-    non_null_pct = (matrix.notna().sum() / len(matrix))
+    non_null_pct = matrix.notna().sum() / len(matrix)
     long_warmup = non_null_pct[non_null_pct < 0.5].sort_values().head(6)
     if len(long_warmup):
         print("Indicators with < 50% non-null (long warm-up or stability issues):")
@@ -220,16 +215,20 @@ def preview_and_save(matrix: pd.DataFrame) -> None:
     # Parquet is the right format for a wide feature matrix.
     path = OUT / "16_feature_matrix.parquet"
     matrix.to_parquet(path)
-    print(f"\nSaved full matrix to: {path.relative_to(HERE.parent)}  "
-          f"({path.stat().st_size / 1e6:.1f} MB on disk)")
+    print(
+        f"\nSaved full matrix to: {path.relative_to(HERE.parent)}  "
+        f"({path.stat().st_size / 1e6:.1f} MB on disk)"
+    )
 
 
 def main() -> int:
     bars = _pull_ohlcv()
     if bars is None or bars.empty:
         return 1
-    print(f"Live data:  {bars.index[0].date()} → {bars.index[-1].date()}  "
-          f"({len(bars)} bars × {len(bars.columns.get_level_values(-1).unique())} assets)")
+    print(
+        f"Live data:  {bars.index[0].date()} → {bars.index[-1].date()}  "
+        f"({len(bars)} bars × {len(bars.columns.get_level_values(-1).unique())} assets)"
+    )
 
     catalog_overview()
     curated_pipeline(bars)

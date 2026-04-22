@@ -28,7 +28,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from _data import pull_closes
-
 from fundcloud.explore import compare, describe, profile
 
 HERE = Path(__file__).parent
@@ -54,8 +53,9 @@ def main() -> int:
     split = returns.index[int(len(returns) * 0.7)]
     train = returns.loc[:split]
     holdout = returns.loc[split:]
-    print(f"Full panel:   {returns.shape}  "
-          f"({returns.index[0].date()} → {returns.index[-1].date()})")
+    print(
+        f"Full panel:   {returns.shape}  ({returns.index[0].date()} → {returns.index[-1].date()})"
+    )
     print(f"Train:        {train.shape}  (up to {split.date()})")
     print(f"Holdout:      {holdout.shape}  (from {split.date()})")
 
@@ -75,8 +75,10 @@ def main() -> int:
     print(f"\nprofile returned: {type(report).__name__}")
     print(f"  .alerts:         {len(report.alerts)}")
     print(f"  .stats shape:    {report.stats.shape}")
-    print(f"  HTML written:    {profile_path.relative_to(HERE.parent)}  "
-          f"({profile_path.stat().st_size / 1024:.1f} KB)")
+    print(
+        f"  HTML written:    {profile_path.relative_to(HERE.parent)}  "
+        f"({profile_path.stat().st_size / 1024:.1f} KB)"
+    )
 
     # ----------------------- compare: train vs holdout drift ----------------
     compare_path = OUT / "22_compare.html"
@@ -87,8 +89,10 @@ def main() -> int:
         names=("train", "holdout"),
         title="Train vs holdout drift",
     )
-    print(f"compare HTML:   {compare_path.relative_to(HERE.parent)}  "
-          f"({compare_path.stat().st_size / 1024:.1f} KB)")
+    print(
+        f"compare HTML:   {compare_path.relative_to(HERE.parent)}  "
+        f"({compare_path.stat().st_size / 1024:.1f} KB)"
+    )
 
     # ----------------------- compare with target ----------------------------
     # Use US_EQ as a synthetic "target"; the rest of the columns are features.
@@ -101,8 +105,10 @@ def main() -> int:
         target="US_EQ",
         title="Train vs holdout — feature correlations against US_EQ",
     )
-    print(f"compare+target: {compare_target_path.relative_to(HERE.parent)}  "
-          f"({compare_target_path.stat().st_size / 1024:.1f} KB)")
+    print(
+        f"compare+target: {compare_target_path.relative_to(HERE.parent)}  "
+        f"({compare_target_path.stat().st_size / 1024:.1f} KB)"
+    )
 
     print("\nHow to read it:")
     print("  * describe() answers 'what dtypes, how many missing, what's the")

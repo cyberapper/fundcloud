@@ -24,7 +24,6 @@ from pathlib import Path
 
 import pandas as pd
 from _synth import AssetProfile, generate_ohlcv
-
 from fundcloud.sim import (
     FixedBps,
     HalfSpread,
@@ -112,12 +111,13 @@ def main() -> int:
         rows.append({"config": label, **stats})
 
     df = pd.DataFrame(rows).set_index("config")
-    df["drag_vs_free"] = df.loc["NoCost · NoSlippage · NextBarOpen", "end_equity"] - df["end_equity"]
+    df["drag_vs_free"] = (
+        df.loc["NoCost · NoSlippage · NextBarOpen", "end_equity"] - df["end_equity"]
+    )
     df["drag_bps"] = df["drag_vs_free"] / df["invested"] * 10_000
     print("\nCost-lab results (same DCA, different friction):\n")
     print(
-        df[["end_equity", "fees", "trades", "drag_vs_free", "drag_bps"]]
-        .to_string(
+        df[["end_equity", "fees", "trades", "drag_vs_free", "drag_bps"]].to_string(
             float_format=lambda v: f"{v:>11,.2f}",
         )
     )

@@ -22,10 +22,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import fundcloud as fc
 import numpy as np
 import pandas as pd
-
-import fundcloud as fc
 from fundcloud.portfolio import Portfolio
 from fundcloud.reports import Tearsheet
 
@@ -53,7 +52,16 @@ def main() -> None:
     # call can take a column name when ``strategy`` sits inside a wide
     # DataFrame — see the multi-asset block at the end.
     m = strategy.fc.metrics(benchmark=benchmark)
-    rows = ["cagr", "sharpe", "alpha", "beta", "correlation", "information_ratio", "up_capture", "down_capture"]
+    rows = [
+        "cagr",
+        "sharpe",
+        "alpha",
+        "beta",
+        "correlation",
+        "information_ratio",
+        "up_capture",
+        "down_capture",
+    ]
     print("Key benchmark metrics:")
     for key in rows:
         if key in m.index:
@@ -61,9 +69,7 @@ def main() -> None:
             print(f"  {key:>18}:  {val:.4f}")
 
     # 2. plots.summary — rolling alpha/beta rows appear because benchmark is set.
-    fig = fc.plots.summary(
-        strategy, benchmark=benchmark, title="Strategy vs SPY — synthetic demo"
-    )
+    fig = fc.plots.summary(strategy, benchmark=benchmark, title="Strategy vs SPY — synthetic demo")
     summary_path = OUT / "27_summary.html"
     fig.write_html(summary_path)
 
@@ -78,8 +84,12 @@ def main() -> None:
     xlsx_path = ts.render_excel(OUT / "27_tearsheet.xlsx")
 
     print()
-    print(f"Wrote {summary_path.relative_to(HERE.parent)}  (summary figure, 7 panels incl. rolling α/β)")
-    print(f"Wrote {html_path.relative_to(HERE.parent)}  (HTML tear sheet + benchmark sidebar section)")
+    print(
+        f"Wrote {summary_path.relative_to(HERE.parent)}  (summary figure, 7 panels incl. rolling α/β)"
+    )
+    print(
+        f"Wrote {html_path.relative_to(HERE.parent)}  (HTML tear sheet + benchmark sidebar section)"
+    )
     print(f"Wrote {pdf_path.relative_to(HERE.parent)}  (A4 portrait, with rolling α/β page)")
     print(f"Wrote {xlsx_path.relative_to(HERE.parent)}  (adds a Benchmark sheet)")
 

@@ -30,7 +30,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from fundcloud.data import (
     CSV,
     Catalog,
@@ -64,16 +63,14 @@ def _synthetic_csvs(dir_path: Path, symbols: list[str], n_bars: int = 504) -> No
     for i, sym in enumerate(symbols):
         rets = rng.normal(0.0003, 0.012, size=n_bars)
         close = 100.0 * np.exp(np.cumsum(rets)) * (1 + i * 0.1)
-        df = pd.DataFrame(
-            {
-                "date": idx,
-                "open": close * (1 + rng.normal(0, 0.001, n_bars)),
-                "high": close * (1 + np.abs(rng.normal(0.002, 0.001, n_bars))),
-                "low": close * (1 - np.abs(rng.normal(0.002, 0.001, n_bars))),
-                "close": close,
-                "volume": rng.integers(1_000_000, 10_000_000, n_bars).astype(float),
-            }
-        )
+        df = pd.DataFrame({
+            "date": idx,
+            "open": close * (1 + rng.normal(0, 0.001, n_bars)),
+            "high": close * (1 + np.abs(rng.normal(0.002, 0.001, n_bars))),
+            "low": close * (1 - np.abs(rng.normal(0.002, 0.001, n_bars))),
+            "close": close,
+            "volume": rng.integers(1_000_000, 10_000_000, n_bars).astype(float),
+        })
         df.to_csv(dir_path / f"{sym}.csv", index=False)
 
 
@@ -111,10 +108,14 @@ def persist_to_stores(bars: pd.DataFrame) -> tuple[Parquet, DuckDB]:
     with DuckDB(duckdb_path) as duck:
         duck.write("equity/us/spy_daily", spy_flat)
 
-    print(f"Parquet:   {parquet_dir.relative_to(HERE.parent)} "
-          f"({sum(p.stat().st_size for p in parquet_dir.rglob('*.parquet')) / 1024:.1f} KB)")
-    print(f"DuckDB:    {duckdb_path.relative_to(HERE.parent)} "
-          f"({duckdb_path.stat().st_size / 1024:.1f} KB)")
+    print(
+        f"Parquet:   {parquet_dir.relative_to(HERE.parent)} "
+        f"({sum(p.stat().st_size for p in parquet_dir.rglob('*.parquet')) / 1024:.1f} KB)"
+    )
+    print(
+        f"DuckDB:    {duckdb_path.relative_to(HERE.parent)} "
+        f"({duckdb_path.stat().st_size / 1024:.1f} KB)"
+    )
 
     # Round-trip read demonstrates the keyed read API works the same on both.
     via_parquet = parquet.read("equity/us/daily")
@@ -175,14 +176,12 @@ def catalog_workflow(parquet: Parquet, csv_dir: Path) -> pd.DataFrame:
     )
     cat.register(
         "synthetic-inline",
-        Memory(
-            {
-                "default": pd.DataFrame(
-                    {"close": np.linspace(100, 110, 5)},
-                    index=pd.date_range("2024-01-02", periods=5),
-                ),
-            }
-        ),
+        Memory({
+            "default": pd.DataFrame(
+                {"close": np.linspace(100, 110, 5)},
+                index=pd.date_range("2024-01-02", periods=5),
+            ),
+        }),
         store_key="misc/inline",
     )
     bars = cat.load("equity-us-daily")

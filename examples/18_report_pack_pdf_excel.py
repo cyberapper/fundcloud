@@ -27,7 +27,6 @@ from pathlib import Path
 
 import pandas as pd
 from _data import pull_closes
-
 from fundcloud.portfolio import Portfolio
 from fundcloud.reports import Tearsheet
 
@@ -50,9 +49,7 @@ def main() -> int:
 
     # Strategy returns = 60/40 rebalance-every-day stand-in.
     strategy = (returns * weights_now).sum(axis=1).rename("60_40")
-    portfolio = Portfolio(
-        returns=strategy, weights=weights_now, benchmark=benchmark, name="60_40"
-    )
+    portfolio = Portfolio(returns=strategy, weights=weights_now, benchmark=benchmark, name="60_40")
 
     tear = Tearsheet(portfolio, benchmark=benchmark, title="60/40 tear sheet — Q1 review")
 
@@ -61,13 +58,17 @@ def main() -> int:
     xlsx_path = OUT / "18_report.xlsx"
 
     tear.render_html(html_path)
-    print(f"HTML:   {html_path.relative_to(HERE.parent)}  "
-          f"({html_path.stat().st_size / 1024:.1f} KB, plotly inline)")
+    print(
+        f"HTML:   {html_path.relative_to(HERE.parent)}  "
+        f"({html_path.stat().st_size / 1024:.1f} KB, plotly inline)"
+    )
 
     try:
         tear.render_pdf(pdf_path)
-        print(f"PDF:    {pdf_path.relative_to(HERE.parent)}  "
-              f"({pdf_path.stat().st_size / 1024:.1f} KB, matplotlib PdfPages)")
+        print(
+            f"PDF:    {pdf_path.relative_to(HERE.parent)}  "
+            f"({pdf_path.stat().st_size / 1024:.1f} KB, matplotlib PdfPages)"
+        )
     except ImportError as e:
         print(f"PDF:    skipped — {e}")
         print("        (need `uv add 'fundcloud[viz]'`)")
@@ -77,15 +78,19 @@ def main() -> int:
     weasy_path = OUT / "18_report_weasyprint.pdf"
     try:
         tear.render_pdf(weasy_path, engine="weasyprint")
-        print(f"PDF*:   {weasy_path.relative_to(HERE.parent)}  "
-              f"({weasy_path.stat().st_size / 1024:.1f} KB, WeasyPrint — opt-in)")
+        print(
+            f"PDF*:   {weasy_path.relative_to(HERE.parent)}  "
+            f"({weasy_path.stat().st_size / 1024:.1f} KB, WeasyPrint — opt-in)"
+        )
     except ImportError as e:
         print(f"PDF*:   WeasyPrint engine unavailable (optional) — {type(e).__name__}")
 
     try:
         tear.render_excel(xlsx_path)
-        print(f"Excel:  {xlsx_path.relative_to(HERE.parent)}  "
-              f"({xlsx_path.stat().st_size / 1024:.1f} KB, XlsxWriter with native charts)")
+        print(
+            f"Excel:  {xlsx_path.relative_to(HERE.parent)}  "
+            f"({xlsx_path.stat().st_size / 1024:.1f} KB, XlsxWriter with native charts)"
+        )
     except ImportError as e:
         print(f"Excel:  skipped — {e}")
         print("        (need `uv add 'fundcloud[reports]'`)")

@@ -62,9 +62,7 @@ def main() -> int:
     )
 
     # --------------------------------------------------------------- metrics
-    print(
-        f"{'Horizon':<10}{'n_obs':>8}{'cagr':>12}{'ann_vol':>10}{'sharpe':>10}{'max_dd':>10}"
-    )
+    print(f"{'Horizon':<10}{'n_obs':>8}{'cagr':>12}{'ann_vol':>10}{'sharpe':>10}{'max_dd':>10}")
     print("-" * 60)
     for name, rule, ppy in HORIZONS:
         if rule == "1D":

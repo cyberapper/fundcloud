@@ -28,7 +28,6 @@ from pathlib import Path
 
 import pandas as pd
 from _data import pull_closes
-
 from fundcloud.features.indicators import IndicatorSpec, register_indicator
 from fundcloud.sim import FixedBps, Simulator
 
@@ -121,8 +120,7 @@ def main() -> int:
         bars[("close", sym)] = c
         bars[("volume", sym)] = 1_000_000.0
     bars.columns = pd.MultiIndex.from_tuples(bars.columns)
-    print(f"Live data: {idx[0].date()} → {idx[-1].date()}  "
-          f"({len(idx)} bars, {len(assets)} assets)")
+    print(f"Live data: {idx[0].date()} → {idx[-1].date()}  ({len(idx)} bars, {len(assets)} assets)")
 
     # ----------------------- Run 1: signals-driven backtest ------------------
     print("\n--- Run 1 · run_signals (mean-reversion z-score) ---")
@@ -141,8 +139,7 @@ def main() -> int:
     orders_log = _build_orders_log(bars)
     orders_path = OUT / "20_orders_log.csv"
     orders_log.to_csv(orders_path, index=False)
-    print(f"Orders log:         {orders_path.relative_to(HERE.parent)}  "
-          f"({len(orders_log)} rows)")
+    print(f"Orders log:         {orders_path.relative_to(HERE.parent)}  ({len(orders_log)} rows)")
     sim2 = Simulator(bars, cash=1_000_000.0, costs=FixedBps(3))
     ord_result = sim2.run_orders(orders_log)
     print(f"Trades executed:    {len(ord_result.trades)}")

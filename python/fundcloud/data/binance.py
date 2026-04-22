@@ -65,7 +65,13 @@ class Binance(BaseBackend):
         end: pd.Timestamp | str | None = None,
         columns: Sequence[str] | None = None,
     ) -> pd.DataFrame:
-        start = interval_aware_default_start(self.interval, pd.Timestamp(end) if end is not None else None) if start is None else start
+        start = (
+            interval_aware_default_start(
+                self.interval, pd.Timestamp(end) if end is not None else None
+            )
+            if start is None
+            else start
+        )
         ex = self._exchange()
         tf = _CCXT_INTERVAL_MAP[self.interval]
         since_ms = int(pd.Timestamp(start).timestamp() * 1000) if start is not None else None

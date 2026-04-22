@@ -30,7 +30,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from _data import pull_closes
-
 from fundcloud import kernels
 from fundcloud.metrics import omega, ulcer_index, value_at_risk
 from fundcloud.portfolio import Portfolio
@@ -85,8 +84,10 @@ def main() -> int:
     contrib = p.contribution() * 252.0 * 10_000
     for asset in contrib.index:
         print(f"  {asset:<12} {contrib[asset]:>8.1f} bps")
-    print(f"\nTurnover:           {p.turnover() * 100:.3f}% per rebalance  "
-          f"(0 because weights are constant)")
+    print(
+        f"\nTurnover:           {p.turnover() * 100:.3f}% per rebalance  "
+        f"(0 because weights are constant)"
+    )
 
     # Round-trip back: Portfolio.to_skfolio works when the Fundcloud Portfolio
     # was built from a single-asset returns Series (the mirror of what
@@ -108,9 +109,9 @@ def main() -> int:
     rng = np.random.default_rng(1)
     n_strats = 200
     raw = np.abs(rng.normal(size=(n_strats, returns.shape[1])))
-    norm = raw / raw.sum(axis=1, keepdims=True)           # weights: strat x asset
-    panel_r = returns.to_numpy(dtype=float)               # days x asset
-    portfolio_r = panel_r @ norm.T                        # days x strat
+    norm = raw / raw.sum(axis=1, keepdims=True)  # weights: strat x asset
+    panel_r = returns.to_numpy(dtype=float)  # days x asset
+    portfolio_r = panel_r @ norm.T  # days x strat
     portfolio_r = np.ascontiguousarray(portfolio_r)
 
     t0 = time.perf_counter()

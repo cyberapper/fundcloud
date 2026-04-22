@@ -405,7 +405,16 @@ def run_weights_loop(
                         _record_trade(out, i, asset, signed, price, fee, slip)
                         out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, asset, side, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
+                    pending.append((
+                        fill_idx,
+                        asset,
+                        side,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
+                        len(out["order_filled"]) - 1,
+                    ))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])
@@ -520,7 +529,16 @@ def run_orders_loop(
                     _record_trade(out, i, asset, signed, price, fee, slip)
                     out["order_filled"][-1] = True
             else:
-                pending.append((fill_idx, asset, side, qty, notional, kind, limit_px, len(out["order_filled"]) - 1))
+                pending.append((
+                    fill_idx,
+                    asset,
+                    side,
+                    qty,
+                    notional,
+                    kind,
+                    limit_px,
+                    len(out["order_filled"]) - 1,
+                ))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])
@@ -624,7 +642,16 @@ def run_signals_loop(
                         _record_trade(out, i, j, signed, price, fee, slip)
                         out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
+                    pending.append((
+                        fill_idx,
+                        j,
+                        SIDE_BUY,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
+                        len(out["order_filled"]) - 1,
+                    ))
         # Exits: flatten any held position.
         for j in range(n_assets):
             if exits[i, j] and book.qty[j] > 0:
@@ -655,7 +682,16 @@ def run_signals_loop(
                         _record_trade(out, i, j, signed, price, fee, slip)
                         out["order_filled"][-1] = True
                 else:
-                    pending.append((fill_idx, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0, len(out["order_filled"]) - 1))
+                    pending.append((
+                        fill_idx,
+                        j,
+                        SIDE_SELL,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
+                        len(out["order_filled"]) - 1,
+                    ))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])

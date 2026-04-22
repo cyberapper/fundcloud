@@ -209,8 +209,10 @@ def accessor_reports_eda_and_plots(df: pd.DataFrame) -> None:
     # 7c — Tear-sheet render from the DataFrame directly
     out = OUT / "10_accessor_tearsheet.html"
     df.fc.render_html(out, title="DataFrame → Tearsheet via .fc.render_html")
-    print(f"\n  df.fc.render_html(...) -> {out.relative_to(HERE.parent)}  "
-          f"({out.stat().st_size / 1024:.0f} KB)")
+    print(
+        f"\n  df.fc.render_html(...) -> {out.relative_to(HERE.parent)}  "
+        f"({out.stat().st_size / 1024:.0f} KB)"
+    )
 
     # 7d — Plots return plotly figures (render inline in Jupyter)
     cumulative_fig = df.fc.plot_cumulative(title="Three strategies (via accessor)")
