@@ -1,0 +1,75 @@
+feat: initial public release — fundcloud v0.1.0
+
+Portfolio research framework: data → strategy → simulation → optimisation
+→ reporting, end-to-end, under a single vocabulary.
+
+## Core
+
+- `.fc` pandas accessor (Series + DataFrame) wiring every metric, plot, and
+  report builder to one-liner notebook calls
+- `Portfolio` with ~55 analytics: Sharpe/Sortino/Calmar/Omega, CVaR, VaR,
+  Ulcer Index, max drawdown, drawdown episodes, runup episodes, period
+  returns (MTD→All-time), yearly returns, trade statistics, Kelly criterion,
+  probabilistic Sharpe, smart Sharpe, rolling alpha/beta
+- `Population` for multi-strategy comparison
+- `Simulator` with four entry points: `run_strategy`, `run_weights`,
+  `run_signals`, `run_orders`; cost models (NoCost/FixedBps/PerShare),
+  slippage (NoSlippage/HalfSpread), execution (NextBarOpen/SameBarClose)
+- `Hold` (with `RebalanceSpec`) and `DCA` presets; `BaseStrategy` for bespoke
+  strategies; `@register_strategy` extension hook
+- `Tearsheet`: self-contained HTML (Plotly), matplotlib PDF, XlsxWriter Excel
+  — all three include period-return table, yearly-return bar chart, worst-10
+  drawdowns, and top-10 runups
+
+## Data layer
+
+- `Backend` protocol; read-write backends: `Parquet`, `DuckDB`, `Memory`;
+  read-only: `CSV`, `YF`, `FMP`, `AV`, `Binance`
+- `Catalog` for named datasets with incremental `upsert` refresh
+- Canonical lowercase OHLCV column names; adjusted prices by default on
+  network backends; 1-year default window on bare `.read()` calls
+- `WriteMode` literal: `'overwrite'` / `'upsert'` / `'append'` / `'error'`
+
+## Optimisation (fundcloud[pf])
+
+- Pure-Python fallback optimisers always in core: `EqualWeighted`,
+  `InverseVolatility`, `MVO`
+- skfolio adapters: `MeanRisk`, `RiskBudgeting`, `HierarchicalRiskParity`,
+  `HERC`, `MaximumDiversification`, `NestedClustersOptimization`
+- `from_skfolio` / `to_skfolio` round-trip on `Portfolio`
+
+## Features & validation
+
+- 158 TA-Lib wrappers across 10 groups (fundcloud[ta])
+- `FeaturePipeline` (sklearn FeatureUnion-style) + `FeatureStore`
+- `PurgedKFold`, `EmbargoedKFold`; lazy re-exports of skfolio's
+  `CombinatorialPurgedCV` and `WalkForward`
+
+## Plots
+
+- Plotly + matplotlib builders: `cumulative`, `drawdown`, `rolling_sharpe`,
+  `monthly_heatmap`, `return_distribution`, `composition`, `yearly_returns_bars`
+- Multi-asset DataFrame support on all Series-accepting builders
+- On-figure annotations via `annotations=True`
+- Theme system: `plots.set_theme("white"|"dark"|"ggplot2"|"seaborn"|"default")`
+- `plots.summary()` / `plots.mpl.summary()` composed multi-panel figures
+
+## Rust kernel (fundcloud-core)
+
+- Rolling mean/std, drawdown, Sharpe, Sortino, VaR, CVaR — Rayon-parallelised,
+  GIL-released via `py.allow_threads`
+- Simulator kernel: `run_weights` / `run_orders` / `run_signals` fast path
+  (6.2× speedup at 10 000 bars × 30 assets vs NumPy fallback)
+- Parity tests: Rust ↔ NumPy-fallback agree to `atol=1e-10` across all
+  (cost × slippage × execution) combinations
+- `HAS_RUST` flag; pure-Python fallback everywhere the wheel is unavailable
+
+## Release infrastructure
+
+- Tag-triggered release pipeline: maturin → abi3 wheels (5 platforms) →
+  TestPyPI smoke-test → PyPI, both gated by GitHub environment protection
+- `release-please-action@v4` for auto-semver from Conventional Commits
+  (updates pyproject.toml + Cargo.toml workspace version)
+- Versioned MkDocs deployment via `mike` on every `v*` tag
+- `CODEOWNERS`, `SECURITY.md` (GitHub private vulnerability reporting),
+  `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)

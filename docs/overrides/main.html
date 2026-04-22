@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{#
+  Fundcloud — custom main template.
+  Extends Material for MkDocs; overrides kept minimal so the theme
+  upgrades cleanly. Aesthetic lives in stylesheets/extra.css.
+#}
+
+{% block announce %}
+  <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;font-size:0.72rem;letter-spacing:0.02em;">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    Put this workflow to work on your own portfolio.
+    <a href="https://fundcloud.com" style="color:inherit;text-decoration:underline;">Create your account →</a>
+  </div>
+{% endblock %}
+
+{% block extrahead %}
+  {{ super() }}
+  <meta name="theme-color" content="#003a70">
+  <meta property="og:type" content="website">
+  {% set og_title = (page.title if page else None) or config.site_name %}
+  {% set og_desc  = (page.meta.description if page and page.meta else None) or config.site_description %}
+  <meta property="og:title" content="{{ og_title }} — Fundcloud">
+  <meta property="og:description" content="{{ og_desc }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://rsms.me" crossorigin>
+{% endblock %}

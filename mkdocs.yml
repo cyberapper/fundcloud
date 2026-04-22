@@ -1,0 +1,214 @@
+site_name: Fundcloud
+site_description: Portfolio research, end-to-end, with a Rust core.
+site_author: Fundcloud Authors
+
+# Engineering-only documents (PRD, internal design specs) live under docs/
+# for convenience but are excluded from the public site.
+# `docs/overrides/` is the custom_dir for Material.
+exclude_docs: |
+  /prd-*.md
+  /design-*.md
+  /overrides/**
+
+site_url: https://cyberapper.github.io/fundcloud
+repo_url: https://github.com/cyberapper/fundcloud
+repo_name: cyberapper/fundcloud
+edit_uri: edit/main/docs/
+copyright: Copyright © 2026 Fundcloud Authors · MIT License
+
+# ---------------------------------------------------------------
+#  Theme: Material for MkDocs, skinned with the Fundcloud design
+#  system. All aesthetic rules live in docs/stylesheets/extra.css.
+#  Material is the rendering engine; docs/overrides/ only tweak chrome.
+# ---------------------------------------------------------------
+theme:
+  name: material
+  custom_dir: docs/overrides
+  language: en
+  logo: assets/logo-light.svg
+  favicon: assets/favicon.png
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - announce.dismiss
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.tracking
+    - navigation.path
+    - navigation.prune
+    - navigation.footer
+    - toc.follow
+    - content.tabs.link
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.action.edit
+    - content.tooltips
+    - search.suggest
+    - search.highlight
+    - search.share
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-sunny, name: Switch to dark mode }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle: { icon: material/weather-night, name: Switch to light mode }
+  icon:
+    repo: fontawesome/brands/github
+    edit: material/pencil
+    view: material/eye
+    admonition:
+      note: material/pencil-outline
+      tip: material/leaf
+      warning: material/alert-outline
+      danger: material/fire
+      example: material/flask-outline
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/extra.js
+
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/`|]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [python]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            filters: ["!^_"]
+  - mike:
+      alias_type: symlink
+      canonical_version: latest
+  # Social cards — auto-generates OG preview images from page front-matter.
+  # Flip on once Pillow + cairo are in the docs build image. Install with:
+  #   uv add --dev 'mkdocs-material[imaging]'
+  # - social:
+  #     cards_layout_options:
+  #       background_color: "#003a70"
+  #       color: "#ffffff"
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.smartsymbols
+  - pymdownx.keys
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+
+extra:
+  version:
+    provider: mike
+    default: latest
+  generator: true
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/cyberapper/fundcloud
+      name: Fundcloud on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/fundcloud/
+      name: Fundcloud on PyPI
+  analytics:
+    feedback:
+      title: Was this page useful?
+      ratings:
+        - icon: material/thumb-up-outline
+          name: Yes
+          data: 1
+          note: Thanks — glad it helped.
+        - icon: material/thumb-down-outline
+          name: No
+          data: 0
+          note: >-
+            Sorry. Please
+            <a href="https://github.com/cyberapper/fundcloud/issues/new?labels=docs&title=Docs+improvement" target="_blank" rel="noopener">open a docs issue</a>
+            and we'll fix it.
+
+nav:
+  - Home: index.md
+  - Install: install.md
+  - Quickstart: quickstart.md
+  - Guides:
+      - Analysing Returns:
+          - Returns analysis: guides/portfolio/returns-analysis.md
+          - Portfolio metrics: guides/portfolio/metrics.md
+          - Benchmark analytics: guides/metrics/benchmark.md
+      - Strategies & Simulation:
+          - DCA & Hold strategies: guides/strategies/dca.md
+          - Simulator: guides/sim/simulator.md
+          - Simulator performance (Rust kernel): guides/sim/performance.md
+      - Portfolio Optimisation:
+          - Portfolio optimisation: guides/portfolio/optimization.md
+          - sklearn & skfolio interop: guides/interop/sklearn.md
+      - Data:
+          - Pulling and caching market data: guides/data/backends-and-catalog.md
+      - Reporting:
+          - Tear sheets: guides/reports/tearsheets.md
+          - Plots:
+              - Overview: guides/plots/index.md
+              - Builders: guides/plots/builders.md
+              - Themes: guides/plots/themes.md
+              - Aggregated summary: guides/plots/summary.md
+      - Reference & Internals:
+          - Rust kernels: guides/accelerators/rust-kernels.md
+          - Using Python help(): guides/using-python-help.md
+  - Reference:
+      - Data: reference/data.md
+      - Strategies: reference/strategies.md
+      - Simulator: reference/sim.md
+      - Portfolio: reference/portfolio.md
+      - Metrics: reference/metrics.md
+      - Optimize: reference/optimize.md
+      - Validate: reference/validate.md
+      - Reports: reference/reports.md
+      - Plots: reference/plots.md
+      - Kernels: reference/kernels.md

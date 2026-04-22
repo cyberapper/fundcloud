@@ -1,0 +1,548 @@
+"""``Portfolio`` — unified live + analytics container.
+
+A ``Portfolio`` can be used in two modes:
+
+1. **Analytics** — construct with ``returns=``, ``weights=``, ``benchmark=``
+   and call ``sharpe``, ``max_drawdown``, etc. This is the entry point
+   ``EqualWeighted().fit(X).predict(X)`` returns and matches skfolio's
+   ``Portfolio`` constructor shape.
+2. **Live** — construct with ``cash=``, ``positions=``, apply ``Trade``
+   objects via :meth:`apply`, advance time with :meth:`mark_to_market`, and
+   call :meth:`snapshot` at the end to freeze a copy for reporting. This is
+   the mode the ``Simulator`` drives during a backtest.
+
+Either mode produces an object that lines up with skfolio's
+``Portfolio``; :meth:`from_skfolio` / :meth:`to_skfolio` provide a cheap
+round-trip.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from fundcloud import metrics as _metrics
+
+__all__ = ["Portfolio", "Position"]
+
+
+@dataclass(slots=True)
+class Position:
+    """Live position for a single asset."""
+
+    qty: float = 0.0
+    avg_cost: float = 0.0
+
+
+@dataclass(slots=True)
+class _LiveState:
+    """Live state maintained during :meth:`Portfolio.apply` calls."""
+
+    cash: float = 0.0
+    positions: dict[str, Position] = field(default_factory=dict)
+    equity_history: list[tuple[pd.Timestamp, float]] = field(default_factory=list)
+    weights_history: list[tuple[pd.Timestamp, dict[str, float]]] = field(default_factory=list)
+    trade_log: list[Any] = field(default_factory=list)
+    # Last known mark-to-market price per asset. Lets the portfolio value a
+    # held position even when the current bar is a non-trading day for that
+    # asset (e.g., TSLA on a Saturday in a BTC+TSLA panel).
+    last_prices: dict[str, float] = field(default_factory=dict)
+
+
+class Portfolio:
+    """Unified position + analytics container."""
+
+    def __init__(
+        self,
+        *,
+        returns: pd.DataFrame | pd.Series | None = None,
+        weights: pd.DataFrame | pd.Series | None = None,
+        benchmark: pd.Series | None = None,
+        cash: float = 0.0,
+        positions: dict[str, float] | None = None,
+        name: str | None = None,
+    ) -> None:
+        self._name = name
+        self._benchmark = benchmark
+        self._returns: pd.Series | None = None
+        self._weights_frame: pd.DataFrame | None = None
+
+        if returns is not None:
+            self._returns = _coerce_returns(returns)
+        if weights is not None:
+            self._weights_frame = _coerce_weights(weights)
+
+        # Live state — only populated for live-mode portfolios.
+        self._live = _LiveState(cash=float(cash))
+        if positions:
+            for asset, qty in positions.items():
+                self._live.positions[asset] = Position(qty=float(qty))
+
+    # ------------------------------------------------------------------ naming
+
+    @property
+    def name(self) -> str:
+        return self._name or "strategy"
+
+    def rename(self, name: str) -> Portfolio:
+        self._name = name
+        if self._returns is not None:
+            self._returns = self._returns.rename(name)
+        return self
+
+    # ------------------------------------------------------------------ live API
+
+    @property
+    def cash(self) -> float:
+        return self._live.cash
+
+    def position(self, asset: str) -> Position:
+        return self._live.positions.setdefault(asset, Position())
+
+    @property
+    def positions(self) -> pd.Series:
+        """Current open positions as a Series keyed by asset."""
+        return pd.Series({asset: p.qty for asset, p in self._live.positions.items()}, dtype=float)
+
+    def apply(self, trade: Any) -> None:
+        """Apply a ``Trade`` (from :mod:`fundcloud.sim`) to live state.
+
+        The method only depends on the trade's duck-typed attributes
+        (``asset``, ``qty``, ``price``, ``fee``) so this module doesn't have to
+        import the simulator package.
+        """
+        asset = str(trade.asset)
+        qty = float(trade.qty)
+        price = float(trade.price)
+        fee = float(getattr(trade, "fee", 0.0))
+        pos = self.position(asset)
+        notional = qty * price
+        self._live.cash -= notional + fee
+        # Weighted-average cost update for adds; leave avg_cost alone on closes.
+        if pos.qty == 0 or (pos.qty > 0) == (qty > 0):
+            total = pos.qty + qty
+            if total != 0:
+                pos.avg_cost = (pos.qty * pos.avg_cost + qty * price) / total
+        pos.qty += qty
+        self._live.trade_log.append(trade)
+
+    def mark_to_market(
+        self,
+        prices: pd.Series,
+        ts: pd.Timestamp,
+    ) -> float:
+        """Compute and record equity at timestamp ``ts``.
+
+        ``prices`` is a Series of asset → price at that timestamp. When a
+        price is missing (``NaN``) — typical for a mixed-frequency panel
+        on a weekend / market holiday — the portfolio falls back to the
+        last known price for that asset so a held position keeps its
+        value across the closed bar. Cash-only positions (``qty == 0``)
+        are skipped.
+        """
+        # Refresh the last-known price cache from this bar's quotes.
+        for asset, raw in prices.items():
+            px = float(raw)
+            if np.isfinite(px) and px > 0:
+                self._live.last_prices[str(asset)] = px
+
+        equity = self._live.cash
+        per_asset_value: dict[str, float] = {}
+        for asset, pos in self._live.positions.items():
+            if pos.qty == 0:
+                continue
+            # Prefer the current bar's price; fall back to the last known
+            # price for that asset; final fallback is the position's average
+            # cost (covers the unusual case where we buy and immediately
+            # need to mark-to-market on a NaN bar).
+            raw_px = prices.get(asset, np.nan)
+            px = float(raw_px) if raw_px is not None else float("nan")
+            if not np.isfinite(px) or px <= 0:
+                px = self._live.last_prices.get(
+                    asset, pos.avg_cost if pos.avg_cost > 0 else float("nan")
+                )
+            if not np.isfinite(px) or px <= 0:
+                continue
+            value = pos.qty * px
+            equity += value
+            per_asset_value[asset] = value
+        self._live.equity_history.append((ts, equity))
+        if equity != 0:
+            weights = {a: v / equity for a, v in per_asset_value.items()}
+        else:
+            weights = {a: 0.0 for a in per_asset_value}
+        self._live.weights_history.append((ts, weights))
+        return equity
+
+    def snapshot(self) -> Portfolio:
+        """Freeze live state into an analytics-mode copy.
+
+        Builds ``returns`` from the equity curve (if there is one) and
+        ``weights`` from the recorded weights history, then detaches live
+        state so the returned instance behaves immutably for analytics.
+        """
+        equity = pd.Series(
+            {ts: val for ts, val in self._live.equity_history},
+            dtype=float,
+        ).sort_index()
+        returns = equity.pct_change().dropna() if len(equity) > 1 else pd.Series([], dtype=float)
+
+        weights_frame: pd.DataFrame | None
+        if self._live.weights_history:
+            raw = pd.DataFrame.from_dict(
+                {ts: w for ts, w in self._live.weights_history}, orient="index"
+            ).sort_index()
+            weights_frame = raw.fillna(0.0)
+        else:
+            weights_frame = None
+
+        snap = Portfolio(
+            returns=returns,
+            weights=weights_frame,
+            benchmark=self._benchmark,
+            name=self._name,
+        )
+        return snap
+
+    # ----------------------------------------------------------------- views
+
+    @property
+    def returns(self) -> pd.Series:
+        if self._returns is None:
+            msg = (
+                "Portfolio has no recorded returns. Either construct with "
+                "`returns=`, or call `snapshot()` on a live portfolio first."
+            )
+            raise ValueError(msg)
+        return self._returns
+
+    @property
+    def weights(self) -> pd.DataFrame | None:
+        return self._weights_frame
+
+    @property
+    def benchmark(self) -> pd.Series | None:
+        return self._benchmark
+
+    @property
+    def equity_curve(self) -> pd.Series:
+        """Running equity. For analytics-mode portfolios, cumulates ``returns``."""
+        if self._live.equity_history:
+            return pd.Series(
+                {ts: val for ts, val in self._live.equity_history}, dtype=float
+            ).sort_index()
+        if self._returns is None:
+            return pd.Series([], dtype=float)
+        return (1.0 + self._returns).cumprod()
+
+    # ------------------------------------------------------------------ analytics
+
+    def sharpe(
+        self, *, risk_free: float | None = None, periods_per_year: int | None = None
+    ) -> float:
+        return _metrics.sharpe(self.returns, risk_free=risk_free, periods_per_year=periods_per_year)
+
+    def sortino(self, *, target: float = 0.0, periods_per_year: int | None = None) -> float:
+        return _metrics.sortino(self.returns, target=target, periods_per_year=periods_per_year)
+
+    def calmar(self, *, periods_per_year: int | None = None) -> float:
+        return _metrics.calmar(self.returns, periods_per_year=periods_per_year)
+
+    def omega(self, *, target: float = 0.0) -> float:
+        return _metrics.omega(self.returns, target=target)
+
+    def max_drawdown(self) -> float:
+        return _metrics.max_drawdown(self.returns)
+
+    def drawdown_series(self) -> pd.Series:
+        return _metrics.drawdown_series(self.returns)
+
+    def cvar(self, *, alpha: float = 0.95) -> float:
+        return _metrics.cvar(self.returns, alpha=alpha)
+
+    def value_at_risk(self, *, alpha: float = 0.95) -> float:
+        return _metrics.value_at_risk(self.returns, alpha=alpha)
+
+    def ulcer_index(self) -> float:
+        return _metrics.ulcer_index(self.returns)
+
+    def turnover(self) -> float:
+        """Average one-way turnover across rebalance boundaries.
+
+        Returns ``0.0`` when weights are constant or unknown.
+        """
+        w = self._weights_frame
+        if w is None or len(w) < 2:
+            return 0.0
+        return float(w.diff().abs().sum(axis=1).iloc[1:].mean() / 2.0)
+
+    def attribution(self) -> pd.DataFrame:
+        """Asset-level return contribution = weights × returns (shifted).
+
+        Requires a weights frame. Uses the current-bar weight × current-bar
+        asset return, which is the standard backward-looking decomposition.
+        """
+        w = self._weights_frame
+        if w is None:
+            return pd.DataFrame()
+        if self._returns is None or self._returns.empty:
+            return pd.DataFrame(columns=w.columns)
+        # If returns is a total-portfolio series (no per-asset info), attribution
+        # is undefined beyond `weights * total_return`.
+        contrib = w.reindex(self._returns.index).mul(self._returns, axis=0)
+        return contrib
+
+    def contribution(self) -> pd.Series:
+        """Average per-asset contribution to total return."""
+        attr = self.attribution()
+        if attr.empty:
+            return pd.Series(dtype=float)
+        return attr.mean()
+
+    def summary(
+        self,
+        *,
+        risk_free: float | None = None,
+        periods_per_year: int | None = None,
+        cvar_alpha: float = 0.95,
+    ) -> pd.Series:
+        """Single-column summary of key metrics (rows = metric names).
+
+        Compact 11-metric view. For the full ~55-metric bundle use
+        :meth:`metrics`.
+        """
+        r = self.returns
+        stats = _metrics.returns_stats(
+            r,
+            risk_free=risk_free,
+            periods_per_year=periods_per_year,
+            cvar_alpha=cvar_alpha,
+        )
+        return stats.iloc[:, 0].rename(self.name)
+
+    def metrics(
+        self,
+        *,
+        benchmark: pd.Series | None = None,
+        risk_free: float | None = None,
+        periods_per_year: int | None = None,
+        cvar_alpha: float = 0.95,
+    ) -> pd.Series:
+        """Full portfolio-metrics bundle.
+
+        Delegates to :func:`fundcloud.metrics.metrics`. When this Portfolio
+        was constructed with ``benchmark=``, that benchmark is used by
+        default; pass an explicit ``benchmark=`` to override.
+        """
+        r = self.returns
+        bench = benchmark if benchmark is not None else self.benchmark
+        return _metrics.metrics(
+            r,
+            benchmark=bench,
+            risk_free=risk_free,
+            periods_per_year=periods_per_year,
+            cvar_alpha=cvar_alpha,
+        ).rename(self.name)
+
+    def drawdown_details(self) -> pd.DataFrame:
+        """One row per drawdown episode: start / valley / recovery + durations.
+
+        See :func:`fundcloud.metrics.drawdown_details` for the column
+        definitions.
+        """
+        return _metrics.drawdown_details(self.returns)
+
+    def runup_details(self) -> pd.DataFrame:
+        """One row per runup (rally) episode between drawdowns.
+
+        See :func:`fundcloud.metrics.runup_details` for the column
+        definitions.
+        """
+        return _metrics.runup_details(self.returns)
+
+    def worst_drawdowns(self, top: int = 10) -> pd.DataFrame:
+        """Top-``top`` drawdown episodes, display-formatted.
+
+        Columns: ``Started`` / ``Recovered`` / ``Drawdown`` / ``Days``.
+        Episodes are sorted by depth (worst first).
+        """
+        dd = _metrics.drawdown_details(self.returns)
+        if dd.empty:
+            return pd.DataFrame(columns=["Started", "Recovered", "Drawdown", "Days"])
+        view = (
+            dd.head(top)[
+                ["start", "recovery", "max_drawdown", "duration_days"]
+            ]
+            .rename(
+                columns={
+                    "start": "Started",
+                    "recovery": "Recovered",
+                    "max_drawdown": "Drawdown",
+                    "duration_days": "Days",
+                }
+            )
+            .reset_index(drop=True)
+        )
+        return view
+
+    def worst_runups(self, top: int = 10) -> pd.DataFrame:
+        """Top-``top`` runup episodes, display-formatted.
+
+        Columns: ``Started`` / ``Peaked`` / ``Runup`` / ``Days``.
+        Episodes are sorted by magnitude (biggest first).
+        """
+        ru = _metrics.runup_details(self.returns)
+        if ru.empty:
+            return pd.DataFrame(columns=["Started", "Peaked", "Runup", "Days"])
+        view = (
+            ru.head(top)[["start", "peak", "max_runup", "duration_days"]]
+            .rename(
+                columns={
+                    "start": "Started",
+                    "peak": "Peaked",
+                    "max_runup": "Runup",
+                    "duration_days": "Days",
+                }
+            )
+            .reset_index(drop=True)
+        )
+        return view
+
+    def period_returns(
+        self,
+        *,
+        benchmark: pd.Series | None = None,
+        periods_per_year: int | None = None,
+    ) -> pd.Series | pd.DataFrame:
+        """MTD / 3M / 6M / YTD / 1Y / 3Y / 5Y / 10Y / All-time bundle.
+
+        When a benchmark is not passed and :attr:`benchmark` was set on
+        construction, it's used as the default. See
+        :func:`fundcloud.metrics.period_returns`.
+        """
+        bench = benchmark if benchmark is not None else self.benchmark
+        return _metrics.period_returns(
+            self.returns,
+            benchmark=bench,
+            periods_per_year=periods_per_year,
+        )
+
+    def yearly_returns(
+        self, *, benchmark: pd.Series | None = None
+    ) -> pd.Series | pd.DataFrame:
+        """End-of-year returns.
+
+        Returns a :class:`pd.Series` when no benchmark is available, or a
+        two-column :class:`pd.DataFrame` (``benchmark``, ``strategy``)
+        when one is supplied (or set on construction).
+        """
+        bench = benchmark if benchmark is not None else self.benchmark
+        strategy = _metrics.yearly_returns(self.returns).rename(self.name)
+        if bench is None:
+            return strategy
+        bench_yearly = _metrics.yearly_returns(bench).rename(
+            str(bench.name) if bench.name is not None else "benchmark"
+        )
+        return pd.concat([bench_yearly, strategy], axis=1)
+
+    # --------------------------------------------------------------- skfolio
+
+    @classmethod
+    def from_skfolio(cls, portfolio: Any, *, benchmark: pd.Series | None = None) -> Portfolio:
+        """Lift a skfolio ``Portfolio`` into a Fundcloud ``Portfolio``.
+
+        Copies the returns series and the (per-period) weight vector if one is
+        exposed. Compatible with skfolio >= 0.6.
+        """
+        returns = _safe_skfolio_returns(portfolio)
+        weights = _safe_skfolio_weights(portfolio)
+        name = getattr(portfolio, "name", None) or type(portfolio).__name__
+        return cls(
+            returns=returns,
+            weights=weights,
+            benchmark=benchmark,
+            name=name,
+        )
+
+    def to_skfolio(self) -> Any:
+        """Build a skfolio ``Portfolio`` mirror of this object.
+
+        Requires the ``[pf]`` extra. The resulting object is an instance of
+        :class:`skfolio.Portfolio`.
+        """
+        try:
+            from skfolio import Portfolio as SkPortfolio  # type: ignore[import-not-found]
+        except ImportError as e:
+            msg = "to_skfolio() requires skfolio; install with: uv add 'fundcloud[pf]'"
+            raise ImportError(msg) from e
+        # skfolio's Portfolio constructor expects an X/returns and a weights
+        # vector. We pass a per-period weights frame when available.
+        return SkPortfolio(
+            X=self.returns.to_frame() if isinstance(self.returns, pd.Series) else self.returns,
+            weights=self._weights_frame.iloc[-1].to_numpy()
+            if self._weights_frame is not None and len(self._weights_frame) > 0
+            else None,
+            name=self.name,
+        )
+
+    # ------------------------------------------------------------------ dunder
+
+    def __repr__(self) -> str:  # pragma: no cover - cosmetic
+        r = self._returns
+        n = 0 if r is None else len(r)
+        return f"Portfolio(name={self.name!r}, periods={n}, cash={self._live.cash:.2f})"
+
+
+# -------------------------------------------------------------------- helpers
+
+
+def _coerce_returns(x: pd.Series | pd.DataFrame) -> pd.Series:
+    if isinstance(x, pd.DataFrame):
+        if x.shape[1] == 1:
+            return x.iloc[:, 0]
+        msg = (
+            "Portfolio.returns must be a Series (single strategy) or a "
+            "one-column DataFrame; got a frame with multiple columns."
+        )
+        raise ValueError(msg)
+    return x
+
+
+def _coerce_weights(x: pd.Series | pd.DataFrame) -> pd.DataFrame:
+    if isinstance(x, pd.Series):
+        return x.to_frame().T
+    return x
+
+
+def _safe_skfolio_returns(portfolio: Any) -> pd.Series:
+    # skfolio 0.6+ exposes `returns` as a Series.
+    if hasattr(portfolio, "returns"):
+        r = portfolio.returns
+        if isinstance(r, np.ndarray):
+            idx = getattr(portfolio, "observations", None)
+            r = pd.Series(r, index=idx if idx is not None else range(len(r)))
+        return r
+    raise AttributeError("skfolio portfolio has no `returns` attribute")
+
+
+def _safe_skfolio_weights(portfolio: Any) -> pd.DataFrame | None:
+    w = getattr(portfolio, "weights", None)
+    assets = getattr(portfolio, "assets", None)
+    if w is None:
+        return None
+    if isinstance(w, np.ndarray) and assets is not None:
+        idx = getattr(portfolio, "observations", None)
+        if idx is None:
+            return pd.DataFrame([w], columns=list(assets))
+        # skfolio's weights are per-period when using cross_val_predict.
+        if w.ndim == 2:
+            return pd.DataFrame(w, index=idx, columns=list(assets))
+        return pd.DataFrame([w], columns=list(assets))
+    if isinstance(w, pd.DataFrame):
+        return w
+    if isinstance(w, pd.Series):
+        return w.to_frame().T
+    return None
