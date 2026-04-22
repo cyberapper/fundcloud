@@ -4,7 +4,7 @@
 //! / strategies) and returns an output of the same shape. The first
 //! ``window - 1`` elements are ``NaN`` — we don't have enough history yet.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use rayon::prelude::*;
 
 /// Rolling arithmetic mean over a sliding window.

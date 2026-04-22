@@ -9,61 +9,103 @@
 //! The inner loop holds no Python objects, so the PyO3 bindings run
 //! everything under `py.allow_threads` for GIL-released execution.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use ndarray::{Array1, ArrayView1, ArrayView2};
 
 // --------------------------------------------------------------------------
 // Config / enum tags — must stay numerically identical to the Python
 // constants in `fundcloud.kernels._sim_pyfallback`.
 
-/// Cost-model tag matching `_sim_pyfallback.COST_NONE` / `_FIXED_BPS` / `_PER_SHARE`.
+/// Configuration passed to every simulator entry-point.
+///
+/// All numeric discriminants must stay numerically identical to the Python
+/// constants in `fundcloud.kernels._sim_pyfallback`.
 #[derive(Copy, Clone, Debug)]
 pub struct SimCfg {
+    /// Starting cash in account-currency units.
     pub cash: f64,
+    /// Cost-model discriminant: `COST_NONE` / `COST_FIXED_BPS` / `COST_PER_SHARE`.
     pub cost_kind: u8,
-    pub cost_param1: f64, // bps for FixedBps, rate for PerShare, else 0
-    pub cost_param2: f64, // minimum
+    /// Primary cost parameter: bps for `COST_FIXED_BPS`, rate for `COST_PER_SHARE`.
+    pub cost_param1: f64,
+    /// Minimum cost floor (currency units), applied after the primary calculation.
+    pub cost_param2: f64,
+    /// Slippage-model discriminant: `SLIP_NONE` / `SLIP_HALF_SPREAD`.
     pub slip_kind: u8,
-    pub slip_param1: f64, // bps for HalfSpread
+    /// Primary slippage parameter: half-spread in bps for `SLIP_HALF_SPREAD`.
+    pub slip_param1: f64,
+    /// Execution timing: `EXEC_NEXT_BAR_OPEN` / `EXEC_SAME_BAR_CLOSE`.
     pub exec_kind: u8,
 }
 
+/// No transaction cost applied.
 pub const COST_NONE: u8 = 0;
+/// Fixed-bps commission on notional, subject to a minimum floor (`cost_param2`).
 pub const COST_FIXED_BPS: u8 = 1;
+/// Per-share commission, subject to a minimum floor (`cost_param2`).
 pub const COST_PER_SHARE: u8 = 2;
 
+/// No slippage model applied.
 pub const SLIP_NONE: u8 = 0;
+/// Bid-ask half-spread slippage: cost = price × (bps / 2 × 1e-4).
 pub const SLIP_HALF_SPREAD: u8 = 1;
 
+/// Execute at the open of the bar following the signal bar.
 pub const EXEC_NEXT_BAR_OPEN: u8 = 0;
+/// Execute at the close of the bar on which the signal fires.
 pub const EXEC_SAME_BAR_CLOSE: u8 = 1;
 
+/// Buy-side order direction.
 pub const SIDE_BUY: u8 = 0;
+/// Sell-side order direction.
 pub const SIDE_SELL: u8 = 1;
 
+/// Market order — fill at best available price.
 pub const KIND_MARKET: u8 = 0;
+/// Limit order — fill only if the reference price crosses the limit.
 pub const KIND_LIMIT: u8 = 1;
 
 // --------------------------------------------------------------------------
 // Output struct-of-arrays. Every field is `Vec<...>` in trade / order order
 // and `Array1<...>` for the per-bar equity / weights history.
 
+/// Struct-of-arrays returned by every simulator entry-point.
+///
+/// Per-bar equity and weights history use `Array1` / `Vec` respectively;
+/// all trade and order log fields are parallel `Vec`s indexed in fill or
+/// submission order.
 #[derive(Debug, Default)]
 pub struct SimOutput {
-    pub equity: Array1<f64>,                              // (n_bars,)
-    pub weights_history: Vec<(usize, Vec<(usize, f64)>)>, // (bar_idx, [(asset_idx, weight)])
+    /// Per-bar portfolio equity in account-currency units (`n_bars`).
+    pub equity: Array1<f64>,
+    /// Per-bar weight snapshot: `(bar_idx, [(asset_idx, weight)])`.
+    pub weights_history: Vec<(usize, Vec<(usize, f64)>)>,
+    /// Bar index of each executed fill.
     pub trade_bar: Vec<usize>,
+    /// Asset index of each executed fill.
     pub trade_asset: Vec<usize>,
-    pub trade_qty: Vec<f64>, // signed
+    /// Signed fill quantity (positive = buy, negative = sell).
+    pub trade_qty: Vec<f64>,
+    /// Fill price after slippage.
     pub trade_price: Vec<f64>,
+    /// Transaction fee charged at fill time.
     pub trade_fee: Vec<f64>,
+    /// Realised slippage in basis points for each fill.
     pub trade_slip_bps: Vec<f64>,
+    /// Bar index of each submitted order.
     pub order_bar: Vec<usize>,
+    /// Asset index of each submitted order.
     pub order_asset: Vec<usize>,
+    /// Side of each submitted order (`SIDE_BUY` / `SIDE_SELL`).
     pub order_side: Vec<u8>,
+    /// Requested quantity for each order.
     pub order_qty: Vec<f64>,
+    /// Notional target; non-zero overrides `order_qty` when qty is zero.
     pub order_notional: Vec<f64>,
+    /// Order kind (`KIND_MARKET` / `KIND_LIMIT`).
     pub order_kind: Vec<u8>,
+    /// Limit price; ignored for market orders.
     pub order_limit_price: Vec<f64>,
+    /// Whether each order was filled within the simulation window.
     pub order_filled: Vec<bool>,
 }
 
@@ -445,7 +487,7 @@ pub fn run_weights(
     let n_rows = target_bar_indices.len();
     let mut rebalance_row_at: Vec<Option<usize>> = vec![None; n_bars];
     for r in 0..n_rows {
-        let i = target_bar_indices[r] as i64;
+        let i = target_bar_indices[r];
         if i >= 0 && (i as usize) < n_bars {
             rebalance_row_at[i as usize] = Some(r);
         }
@@ -453,11 +495,11 @@ pub fn run_weights(
 
     let mut pending: Vec<Pending> = Vec::new();
 
-    for i in 0..n_bars {
+    for (i, row_opt) in rebalance_row_at.iter().enumerate() {
         drain_pending(&mut pending, i, &open, &close, &mut book, &mut out, &cfg);
 
-        if let Some(r) = rebalance_row_at[i] {
-            let wrow = target_weights.row(r);
+        if let Some(r) = row_opt {
+            let wrow = target_weights.row(*r);
             let orders = weights_to_orders_at_bar(&book, close.row(i), wrow, tolerance);
             for (asset, side, qty) in orders {
                 submit_order(
@@ -490,6 +532,11 @@ pub fn run_weights(
 // --------------------------------------------------------------------------
 // run_orders
 
+/// Execute a pre-built order log against the price panels.
+///
+/// Each order is submitted at its stated bar and filled according to the
+/// execution and cost settings in `cfg`. Returns a [`SimOutput`] populated
+/// with the resulting trades, equity curve, and weight history.
 #[allow(clippy::too_many_arguments)]
 pub fn run_orders(
     open: ArrayView2<'_, f64>,
@@ -522,10 +569,10 @@ pub fn run_orders(
 
     let mut pending: Vec<Pending> = Vec::new();
 
-    for i in 0..n_bars {
+    for (i, orders_at_bar) in by_bar.iter().enumerate() {
         drain_pending(&mut pending, i, &open, &close, &mut book, &mut out, &cfg);
 
-        for &k in &by_bar[i] {
+        for &k in orders_at_bar {
             let mut qty = order_qty[k];
             if !qty.is_finite() {
                 qty = 0.0;
@@ -570,6 +617,13 @@ pub fn run_orders(
 // --------------------------------------------------------------------------
 // run_signals
 
+/// Signal-based entry/exit simulator.
+///
+/// `entries` and `exits` are boolean panels (0 = false, 1 = true) of shape
+/// `n_bars × n_assets`. A `1` in `entries[i, j]` opens a long position in
+/// asset `j` sized at `size` units; a `1` in `exits[i, j]` closes any open
+/// position in that asset. Returns a [`SimOutput`] with the resulting trades
+/// and equity curve.
 pub fn run_signals(
     open: ArrayView2<'_, f64>,
     close: ArrayView2<'_, f64>,
