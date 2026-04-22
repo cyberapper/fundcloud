@@ -50,8 +50,12 @@ pub fn cvar_batch(returns: ArrayView2<'_, f64>, alpha: f64) -> Array1<f64> {
     let vals: Vec<(usize, f64)> = (0..m)
         .into_par_iter()
         .map(|c| {
-            let col: Vec<f64> = returns.column(c).iter().copied()
-                .filter(|v| !v.is_nan()).collect();
+            let col: Vec<f64> = returns
+                .column(c)
+                .iter()
+                .copied()
+                .filter(|v| !v.is_nan())
+                .collect();
             if col.is_empty() {
                 return (c, f64::NAN);
             }
@@ -79,8 +83,13 @@ mod tests {
     #[test]
     fn var_less_extreme_than_cvar() {
         let r = arr2(&[
-            [-0.10, -0.05], [-0.05, -0.02], [0.00, 0.01],
-            [0.02, 0.03], [0.05, 0.06], [0.07, 0.08], [0.09, 0.10],
+            [-0.10, -0.05],
+            [-0.05, -0.02],
+            [0.00, 0.01],
+            [0.02, 0.03],
+            [0.05, 0.06],
+            [0.07, 0.08],
+            [0.09, 0.10],
         ]);
         let v = var_batch(r.view(), 0.95);
         let c = cvar_batch(r.view(), 0.95);

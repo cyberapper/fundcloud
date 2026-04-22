@@ -49,11 +49,11 @@ pub const KIND_LIMIT: u8 = 1;
 
 #[derive(Debug, Default)]
 pub struct SimOutput {
-    pub equity: Array1<f64>, // (n_bars,)
+    pub equity: Array1<f64>,                              // (n_bars,)
     pub weights_history: Vec<(usize, Vec<(usize, f64)>)>, // (bar_idx, [(asset_idx, weight)])
     pub trade_bar: Vec<usize>,
     pub trade_asset: Vec<usize>,
-    pub trade_qty: Vec<f64>,      // signed
+    pub trade_qty: Vec<f64>, // signed
     pub trade_price: Vec<f64>,
     pub trade_fee: Vec<f64>,
     pub trade_slip_bps: Vec<f64>,
@@ -74,7 +74,11 @@ fn apply_slippage(price: f64, side: u8, slip_kind: u8, slip_p1: f64) -> (f64, f6
     if slip_kind == SLIP_HALF_SPREAD && price > 0.0 {
         let half = slip_p1 / 2.0;
         let adj = price * (half * 1e-4);
-        let px = if side == SIDE_BUY { price + adj } else { price - adj };
+        let px = if side == SIDE_BUY {
+            price + adj
+        } else {
+            price - adj
+        };
         (px, half)
     } else {
         (price, 0.0)
@@ -336,9 +340,19 @@ fn submit_order(
     if fill_i == i {
         let ref_price = exec_price_at(open, close, cfg.exec_kind, i, asset);
         if let Some((signed, price, f, slip)) = execute_one(
-            book, asset, side, qty, notional, kind, limit_price, ref_price,
-            cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-            cfg.slip_kind, cfg.slip_param1,
+            book,
+            asset,
+            side,
+            qty,
+            notional,
+            kind,
+            limit_price,
+            ref_price,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
         ) {
             out.trade_bar.push(i);
             out.trade_asset.push(asset);
@@ -447,15 +461,28 @@ pub fn run_weights(
             let orders = weights_to_orders_at_bar(&book, close.row(i), wrow, tolerance);
             for (asset, side, qty) in orders {
                 submit_order(
-                    i, asset, side, qty, 0.0, KIND_MARKET, 0.0,
-                    n_bars, &open, &close, &mut book, &mut pending, &mut out, &cfg,
+                    i,
+                    asset,
+                    side,
+                    qty,
+                    0.0,
+                    KIND_MARKET,
+                    0.0,
+                    n_bars,
+                    &open,
+                    &close,
+                    &mut book,
+                    &mut pending,
+                    &mut out,
+                    &cfg,
                 );
             }
         }
 
         let (equity, per_asset) = mark_to_market(&mut book, close.row(i));
         out.equity[i] = equity;
-        out.weights_history.push((i, emit_weights(equity, &per_asset)));
+        out.weights_history
+            .push((i, emit_weights(equity, &per_asset)));
     }
     out
 }
@@ -515,14 +542,27 @@ pub fn run_orders(
             let side = order_side[k] as u8;
             let asset = order_asset[k] as usize;
             submit_order(
-                i, asset, side, qty, notional, kind, limit,
-                n_bars, &open, &close, &mut book, &mut pending, &mut out, &cfg,
+                i,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit,
+                n_bars,
+                &open,
+                &close,
+                &mut book,
+                &mut pending,
+                &mut out,
+                &cfg,
             );
         }
 
         let (equity, per_asset) = mark_to_market(&mut book, close.row(i));
         out.equity[i] = equity;
-        out.weights_history.push((i, emit_weights(equity, &per_asset)));
+        out.weights_history
+            .push((i, emit_weights(equity, &per_asset)));
     }
     out
 }
@@ -564,8 +604,20 @@ pub fn run_signals(
                 continue;
             }
             submit_order(
-                i, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0,
-                n_bars, &open, &close, &mut book, &mut pending, &mut out, &cfg,
+                i,
+                j,
+                SIDE_BUY,
+                qty,
+                0.0,
+                KIND_MARKET,
+                0.0,
+                n_bars,
+                &open,
+                &close,
+                &mut book,
+                &mut pending,
+                &mut out,
+                &cfg,
             );
         }
         // Exits.
@@ -578,14 +630,27 @@ pub fn run_signals(
                 continue;
             }
             submit_order(
-                i, j, SIDE_SELL, held, 0.0, KIND_MARKET, 0.0,
-                n_bars, &open, &close, &mut book, &mut pending, &mut out, &cfg,
+                i,
+                j,
+                SIDE_SELL,
+                held,
+                0.0,
+                KIND_MARKET,
+                0.0,
+                n_bars,
+                &open,
+                &close,
+                &mut book,
+                &mut pending,
+                &mut out,
+                &cfg,
             );
         }
 
         let (equity, per_asset) = mark_to_market(&mut book, close.row(i));
         out.equity[i] = equity;
-        out.weights_history.push((i, emit_weights(equity, &per_asset)));
+        out.weights_history
+            .push((i, emit_weights(equity, &per_asset)));
     }
     out
 }

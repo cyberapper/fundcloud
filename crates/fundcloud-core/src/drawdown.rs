@@ -23,7 +23,11 @@ pub fn drawdown_series(returns: ArrayView1<'_, f64>) -> Array1<f64> {
         if wealth > peak {
             peak = wealth;
         }
-        out[i] = if peak == 0.0 { 0.0 } else { wealth / peak - 1.0 };
+        out[i] = if peak == 0.0 {
+            0.0
+        } else {
+            wealth / peak - 1.0
+        };
     }
     out
 }

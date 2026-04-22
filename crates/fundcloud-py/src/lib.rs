@@ -119,7 +119,8 @@ fn sharpe_batch<'py>(
     periods_per_year: f64,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_moments::sharpe_batch(view, rf_per_period, periods_per_year));
+    let out =
+        py.allow_threads(|| core_moments::sharpe_batch(view, rf_per_period, periods_per_year));
     out.into_pyarray_bound(py)
 }
 
@@ -231,9 +232,8 @@ fn sim_run_weights<'py>(
         slip_param1: slip_p1,
         exec_kind,
     };
-    let out = py.allow_threads(|| {
-        core_sim::run_weights(open_v, close_v, tw_v, tbi_v, cfg, tolerance)
-    });
+    let out =
+        py.allow_threads(|| core_sim::run_weights(open_v, close_v, tw_v, tbi_v, cfg, tolerance));
     sim_output_to_dict(py, out)
 }
 
@@ -281,18 +281,14 @@ fn sim_run_orders<'py>(
     let on = order_notional.as_array();
     let ok_ = order_kind.as_array();
     let olp = order_limit_price.as_array();
-    let out = py.allow_threads(|| {
-        core_sim::run_orders(op, cl, ob, oa, os, oq, on, ok_, olp, cfg)
-    });
+    let out = py.allow_threads(|| core_sim::run_orders(op, cl, ob, oa, os, oq, on, ok_, olp, cfg));
     sim_output_to_dict(py, out)
 }
 
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(
-    text_signature = "(open_panel, close_panel, entries, exits, size, \
-                      cash, cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, /)"
-)]
+#[pyo3(text_signature = "(open_panel, close_panel, entries, exits, size, \
+                      cash, cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, /)")]
 fn sim_run_signals<'py>(
     py: Python<'py>,
     open_panel: PyReadonlyArray2<'py, f64>,
