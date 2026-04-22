@@ -14,7 +14,7 @@ from fundcloud.data import (
 
 
 @pytest.mark.parametrize(
-    "raw,expected",
+    ("raw", "expected"),
     [
         ("Open", "open"),
         ("CLOSE", "close"),

@@ -37,9 +37,15 @@ __all__ = [
 
 def _require_mpl() -> tuple[Any, Any]:
     try:
+        import sys
+
         import matplotlib
 
-        matplotlib.use("Agg")
+        # Only switch to Agg before pyplot is first imported.  Calling
+        # matplotlib.use() after pyplot is already loaded triggers a
+        # RecursionError on Python 3.14 due to re-entrant backend init.
+        if "matplotlib.pyplot" not in sys.modules:
+            matplotlib.use("Agg")
         import matplotlib.pyplot as plt
     except ImportError as e:
         msg = "matplotlib is required for PDF / static plot rendering. uv add 'fundcloud[viz]'."

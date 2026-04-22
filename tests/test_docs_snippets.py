@@ -5,11 +5,10 @@ Each test is a self-contained function that reproduces the key logic from
 the corresponding doc block. Tests that require live network access are
 skipped by default (mark them explicitly to run).
 """
+import fundcloud  # noqa: F401 - registers .fc accessor
 import numpy as np
 import pandas as pd
 import pytest
-import fundcloud  # noqa: F401 - registers .fc accessor
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures
@@ -106,12 +105,12 @@ class TestQuickstart:
         assert fig is not None
 
     def test_block6_sklearn_pipeline(self, returns_df):
-        from sklearn.pipeline import Pipeline
-        from sklearn.model_selection import GridSearchCV
         from fundcloud.features import FeaturePipeline
         from fundcloud.features.indicators import RSI, SMA
         from fundcloud.optimize import MeanRisk, RiskMeasure
         from fundcloud.validate import PurgedKFold
+        from sklearn.model_selection import GridSearchCV
+        from sklearn.pipeline import Pipeline
 
         # verify the pipeline objects can be constructed correctly
         pipe = Pipeline([
@@ -218,16 +217,16 @@ class TestMetrics:
 
 class TestStrategies:
     def test_hold_strategy(self, synth_bars):
-        from fundcloud.strategies import Hold, RebalanceSpec
         from fundcloud.sim import Simulator
+        from fundcloud.strategies import Hold
 
         s = Hold(weights={"AAPL": 0.6, "MSFT": 0.4})
         result = Simulator(synth_bars, cash=100_000).run_strategy(s)
         assert result.portfolio is not None
 
     def test_dca_strategy(self, synth_bars):
-        from fundcloud.strategies import DCA
         from fundcloud.sim import Simulator
+        from fundcloud.strategies import DCA
 
         strategy = DCA(
             amount=2_000, horizon="weekly",
@@ -254,8 +253,8 @@ class TestStrategies:
         assert comparison.shape[1] == 2
 
     def test_trades_inspection(self, synth_bars):
-        from fundcloud.strategies import DCA
         from fundcloud.sim import Simulator
+        from fundcloud.strategies import DCA
 
         result = Simulator(synth_bars, cash=100_000).run_strategy(
             DCA(amount=500, horizon="weekly", weights={"AAPL": 0.5, "MSFT": 0.5})
@@ -270,7 +269,7 @@ class TestStrategies:
 
 class TestSimulator:
     def test_simulator_with_costs(self, synth_bars):
-        from fundcloud.sim import Simulator, FixedBps
+        from fundcloud.sim import FixedBps, Simulator
         from fundcloud.strategies import DCA
 
         result = Simulator(synth_bars, cash=100_000, costs=FixedBps(10)).run_strategy(
@@ -304,11 +303,10 @@ class TestOptimization:
 
     def test_equal_weighted_invvol(self, returns_df):
         from fundcloud.optimize import EqualWeighted, InverseVolatility
-        EqualWeighted().fit(returns_df).predict(returns_df).weights
-        InverseVolatility().fit(returns_df).predict(returns_df).weights
+        assert EqualWeighted().fit(returns_df).predict(returns_df).weights is not None
+        assert InverseVolatility().fit(returns_df).predict(returns_df).weights is not None
 
     def test_cross_validated_optimization(self, returns_df):
-        import numpy as np
         from fundcloud.optimize import MeanRisk, RiskMeasure
         from fundcloud.portfolio import Portfolio
         from fundcloud.validate import PurgedKFold
@@ -327,10 +325,10 @@ class TestOptimization:
         assert len(oos_sharpes) == 3
 
     def test_grid_search_optimization(self, returns_df):
-        from sklearn.pipeline import Pipeline
-        from sklearn.model_selection import GridSearchCV
         from fundcloud.optimize import MeanRisk, RiskMeasure
         from fundcloud.validate import PurgedKFold
+        from sklearn.model_selection import GridSearchCV
+        from sklearn.pipeline import Pipeline
 
         pipe = Pipeline([("optim", MeanRisk(risk_measure=RiskMeasure.CVAR))])
         search = GridSearchCV(
@@ -348,9 +346,9 @@ class TestOptimization:
 
 class TestDataBackends:
     def test_catalog(self, tmp_path):
-        from fundcloud.data import Catalog, DuckDB, Parquet
-
-        import numpy as np, pandas as pd
+        import numpy as np
+        import pandas as pd
+        from fundcloud.data import DuckDB
 
         idx = pd.bdate_range("2024-01-01", periods=30)
         df = pd.DataFrame({
@@ -361,7 +359,7 @@ class TestDataBackends:
         store = DuckDB(str(tmp_path / "warehouse.duckdb"))
         store.write("us_eq", df)
         assert store.exists("us_eq")
-        assert "us_eq" in store.keys()
+        assert "us_eq" in store
         loaded = store.read("us_eq")
         assert loaded.shape == df.shape
 
@@ -386,9 +384,9 @@ class TestPlots:
         fc.set_theme("white")  # reset
 
     def test_custom_plotly_template(self, returns_series):
-        import plotly.io as pio
-        import plotly.graph_objects as go
         import fundcloud as fc
+        import plotly.graph_objects as go
+        import plotly.io as pio
 
         pio.templates["test-brand"] = go.layout.Template(
             layout={"colorway": ["#003a70", "#e6a817"]}

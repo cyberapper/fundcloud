@@ -23,7 +23,7 @@ def test_render_html_writes_file(portfolio: Portfolio, tmp_path: Path) -> None:
     out = tmp_path / "demo.html"
     Tearsheet(portfolio, title="Demo").render_html(out)
     assert out.exists()
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
     assert "Cumulative returns" in text
     assert "Drawdown" in text
     assert "Rolling Sharpe" in text
@@ -51,7 +51,7 @@ def test_render_html_includes_new_performance_sections(
     bench = portfolio.returns.rename("benchmark") * 0.4
     out = tmp_path / "demo.html"
     Tearsheet(portfolio, benchmark=bench).render_html(out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     # New section headings.
     assert "Period performance" in html
     assert "EOY returns" in html
@@ -73,7 +73,7 @@ def test_render_html_places_tables_in_sidebar_and_chart_on_left(
     bench = portfolio.returns.rename("benchmark") * 0.4
     out = tmp_path / "demo.html"
     Tearsheet(portfolio, benchmark=bench).render_html(out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     # Slice the document between the two layout columns.
     charts_start = html.index('<div class="fc-charts">')
     sidebar_start = html.index('<aside class="fc-sidebar">')
@@ -93,6 +93,6 @@ def test_render_html_cumulative_chart_uses_percent(
 ) -> None:
     out = tmp_path / "demo.html"
     Tearsheet(portfolio).render_html(out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     # Plotly tickformat ``.0%`` is inlined as a JSON attribute on the figure.
     assert '"tickformat":".0%"' in html

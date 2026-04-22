@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-
 from fundcloud.metrics import rolling_alpha, rolling_beta
 
 
