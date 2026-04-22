@@ -224,9 +224,7 @@ def _build_monthly_heatmap(
             val = table.values[row_i, col_i]
             if np.isnan(val):
                 continue
-            ax.text(
-                col_i, row_i, f"{val:.1f}", ha="center", va="center", fontsize=7, color="black"
-            )
+            ax.text(col_i, row_i, f"{val:.1f}", ha="center", va="center", fontsize=7, color="black")
     ax.set_title(title, loc="left", fontsize=11, fontweight="600")
     if annotations:
         annual = table.sum(axis=1, min_count=1)
@@ -419,7 +417,12 @@ def _mpl_stats_pill(ax: Any, text: str) -> None:
         va="top",
         fontsize=8,
         family="monospace",
-        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "#BBB", "alpha": 0.82},
+        bbox={
+            "boxstyle": "round,pad=0.3",
+            "facecolor": "white",
+            "edgecolor": "#BBB",
+            "alpha": 0.82,
+        },
     )
 
 

@@ -5,6 +5,7 @@ Each test is a self-contained function that reproduces the key logic from
 the corresponding doc block. Tests that require live network access are
 skipped by default (mark them explicitly to run).
 """
+
 import fundcloud  # noqa: F401 - registers .fc accessor
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ import pytest
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="module")
 def synth_bars():
@@ -28,8 +30,8 @@ def synth_bars():
         {
             "AAPL": pd.DataFrame(_asset(180.0, 1.2), index=idx),
             "MSFT": pd.DataFrame(_asset(400.0, 2.0), index=idx),
-            "BND":  pd.DataFrame(_asset(75.0,  0.3), index=idx),
-            "GLD":  pd.DataFrame(_asset(180.0, 1.2), index=idx),
+            "BND": pd.DataFrame(_asset(75.0, 0.3), index=idx),
+            "GLD": pd.DataFrame(_asset(180.0, 1.2), index=idx),
         },
         axis=1,
     )
@@ -56,6 +58,7 @@ def spy_returns(synth_bars):
 # quickstart.md
 # ---------------------------------------------------------------------------
 
+
 class TestQuickstart:
     def test_block1_accessor_import(self):
         returns = pd.Series([0.012, -0.005, 0.008, -0.010, 0.015])
@@ -68,12 +71,19 @@ class TestQuickstart:
 
         def asset(price0, vol):
             close = price0 + np.cumsum(rng.normal(0, vol, len(idx)))
-            return {"open": close, "high": close + 0.5, "low": close - 0.5,
-                    "close": close, "volume": 1_000_000.0}
+            return {
+                "open": close,
+                "high": close + 0.5,
+                "low": close - 0.5,
+                "close": close,
+                "volume": 1_000_000.0,
+            }
 
         bars = pd.concat(
-            {"AAPL": pd.DataFrame(asset(180.0, 1.2), index=idx),
-             "MSFT": pd.DataFrame(asset(400.0, 2.0), index=idx)},
+            {
+                "AAPL": pd.DataFrame(asset(180.0, 1.2), index=idx),
+                "MSFT": pd.DataFrame(asset(400.0, 2.0), index=idx),
+            },
             axis=1,
         )
         bars.columns = bars.columns.swaplevel(0, 1)
@@ -85,8 +95,7 @@ class TestQuickstart:
         from fundcloud.strategies import DCA
 
         result = Simulator(synth_bars, cash=100_000).run_strategy(
-            DCA(amount=1_000, horizon="weekly",
-                weights={"AAPL": 0.5, "MSFT": 0.5})
+            DCA(amount=1_000, horizon="weekly", weights={"AAPL": 0.5, "MSFT": 0.5})
         )
         result.portfolio.sharpe()
         result.portfolio.max_drawdown()
@@ -114,8 +123,11 @@ class TestQuickstart:
 
         # verify the pipeline objects can be constructed correctly
         pipe = Pipeline([
-            ("features", FeaturePipeline([("rsi", RSI(timeperiod=14)), ("sma", SMA(timeperiod=20))])),
-            ("optim",    MeanRisk(risk_measure=RiskMeasure.CVAR)),
+            (
+                "features",
+                FeaturePipeline([("rsi", RSI(timeperiod=14)), ("sma", SMA(timeperiod=20))]),
+            ),
+            ("optim", MeanRisk(risk_measure=RiskMeasure.CVAR)),
         ])
         grid = GridSearchCV(
             pipe,
@@ -130,6 +142,7 @@ class TestQuickstart:
 # guides/portfolio/returns-analysis.md
 # ---------------------------------------------------------------------------
 
+
 class TestReturnsAnalysis:
     def test_metrics_series(self, returns_series):
         result = returns_series.fc.metrics()
@@ -141,6 +154,7 @@ class TestReturnsAnalysis:
 
     def test_portfolio_worst_drawdowns(self, returns_series):
         from fundcloud.portfolio import Portfolio
+
         pf = Portfolio(returns=returns_series, name="test")
         pf.worst_drawdowns(top=5)
         pf.drawdown_details()
@@ -152,6 +166,7 @@ class TestReturnsAnalysis:
 
     def test_period_returns(self, returns_series, spy_returns):
         from fundcloud.portfolio import Portfolio
+
         pf = Portfolio(returns=returns_series, name="test")
         pf.period_returns(benchmark=spy_returns)
         pf.yearly_returns(benchmark=spy_returns)
@@ -168,6 +183,7 @@ class TestReturnsAnalysis:
 # guides/portfolio/metrics.md
 # ---------------------------------------------------------------------------
 
+
 class TestMetrics:
     def test_core_metrics(self, returns_series):
         r = returns_series
@@ -179,10 +195,10 @@ class TestMetrics:
         r = returns_series
         r.fc.smart_sharpe()
         r.fc.smart_sortino()
-        r.fc.probabilistic_sharpe(target_sharpe=0.5)   # fixed name
+        r.fc.probabilistic_sharpe(target_sharpe=0.5)  # fixed name
         r.fc.adjusted_sortino()
         r.fc.kelly_criterion()
-        r.fc.risk_of_ruin(ruin_level=0.5)              # fixed kwarg
+        r.fc.risk_of_ruin(ruin_level=0.5)  # fixed kwarg
 
     def test_tail_pain_metrics(self, returns_series):
         r = returns_series
@@ -215,6 +231,7 @@ class TestMetrics:
 # guides/strategies/dca.md
 # ---------------------------------------------------------------------------
 
+
 class TestStrategies:
     def test_hold_strategy(self, synth_bars):
         from fundcloud.sim import Simulator
@@ -229,7 +246,8 @@ class TestStrategies:
         from fundcloud.strategies import DCA
 
         strategy = DCA(
-            amount=2_000, horizon="weekly",
+            amount=2_000,
+            horizon="weekly",
             weights={"AAPL": 0.4, "MSFT": 0.3, "BND": 0.2, "GLD": 0.1},
         )
         result = Simulator(synth_bars, cash=200_000).run_strategy(strategy)
@@ -240,12 +258,10 @@ class TestStrategies:
         from fundcloud.strategies import DCA, Hold
 
         WEIGHTS = {"AAPL": 0.6, "MSFT": 0.4}
-        dca  = Simulator(synth_bars, cash=120_000).run_strategy(
+        dca = Simulator(synth_bars, cash=120_000).run_strategy(
             DCA(amount=1_000, horizon="weekly", weights=WEIGHTS)
         )
-        hold = Simulator(synth_bars, cash=120_000).run_strategy(
-            Hold(weights=WEIGHTS)
-        )
+        hold = Simulator(synth_bars, cash=120_000).run_strategy(Hold(weights=WEIGHTS))
         comparison = pd.concat(
             {"DCA": dca.portfolio.summary(), "Hold": hold.portfolio.summary()},
             axis=1,
@@ -267,6 +283,7 @@ class TestStrategies:
 # guides/sim/simulator.md
 # ---------------------------------------------------------------------------
 
+
 class TestSimulator:
     def test_simulator_with_costs(self, synth_bars):
         from fundcloud.sim import FixedBps, Simulator
@@ -283,9 +300,11 @@ class TestSimulator:
 # guides/portfolio/optimization.md
 # ---------------------------------------------------------------------------
 
+
 class TestOptimization:
     def test_hrp(self, returns_df):
         from fundcloud.optimize import HierarchicalRiskParity
+
         hrp = HierarchicalRiskParity()
         hrp.fit(returns_df)
         opt_pf = hrp.predict(returns_df)
@@ -294,6 +313,7 @@ class TestOptimization:
 
     def test_mean_risk_variants(self, returns_df):
         from fundcloud.optimize import MeanRisk, RiskMeasure
+
         for rm in [RiskMeasure.VARIANCE, RiskMeasure.CVAR]:
             opt = MeanRisk(risk_measure=rm)
             opt.fit(returns_df)
@@ -303,6 +323,7 @@ class TestOptimization:
 
     def test_equal_weighted_invvol(self, returns_df):
         from fundcloud.optimize import EqualWeighted, InverseVolatility
+
         assert EqualWeighted().fit(returns_df).predict(returns_df).weights is not None
         assert InverseVolatility().fit(returns_df).predict(returns_df).weights is not None
 
@@ -315,7 +336,7 @@ class TestOptimization:
         oos_sharpes = []
         for _, (train_idx, test_idx) in enumerate(cv.split(returns_df)):
             train = returns_df.iloc[train_idx]
-            test  = returns_df.iloc[test_idx]
+            test = returns_df.iloc[test_idx]
             opt = MeanRisk(risk_measure=RiskMeasure.CVAR, min_weights=0.02)
             opt.fit(train)
             w = opt.predict(train).weights.to_numpy().squeeze()  # (n_assets,)
@@ -344,6 +365,7 @@ class TestOptimization:
 # guides/data/backends-and-catalog.md
 # ---------------------------------------------------------------------------
 
+
 class TestDataBackends:
     def test_catalog(self, tmp_path):
         import numpy as np
@@ -351,15 +373,18 @@ class TestDataBackends:
         from fundcloud.data import DuckDB
 
         idx = pd.bdate_range("2024-01-01", periods=30)
-        df = pd.DataFrame({
-            ("close",  "SPY"): np.random.default_rng(0).normal(400, 2, 30),
-            ("volume", "SPY"): np.ones(30) * 1e6,
-        }, index=idx)
+        df = pd.DataFrame(
+            {
+                ("close", "SPY"): np.random.default_rng(0).normal(400, 2, 30),
+                ("volume", "SPY"): np.ones(30) * 1e6,
+            },
+            index=idx,
+        )
 
         store = DuckDB(str(tmp_path / "warehouse.duckdb"))
         store.write("us_eq", df)
         assert store.exists("us_eq")
-        assert "us_eq" in store
+        assert "us_eq" in store.keys()
         loaded = store.read("us_eq")
         assert loaded.shape == df.shape
 
@@ -368,9 +393,11 @@ class TestDataBackends:
 # guides/plots/summary.md + themes.md
 # ---------------------------------------------------------------------------
 
+
 class TestPlots:
     def test_plots_summary(self, returns_series, spy_returns):
         from fundcloud import plots
+
         fig = plots.summary(returns_series)
         assert fig is not None
         fig2 = plots.summary(returns_series, benchmark=spy_returns)
@@ -378,6 +405,7 @@ class TestPlots:
 
     def test_theme_switching(self, returns_series):
         import fundcloud as fc
+
         for theme in ("dark", "white", "ggplot2", "seaborn"):
             fc.set_theme(theme)
             fc.plots.cumulative(returns_series)
@@ -400,9 +428,11 @@ class TestPlots:
 # guides/accelerators/rust-kernels.md
 # ---------------------------------------------------------------------------
 
+
 class TestKernels:
     def test_has_rust_flag(self):
         from fundcloud import kernels
+
         assert isinstance(kernels.HAS_RUST, bool)
         v = kernels.kernel_version()
         assert isinstance(v, str)
@@ -411,6 +441,7 @@ class TestKernels:
 # ---------------------------------------------------------------------------
 # guides/reports/tearsheets.md
 # ---------------------------------------------------------------------------
+
 
 class TestTearsheets:
     def test_render_html(self, returns_series, tmp_path):

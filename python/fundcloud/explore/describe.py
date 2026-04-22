@@ -109,9 +109,7 @@ def describe(
                 float(pd.Series(finite).kurtosis()) if len(finite) > 3 else float("nan")
             )
             entry["zeros_pct"] = float((arr == 0).mean() * 100)
-            entry["inf_pct"] = (
-                float(np.isinf(arr).sum() / total * 100) if total else 0.0
-            )
+            entry["inf_pct"] = float(np.isinf(arr).sum() / total * 100) if total else 0.0
         else:
             for k in ("skew", "kurtosis", "zeros_pct", "inf_pct"):
                 entry[k] = float("nan")

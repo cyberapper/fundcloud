@@ -209,9 +209,7 @@ def test_profile_histograms_default_open_and_have_no_duplicate_titles(
     # The Histograms section must expand every asset by default.
     hist_section_start = html.find("<h2>Histograms</h2>")
     assert hist_section_start > 0
-    assert html.count("<details open>") >= 4, (
-        "histograms should render expanded by default"
-    )
+    assert html.count("<details open>") >= 4, "histograms should render expanded by default"
 
 
 def test_profile_histograms_stack_vertically(tmp_path: Path) -> None:

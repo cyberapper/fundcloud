@@ -16,7 +16,7 @@ def test_no_start_no_end_defaults_to_today_minus_1y() -> None:
     assert isinstance(out, pd.Timestamp)
     today = pd.Timestamp.now().normalize()
     expected = today - pd.DateOffset(years=1)
-    assert abs((out - expected).days) <= 1   # tolerate clock-edge runs
+    assert abs((out - expected).days) <= 1  # tolerate clock-edge runs
 
 
 def test_no_start_with_end_uses_end_minus_1y() -> None:

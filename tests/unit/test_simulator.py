@@ -170,11 +170,15 @@ def _mixed_freq_panel() -> pd.DataFrame:
     is_biz = pd.Series(idx, index=idx).apply(lambda d: d.weekday() < 5)
     eq_nan = np.where(is_biz.values, eq, np.nan)
     rows = {
-        ("open", "BTC"): btc, ("high", "BTC"): btc * 1.01,
-        ("low", "BTC"): btc * 0.99, ("close", "BTC"): btc,
+        ("open", "BTC"): btc,
+        ("high", "BTC"): btc * 1.01,
+        ("low", "BTC"): btc * 0.99,
+        ("close", "BTC"): btc,
         ("volume", "BTC"): 1_000_000.0,
-        ("open", "EQ"): eq_nan, ("high", "EQ"): eq_nan * 1.01,
-        ("low", "EQ"): eq_nan * 0.99, ("close", "EQ"): eq_nan,
+        ("open", "EQ"): eq_nan,
+        ("high", "EQ"): eq_nan * 1.01,
+        ("low", "EQ"): eq_nan * 0.99,
+        ("close", "EQ"): eq_nan,
         ("volume", "EQ"): 1_000_000.0,
     }
     df = pd.DataFrame(rows, index=idx)
@@ -187,9 +191,7 @@ def test_hold_fills_both_legs_despite_mixed_frequency_nan() -> None:
     fill bar has NaN open for one asset (weekend for a 5-day equity when
     paired with a 7-day crypto)."""
     panel = _mixed_freq_panel()
-    result = Simulator(panel, cash=1_000_000).run_strategy(
-        Hold(weights={"BTC": 0.5, "EQ": 0.5})
-    )
+    result = Simulator(panel, cash=1_000_000).run_strategy(Hold(weights={"BTC": 0.5, "EQ": 0.5}))
     # Exactly two trades — one per leg. Both must have filled.
     assets_filled = set(result.trades["asset"])
     assert assets_filled == {"BTC", "EQ"}, (
@@ -201,9 +203,7 @@ def test_mark_to_market_uses_last_price_on_nan_bar() -> None:
     """Regression: an EQ position marked to market on a Saturday (NaN
     close) must use the last known EQ close, not drop to zero value."""
     panel = _mixed_freq_panel()
-    result = Simulator(panel, cash=1_000_000).run_strategy(
-        Hold(weights={"BTC": 0.5, "EQ": 0.5})
-    )
+    result = Simulator(panel, cash=1_000_000).run_strategy(Hold(weights={"BTC": 0.5, "EQ": 0.5}))
     equity = result.equity_curve
     # No single-bar >30% drop: such a jump would indicate the portfolio
     # zeroed out a leg on a NaN-price bar (the old bug).
@@ -220,9 +220,7 @@ def test_hold_return_tracks_component_average() -> None:
     mean of each asset's component return, within a reasonable fee /
     timing tolerance."""
     panel = _mixed_freq_panel()
-    result = Simulator(panel, cash=1_000_000).run_strategy(
-        Hold(weights={"BTC": 0.5, "EQ": 0.5})
-    )
+    result = Simulator(panel, cash=1_000_000).run_strategy(Hold(weights={"BTC": 0.5, "EQ": 0.5}))
     # Per-asset component returns from the first valid fill bar forward.
     btc_closes = panel[("close", "BTC")].dropna()
     eq_closes = panel[("close", "EQ")].dropna()

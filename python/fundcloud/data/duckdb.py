@@ -199,9 +199,7 @@ class DuckDB(BaseBackend):
                     f'FROM "{table}") WHERE __rk = 1'
                 )
             else:
-                self._con.execute(
-                    f'CREATE OR REPLACE TABLE "{table}" AS SELECT * FROM __fc_tmp'
-                )
+                self._con.execute(f'CREATE OR REPLACE TABLE "{table}" AS SELECT * FROM __fc_tmp')
         finally:
             self._con.unregister("__fc_tmp")
 

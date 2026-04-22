@@ -82,9 +82,7 @@ def test_summary_custom_title(returns: pd.Series) -> None:
     assert fig.layout.title.text == "My Strategy 2024"
 
 
-def test_mpl_summary_returns_matplotlib_figure(
-    returns: pd.Series, weights: pd.DataFrame
-) -> None:
+def test_mpl_summary_returns_matplotlib_figure(returns: pd.Series, weights: pd.DataFrame) -> None:
     from fundcloud.plots import mpl as mpl_plots
 
     fig = mpl_plots.summary(returns, weights=weights, title="test")

@@ -87,9 +87,7 @@ def _exec_prices_at(
     open_panel: np.ndarray, close_panel: np.ndarray, exec_kind: int, fill_idx: int
 ) -> np.ndarray:
     """Row of prices used for fills at ``fill_idx`` under ``exec_kind``."""
-    return (
-        open_panel[fill_idx] if exec_kind == EXEC_NEXT_BAR_OPEN else close_panel[fill_idx]
-    )
+    return open_panel[fill_idx] if exec_kind == EXEC_NEXT_BAR_OPEN else close_panel[fill_idx]
 
 
 def _fill_idx_for(signal_idx: int, n_bars: int, exec_kind: int) -> int:
@@ -353,10 +351,19 @@ def run_weights_loop(
                 continue
             prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
             ok = _execute_one(
-                book, asset, side, qty, notional, kind, limit_px,
+                book,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
                 prices_row,
-                cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                cfg.slip_kind, cfg.slip_param1,
+                cfg.cost_kind,
+                cfg.cost_param1,
+                cfg.cost_param2,
+                cfg.slip_kind,
+                cfg.slip_param1,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok  # type: ignore[misc]
@@ -378,18 +385,25 @@ def run_weights_loop(
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
-                        book, asset, side, qty, 0.0, KIND_MARKET, 0.0,
+                        book,
+                        asset,
+                        side,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
                         prices_row,
-                        cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                        cfg.slip_kind, cfg.slip_param1,
+                        cfg.cost_kind,
+                        cfg.cost_param1,
+                        cfg.cost_param2,
+                        cfg.slip_kind,
+                        cfg.slip_param1,
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok  # type: ignore[misc]
                         _record_trade(out, i, asset, signed, price, fee, slip)
                 else:
-                    pending.append(
-                        (fill_idx, asset, side, qty, 0.0, KIND_MARKET, 0.0)
-                    )
+                    pending.append((fill_idx, asset, side, qty, 0.0, KIND_MARKET, 0.0))
 
         # 3. Mark-to-market.
         equity, per_asset = _mark_to_market(book, close_panel[i])
@@ -443,10 +457,19 @@ def run_orders_loop(
                 continue
             prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
             ok = _execute_one(
-                book, asset, side, qty, notional, kind, limit_px,
+                book,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
                 prices_row,
-                cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                cfg.slip_kind, cfg.slip_param1,
+                cfg.cost_kind,
+                cfg.cost_param1,
+                cfg.cost_param2,
+                cfg.slip_kind,
+                cfg.slip_param1,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok  # type: ignore[misc]
@@ -475,10 +498,19 @@ def run_orders_loop(
             if fill_idx == i:
                 prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                 ok = _execute_one(
-                    book, asset, side, qty, notional, kind, limit_px,
+                    book,
+                    asset,
+                    side,
+                    qty,
+                    notional,
+                    kind,
+                    limit_px,
                     prices_row,
-                    cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                    cfg.slip_kind, cfg.slip_param1,
+                    cfg.cost_kind,
+                    cfg.cost_param1,
+                    cfg.cost_param2,
+                    cfg.slip_kind,
+                    cfg.slip_param1,
                 )
                 if ok[0]:
                     _, signed, price, fee, slip = ok  # type: ignore[misc]
@@ -530,10 +562,19 @@ def run_signals_loop(
                 continue
             prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
             ok = _execute_one(
-                book, asset, side, qty, notional, kind, limit_px,
+                book,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
                 prices_row,
-                cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                cfg.slip_kind, cfg.slip_param1,
+                cfg.cost_kind,
+                cfg.cost_param1,
+                cfg.cost_param2,
+                cfg.slip_kind,
+                cfg.slip_param1,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok  # type: ignore[misc]
@@ -559,10 +600,19 @@ def run_signals_loop(
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
-                        book, j, SIDE_BUY, qty, 0.0, KIND_MARKET, 0.0,
+                        book,
+                        j,
+                        SIDE_BUY,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
                         prices_row,
-                        cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                        cfg.slip_kind, cfg.slip_param1,
+                        cfg.cost_kind,
+                        cfg.cost_param1,
+                        cfg.cost_param2,
+                        cfg.slip_kind,
+                        cfg.slip_param1,
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok  # type: ignore[misc]
@@ -580,10 +630,19 @@ def run_signals_loop(
                 if fill_idx == i:
                     prices_row = _exec_prices_at(open_panel, close_panel, cfg.exec_kind, i)
                     ok = _execute_one(
-                        book, j, SIDE_SELL, qty, 0.0, KIND_MARKET, 0.0,
+                        book,
+                        j,
+                        SIDE_SELL,
+                        qty,
+                        0.0,
+                        KIND_MARKET,
+                        0.0,
                         prices_row,
-                        cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-                        cfg.slip_kind, cfg.slip_param1,
+                        cfg.cost_kind,
+                        cfg.cost_param1,
+                        cfg.cost_param2,
+                        cfg.slip_kind,
+                        cfg.slip_param1,
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok  # type: ignore[misc]

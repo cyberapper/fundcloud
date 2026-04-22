@@ -88,9 +88,7 @@ def test_render_html_places_tables_in_sidebar_and_chart_on_left(
     assert "EOY Returns vs Benchmark" in charts
 
 
-def test_render_html_cumulative_chart_uses_percent(
-    portfolio: Portfolio, tmp_path: Path
-) -> None:
+def test_render_html_cumulative_chart_uses_percent(portfolio: Portfolio, tmp_path: Path) -> None:
     out = tmp_path / "demo.html"
     Tearsheet(portfolio).render_html(out)
     html = out.read_text(encoding="utf-8")

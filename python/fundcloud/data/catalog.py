@@ -223,9 +223,7 @@ class Catalog:
         return out
 
     @classmethod
-    def from_spec(
-        cls, store: Backend, spec: Mapping[str, Mapping[str, Any]]
-    ) -> Catalog:
+    def from_spec(cls, store: Backend, spec: Mapping[str, Mapping[str, Any]]) -> Catalog:
         """Build a catalog from a mapping of ``{name: {source, source_kwargs, ...}}``."""
         cat = cls(store=store)
         for name, row in spec.items():

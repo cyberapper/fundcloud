@@ -110,10 +110,9 @@ def rolling_beta(
     on mixed-calendar pairs (e.g. BTC-USD vs NQ=F) before this fix.
     """
     if isinstance(returns, pd.Series):
-        aligned = (
-            pd.concat([returns.rename("__r"), benchmark.rename("__b")], axis=1, join="inner")
-            .dropna()
-        )
+        aligned = pd.concat(
+            [returns.rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
+        ).dropna()
         r = aligned["__r"]
         b = aligned["__b"]
         cov_ab = r.rolling(window).cov(b)
@@ -122,12 +121,9 @@ def rolling_beta(
 
     out_df = pd.DataFrame(dtype=float)
     for col in returns.columns:
-        aligned = (
-            pd.concat(
-                [returns[col].rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
-            )
-            .dropna()
-        )
+        aligned = pd.concat(
+            [returns[col].rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
+        ).dropna()
         r = aligned["__r"]
         b = aligned["__b"]
         cov_ab = r.rolling(window).cov(b)
@@ -155,10 +151,9 @@ def rolling_alpha(
     rf_pp = rf / ppy if rf else 0.0
 
     if isinstance(returns, pd.Series):
-        aligned = (
-            pd.concat([returns.rename("__r"), benchmark.rename("__b")], axis=1, join="inner")
-            .dropna()
-        )
+        aligned = pd.concat(
+            [returns.rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
+        ).dropna()
         r = aligned["__r"]
         b = aligned["__b"]
         cov_ab = r.rolling(window).cov(b)
@@ -171,12 +166,9 @@ def rolling_alpha(
 
     out_df = pd.DataFrame(dtype=float)
     for col in returns.columns:
-        aligned = (
-            pd.concat(
-                [returns[col].rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
-            )
-            .dropna()
-        )
+        aligned = pd.concat(
+            [returns[col].rename("__r"), benchmark.rename("__b")], axis=1, join="inner"
+        ).dropna()
         r = aligned["__r"]
         b = aligned["__b"]
         cov_ab = r.rolling(window).cov(b)

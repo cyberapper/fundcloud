@@ -157,7 +157,8 @@ def _drawdowns_view(r: pd.Series, *, top: int = 10) -> pd.DataFrame:
     if dd.empty:
         return pd.DataFrame(columns=["Started", "Recovered", "Drawdown", "Days"])
     return (
-        dd.head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
+        dd
+        .head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",
@@ -175,7 +176,8 @@ def _runups_view(r: pd.Series, *, top: int = 10) -> pd.DataFrame:
     if ru.empty:
         return pd.DataFrame(columns=["Started", "Peaked", "Runup", "Days"])
     return (
-        ru.head(top)[["start", "peak", "max_runup", "duration_days"]]
+        ru
+        .head(top)[["start", "peak", "max_runup", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",
@@ -192,9 +194,7 @@ def _yearly_returns_frame(r: pd.Series, benchmark: pd.Series | None) -> pd.DataF
     strategy = _yearly_returns(r).rename(str(r.name) if r.name is not None else "Strategy")
     if benchmark is None:
         return strategy.to_frame()
-    bench_name = (
-        str(benchmark.name) if benchmark.name is not None else "Benchmark"
-    )
+    bench_name = str(benchmark.name) if benchmark.name is not None else "Benchmark"
     bench_yearly = _yearly_returns(benchmark).rename(bench_name)
     return pd.concat([bench_yearly, strategy], axis=1)
 

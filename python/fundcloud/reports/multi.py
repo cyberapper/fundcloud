@@ -220,28 +220,24 @@ def render_pdf(
                 from fundcloud.metrics import rolling_alpha as _rolling_alpha
                 from fundcloud.metrics import rolling_beta as _rolling_beta
 
-                pairs.append(
-                    (
-                        "Rolling alpha (annualised)",
-                        lambda ax, r=r: _draw_rolling_series(
-                            ax,
-                            _rolling_alpha(r, benchmark, window=63),
-                            color="#2F6EE6",
-                            reference=0.0,
-                        ),
-                    )
-                )
-                pairs.append(
-                    (
-                        "Rolling beta",
-                        lambda ax, r=r: _draw_rolling_series(
-                            ax,
-                            _rolling_beta(r, benchmark, window=63),
-                            color="#1F9B64",
-                            reference=1.0,
-                        ),
-                    )
-                )
+                pairs.append((
+                    "Rolling alpha (annualised)",
+                    lambda ax, r=r: _draw_rolling_series(
+                        ax,
+                        _rolling_alpha(r, benchmark, window=63),
+                        color="#2F6EE6",
+                        reference=0.0,
+                    ),
+                ))
+                pairs.append((
+                    "Rolling beta",
+                    lambda ax, r=r: _draw_rolling_series(
+                        ax,
+                        _rolling_beta(r, benchmark, window=63),
+                        color="#1F9B64",
+                        reference=1.0,
+                    ),
+                ))
             if _has_span_of_months(r):
                 pairs.append(("Monthly returns (%)", None))
 
@@ -276,7 +272,9 @@ def _asset_chart_builders(
     )
 
 
-def _cover_page(plt: Any, title: str, portfolios: list[tuple[str, Portfolio]], size: tuple[float, float]) -> Any:
+def _cover_page(
+    plt: Any, title: str, portfolios: list[tuple[str, Portfolio]], size: tuple[float, float]
+) -> Any:
     """Single cover page listing every asset with its core stats."""
     fig = plt.figure(figsize=size)
     fig.subplots_adjust(top=0.92, bottom=0.06, left=0.06, right=0.94)
@@ -284,8 +282,7 @@ def _cover_page(plt: Any, title: str, portfolios: list[tuple[str, Portfolio]], s
     fig.text(
         0.06,
         0.92,
-        f"{len(portfolios)} strategies · generated "
-        f"{datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"{len(portfolios)} strategies · generated {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         fontsize=10,
         color="#475569",
     )
@@ -359,7 +356,9 @@ def render_excel(
     try:
         import xlsxwriter  # noqa: F401
     except ImportError as e:
-        msg = "xlsxwriter is required for Excel rendering. Install with: uv add 'fundcloud[reports]'."
+        msg = (
+            "xlsxwriter is required for Excel rendering. Install with: uv add 'fundcloud[reports]'."
+        )
         raise ImportError(msg) from e
 
     out = Path(path)
@@ -419,9 +418,14 @@ def _write_overview_sheet(writer: Any, title: str | None, overview: pd.DataFrame
     wb = writer.book
     ws = wb.add_worksheet("Overview")
     writer.sheets["Overview"] = ws
-    ws.write(0, 0, title or "Multi-asset tear sheet", wb.add_format({"bold": True, "font_size": 16}))
     ws.write(
-        1, 0, f"{len(overview)} strategies", wb.add_format({"italic": True, "font_color": "#6B7280"})
+        0, 0, title or "Multi-asset tear sheet", wb.add_format({"bold": True, "font_size": 16})
+    )
+    ws.write(
+        1,
+        0,
+        f"{len(overview)} strategies",
+        wb.add_format({"italic": True, "font_color": "#6B7280"}),
     )
     header_fmt = wb.add_format({"bold": True, "bg_color": "#F3F4F6", "border": 1})
     cell_fmt = wb.add_format({"border": 1})
@@ -485,15 +489,13 @@ def _write_asset_sheets(
         ws.write(1, 0, subtitle, wb.add_format({"italic": True, "font_color": "#6B7280"}))
 
     header_fmt = wb.add_format({"bold": True, "bg_color": "#F3F4F6", "border": 1})
-    section_fmt = wb.add_format(
-        {
-            "bold": True,
-            "bg_color": "#E0E7FF",
-            "border": 1,
-            "font_size": 11,
-            "font_color": "#1F2A44",
-        }
-    )
+    section_fmt = wb.add_format({
+        "bold": True,
+        "bg_color": "#E0E7FF",
+        "border": 1,
+        "font_size": 11,
+        "font_color": "#1F2A44",
+    })
     key_fmt = wb.add_format({"bold": True, "border": 1})
     pct_fmt = wb.add_format({"num_format": "0.00%", "border": 1})
     num_fmt = wb.add_format({"num_format": "0.00", "border": 1})
@@ -525,9 +527,7 @@ def _write_asset_sheets(
             info = METRIC_INFO.get(str(key))
             label = info.label if info is not None else str(key)
             ws.write(row, 0, label, key_fmt)
-            _write_asset_metric_value(
-                ws, row, 1, str(key), val, pct_fmt, num_fmt, int_fmt, key_fmt
-            )
+            _write_asset_metric_value(ws, row, 1, str(key), val, pct_fmt, num_fmt, int_fmt, key_fmt)
             if bench_stats is not None and bench_label is not None:
                 b_val = bench_stats.get(str(key), float("nan"))
                 _write_asset_metric_value(

@@ -118,8 +118,15 @@ def test_fmp_normalises_camelcase_provider_keys(monkeypatch: pytest.MonkeyPatch)
 
     payload = {
         "historical": [
-            {"date": "2024-01-01", "Open": 1.0, "High": 2.0, "Low": 0.5,
-             "Close": 1.5, "Volume": 1000, "adjClose": 1.4},
+            {
+                "date": "2024-01-01",
+                "Open": 1.0,
+                "High": 2.0,
+                "Low": 0.5,
+                "Close": 1.5,
+                "Volume": 1000,
+                "adjClose": 1.4,
+            },
         ]
     }
     monkeypatch.setattr(fmp_mod.HttpClient, "get_json", lambda *_a, **_k: payload)
@@ -135,10 +142,24 @@ def test_fmp_adjust_true_promotes_adj_close(monkeypatch: pytest.MonkeyPatch) -> 
 
     payload = {
         "historical": [
-            {"date": "2024-01-02", "open": 1.5, "high": 2.5, "low": 1.0,
-             "close": 2.0, "adjClose": 1.95, "volume": 2000},
-            {"date": "2024-01-01", "open": 1.0, "high": 2.0, "low": 0.5,
-             "close": 1.5, "adjClose": 1.45, "volume": 1000},
+            {
+                "date": "2024-01-02",
+                "open": 1.5,
+                "high": 2.5,
+                "low": 1.0,
+                "close": 2.0,
+                "adjClose": 1.95,
+                "volume": 2000,
+            },
+            {
+                "date": "2024-01-01",
+                "open": 1.0,
+                "high": 2.0,
+                "low": 0.5,
+                "close": 1.5,
+                "adjClose": 1.45,
+                "volume": 1000,
+            },
         ]
     }
     monkeypatch.setattr(fmp_mod.HttpClient, "get_json", lambda *_a, **_k: payload)
@@ -152,8 +173,15 @@ def test_fmp_adjust_false_keeps_raw_close(monkeypatch: pytest.MonkeyPatch) -> No
 
     payload = {
         "historical": [
-            {"date": "2024-01-02", "open": 1.5, "high": 2.5, "low": 1.0,
-             "close": 2.0, "adjClose": 1.95, "volume": 2000},
+            {
+                "date": "2024-01-02",
+                "open": 1.5,
+                "high": 2.5,
+                "low": 1.0,
+                "close": 2.0,
+                "adjClose": 1.95,
+                "volume": 2000,
+            },
         ]
     }
     monkeypatch.setattr(fmp_mod.HttpClient, "get_json", lambda *_a, **_k: payload)
@@ -203,12 +231,18 @@ def _fake_av_raw_payload() -> dict:
     return {
         "Time Series (Daily)": {
             "2024-01-02": {
-                "1. open": "1.5", "2. high": "2.5", "3. low": "1.0",
-                "4. close": "2.0", "5. volume": "2000",
+                "1. open": "1.5",
+                "2. high": "2.5",
+                "3. low": "1.0",
+                "4. close": "2.0",
+                "5. volume": "2000",
             },
             "2024-01-01": {
-                "1. open": "1.0", "2. high": "2.0", "3. low": "0.5",
-                "4. close": "1.5", "5. volume": "1000",
+                "1. open": "1.0",
+                "2. high": "2.0",
+                "3. low": "0.5",
+                "4. close": "1.5",
+                "5. volume": "1000",
             },
         }
     }
@@ -218,7 +252,8 @@ def test_av_parses_daily_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
     from fundcloud.data import av as av_mod
 
     monkeypatch.setattr(
-        av_mod.HttpClient, "get_json",
+        av_mod.HttpClient,
+        "get_json",
         lambda self, url, params=None: _fake_av_payload(),
     )
     src = av_mod.AV("AAPL", api_key="test")

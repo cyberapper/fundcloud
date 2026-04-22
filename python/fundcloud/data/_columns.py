@@ -71,9 +71,9 @@ def normalize_ohlcv_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     if isinstance(df.columns, pd.MultiIndex):
-        df.columns = pd.MultiIndex.from_tuples(
-            [(normalize_field(field), sym) for field, sym in df.columns]
-        )
+        df.columns = pd.MultiIndex.from_tuples([
+            (normalize_field(field), sym) for field, sym in df.columns
+        ])
     else:
         df.columns = [normalize_field(c) for c in df.columns]
     return df

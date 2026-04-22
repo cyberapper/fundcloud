@@ -35,23 +35,19 @@ def drift_table(a: pd.DataFrame, b: pd.DataFrame, shared: list[str]) -> pd.DataF
         mean_b = float(bc.mean())
         std_a = float(ac.std(ddof=1))
         std_b = float(bc.std(ddof=1))
-        rows.append(
-            {
-                "column": str(col),
-                "mean_a": mean_a,
-                "mean_b": mean_b,
-                "mean_shift": mean_b - mean_a,
-                "std_a": std_a,
-                "std_b": std_b,
-                "std_ratio": std_b / std_a if std_a else float("nan"),
-                "ks_stat": float(ks.statistic),
-                "ks_pvalue": float(ks.pvalue),
-                "wasserstein": w,
-                "missing_delta_pct": float(
-                    (col_b.isna().mean() - col_a.isna().mean()) * 100
-                ),
-            }
-        )
+        rows.append({
+            "column": str(col),
+            "mean_a": mean_a,
+            "mean_b": mean_b,
+            "mean_shift": mean_b - mean_a,
+            "std_a": std_a,
+            "std_b": std_b,
+            "std_ratio": std_b / std_a if std_a else float("nan"),
+            "ks_stat": float(ks.statistic),
+            "ks_pvalue": float(ks.pvalue),
+            "wasserstein": w,
+            "missing_delta_pct": float((col_b.isna().mean() - col_a.isna().mean()) * 100),
+        })
     if not rows:
         return pd.DataFrame(
             columns=[

@@ -85,9 +85,7 @@ class DCA(BaseStrategy):
                 if abs(total_w - 1.0) > 1e-6:
                     msg = f"DCA weights must sum to 1, got {total_w}"
                     raise ValueError(msg)
-                self._amounts = {
-                    k: self._scalar_amount * float(v) for k, v in weights.items()
-                }
+                self._amounts = {k: self._scalar_amount * float(v) for k, v in weights.items()}
         self._horizon = horizon
         self._start = pd.Timestamp(start) if start is not None else None
         self._end = pd.Timestamp(end) if end is not None else None

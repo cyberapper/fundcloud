@@ -134,36 +134,30 @@ def _render_matplotlib(ts: Tearsheet, path: Path) -> Path:
             from fundcloud.metrics import rolling_alpha as _rolling_alpha
             from fundcloud.metrics import rolling_beta as _rolling_beta
 
-            chart_builders.append(
-                (
-                    "Rolling alpha (annualised)",
-                    lambda ax: _draw_rolling_series(
-                        ax,
-                        _rolling_alpha(r, benchmark, window=63),
-                        color="#2F6EE6",
-                        reference=0.0,
-                    ),
-                )
-            )
-            chart_builders.append(
-                (
-                    "Rolling beta",
-                    lambda ax: _draw_rolling_series(
-                        ax,
-                        _rolling_beta(r, benchmark, window=63),
-                        color="#1F9B64",
-                        reference=1.0,
-                    ),
-                )
-            )
+            chart_builders.append((
+                "Rolling alpha (annualised)",
+                lambda ax: _draw_rolling_series(
+                    ax,
+                    _rolling_alpha(r, benchmark, window=63),
+                    color="#2F6EE6",
+                    reference=0.0,
+                ),
+            ))
+            chart_builders.append((
+                "Rolling beta",
+                lambda ax: _draw_rolling_series(
+                    ax,
+                    _rolling_beta(r, benchmark, window=63),
+                    color="#1F9B64",
+                    reference=1.0,
+                ),
+            ))
         if _has_span_of_months(r):
             chart_builders.append(("Monthly returns (%)", None))  # marker for heatmap
-            chart_builders.append(
-                (
-                    _yearly_title(bench_label),
-                    lambda ax: _build_yearly_bars(ax, r, benchmark=benchmark),
-                )
-            )
+            chart_builders.append((
+                _yearly_title(bench_label),
+                lambda ax: _build_yearly_bars(ax, r, benchmark=benchmark),
+            ))
 
         for pair_start in range(0, len(chart_builders), 2):
             pair = chart_builders[pair_start : pair_start + 2]
@@ -299,9 +293,7 @@ def _yearly_title(benchmark_label: str | None) -> str:
     return "EOY returns"
 
 
-def _build_yearly_bars(
-    ax: Any, returns: pd.Series, *, benchmark: pd.Series | None
-) -> None:
+def _build_yearly_bars(ax: Any, returns: pd.Series, *, benchmark: pd.Series | None) -> None:
     """Paired grouped-bar chart: benchmark (if any) + strategy per year."""
     import matplotlib.ticker as _mtick
 
@@ -329,7 +321,9 @@ def _build_yearly_bars(
             bench_vals,
             width=width,
             color="#F0C36D",
-            label=str(benchmark.name) if benchmark is not None and benchmark.name is not None else "Benchmark",
+            label=str(benchmark.name)
+            if benchmark is not None and benchmark.name is not None
+            else "Benchmark",
         )
         ax.bar(x + width / 2, strat_vals, width=width, color="#2F6EE6", label="Strategy")
     else:
@@ -351,7 +345,8 @@ def _drawdowns_df(dd: pd.DataFrame, *, top: int) -> pd.DataFrame:
     if dd.empty:
         return dd
     return (
-        dd.head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
+        dd
+        .head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",
@@ -368,7 +363,8 @@ def _runups_df(ru: pd.DataFrame, *, top: int) -> pd.DataFrame:
     if ru.empty:
         return ru
     return (
-        ru.head(top)[["start", "peak", "max_runup", "duration_days"]]
+        ru
+        .head(top)[["start", "peak", "max_runup", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",
@@ -465,9 +461,7 @@ def _table_page(
     return fig
 
 
-def _draw_rolling_series(
-    ax: Any, series: pd.Series, *, color: str, reference: float
-) -> None:
+def _draw_rolling_series(ax: Any, series: pd.Series, *, color: str, reference: float) -> None:
     """Helper for the rolling-α / rolling-β chart pages."""
     ax.plot(series.index, series.values, color=color, linewidth=1.4)
     ax.axhline(reference, color="#444", linewidth=0.6, linestyle=":")
@@ -614,9 +608,7 @@ def _metric_table_pages(
             if bench_stats is not None:
                 b_val = bench_stats.get(key, float("nan"))
                 if not isinstance(b_val, pd.Timestamp):
-                    b_str = _fmt.format_stat(
-                        key, float(b_val) if pd.notna(b_val) else float("nan")
-                    )
+                    b_str = _fmt.format_stat(key, float(b_val) if pd.notna(b_val) else float("nan"))
             display_rows.append((label, s_str, b_str, key))
 
     if not display_rows:
@@ -629,13 +621,15 @@ def _metric_table_pages(
     chunks = _chunk_with_section_headers(display_rows, rows_per_page)
     for page_index, chunk in enumerate(chunks):
         fig = plt.figure(figsize=_PAGE_SIZE)
-        suffix = (
-            f"  (page {page_index + 1} of {len(chunks)})" if len(chunks) > 1 else ""
-        )
-        page_title = title if (title and page_index == 0) else (
-            f"Metrics — {strategy_label}"
-            + (f" vs {benchmark_label}" if benchmark_label else "")
-            + suffix
+        suffix = f"  (page {page_index + 1} of {len(chunks)})" if len(chunks) > 1 else ""
+        page_title = (
+            title
+            if (title and page_index == 0)
+            else (
+                f"Metrics — {strategy_label}"
+                + (f" vs {benchmark_label}" if benchmark_label else "")
+                + suffix
+            )
         )
         fig.suptitle(
             page_title,
@@ -699,9 +693,7 @@ def _draw_categorised_table(
     for idx, (label, strategy_val, bench_val, _key) in enumerate(rows):
         if label == "__section__":
             # Section header — use strategy_val to carry the category name.
-            cell_text.append(
-                [strategy_val] + [""] * (len(col_headers) - 1)
-            )
+            cell_text.append([strategy_val] + [""] * (len(col_headers) - 1))
             cell_colours.append(["#E0E7FF"] * len(col_headers))
             section_header_rows.add(idx)
             continue

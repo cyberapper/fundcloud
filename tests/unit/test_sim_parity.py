@@ -119,9 +119,7 @@ def test_parity_run_weights(combo_idx: int) -> None:
         index=[bars.index[0]],
         columns=[f"A{j:02d}" for j in range(3)],
     )
-    sim_kwargs = dict(
-        cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution
-    )
+    sim_kwargs = dict(cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution)
     r_rust = _with_backend(bars, ("run_weights", target), rust=True, **sim_kwargs)
     r_py = _with_backend(bars, ("run_weights", target), rust=False, **sim_kwargs)
     _assert_simresult_equal(r_rust, r_py)
@@ -134,16 +132,12 @@ def test_parity_run_weights(combo_idx: int) -> None:
 def test_parity_run_orders(combo_idx: int) -> None:
     costs, slippage, execution = _COMBOS[combo_idx]
     bars = _synthetic_bars(n_bars=60, n_assets=2, seed=combo_idx + 100)
-    orders = pd.DataFrame(
-        [
-            {"ts": bars.index[2], "asset": "A00", "side": "buy", "qty": 10.0},
-            {"ts": bars.index[10], "asset": "A01", "side": "buy", "qty": 20.0},
-            {"ts": bars.index[30], "asset": "A00", "side": "sell", "qty": 5.0},
-        ]
-    )
-    sim_kwargs = dict(
-        cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution
-    )
+    orders = pd.DataFrame([
+        {"ts": bars.index[2], "asset": "A00", "side": "buy", "qty": 10.0},
+        {"ts": bars.index[10], "asset": "A01", "side": "buy", "qty": 20.0},
+        {"ts": bars.index[30], "asset": "A00", "side": "sell", "qty": 5.0},
+    ])
+    sim_kwargs = dict(cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution)
     r_rust = _with_backend(bars, ("run_orders", orders), rust=True, **sim_kwargs)
     r_py = _with_backend(bars, ("run_orders", orders), rust=False, **sim_kwargs)
     _assert_simresult_equal(r_rust, r_py)
@@ -162,15 +156,9 @@ def test_parity_run_signals(combo_idx: int) -> None:
     entries.iloc[5, 0] = True
     entries.iloc[15, 1] = True
     exits.iloc[40, 0] = True
-    sim_kwargs = dict(
-        cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution
-    )
-    r_rust = _with_backend(
-        bars, ("run_signals", entries, exits), rust=True, **sim_kwargs
-    )
-    r_py = _with_backend(
-        bars, ("run_signals", entries, exits), rust=False, **sim_kwargs
-    )
+    sim_kwargs = dict(cash=1_000_000.0, costs=costs, slippage=slippage, execution=execution)
+    r_rust = _with_backend(bars, ("run_signals", entries, exits), rust=True, **sim_kwargs)
+    r_py = _with_backend(bars, ("run_signals", entries, exits), rust=False, **sim_kwargs)
     _assert_simresult_equal(r_rust, r_py)
 
 

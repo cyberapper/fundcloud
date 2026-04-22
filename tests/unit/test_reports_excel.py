@@ -39,9 +39,7 @@ def test_render_excel_produces_workbook(portfolio: Portfolio, tmp_path: Path) ->
     }.issubset(names)
 
 
-def test_render_excel_period_returns_has_pct_format(
-    portfolio: Portfolio, tmp_path: Path
-) -> None:
+def test_render_excel_period_returns_has_pct_format(portfolio: Portfolio, tmp_path: Path) -> None:
     bench = portfolio.returns.rename("SPY") * 0.5
     out = tmp_path / "demo.xlsx"
     Tearsheet(portfolio, benchmark=bench).render_excel(out)

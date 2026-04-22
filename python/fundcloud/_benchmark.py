@@ -34,9 +34,7 @@ def resolve_benchmark(
     if isinstance(benchmark, str):
         if isinstance(returns, pd.DataFrame) and benchmark in returns.columns:
             return returns[benchmark].rename(benchmark)
-        available = (
-            list(returns.columns) if isinstance(returns, pd.DataFrame) else []
-        )
+        available = list(returns.columns) if isinstance(returns, pd.DataFrame) else []
         msg = (
             f"benchmark={benchmark!r} is a string but no matching column "
             f"is available; pass pd.Series explicitly or include the "

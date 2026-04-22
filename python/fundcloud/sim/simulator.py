@@ -168,9 +168,7 @@ class Simulator:
         pending: list[tuple[int, Order]] = []
         return self._drive(portfolio, pending, per_bar_orders=_orders_for)
 
-    def _run_weights_fast(
-        self, target_weights: pd.DataFrame, cfg: _sim_pyfb.SimCfg
-    ) -> SimResult:
+    def _run_weights_fast(self, target_weights: pd.DataFrame, cfg: _sim_pyfb.SimCfg) -> SimResult:
         """Deterministic weights path via the Rust / NumPy dispatcher."""
         open_np, close_np, assets = _pack_panels(self.bars)
         asset_idx = {a: i for i, a in enumerate(assets)}
@@ -182,9 +180,7 @@ class Simulator:
             weights_np = np.zeros((0, len(assets)), dtype=float)
         else:
             bar_index_map = {ts: i for i, ts in enumerate(self.bars.index)}
-            target_bar = np.asarray(
-                [bar_index_map[ts] for ts in rows_ts], dtype=np.intp
-            )
+            target_bar = np.asarray([bar_index_map[ts] for ts in rows_ts], dtype=np.intp)
             weights_np = np.full((len(rows_ts), len(assets)), np.nan, dtype=float)
             for r, ts in enumerate(rows_ts):
                 row = target_weights.loc[ts]
@@ -202,9 +198,7 @@ class Simulator:
             slip_param1=cfg.slip_param1,
             exec_kind=cfg.exec_kind,
         )
-        sim_out = _sim_dispatcher.run_weights(
-            open_np, close_np, weights_np, target_bar, cfg
-        )
+        sim_out = _sim_dispatcher.run_weights(open_np, close_np, weights_np, target_bar, cfg)
         return _rehydrate_sim_result(sim_out, self.bars, assets, cash=self.cash)
 
     def run_signals(
@@ -311,9 +305,7 @@ class Simulator:
         pending: list[tuple[int, Order]] = []
         return self._drive(portfolio, pending, per_bar_orders=_orders_for)
 
-    def _run_orders_fast(
-        self, orders: pd.DataFrame, cfg: _sim_pyfb.SimCfg
-    ) -> SimResult:
+    def _run_orders_fast(self, orders: pd.DataFrame, cfg: _sim_pyfb.SimCfg) -> SimResult:
         """Deterministic orders path via the Rust / NumPy dispatcher."""
         open_np, close_np, assets = _pack_panels(self.bars)
         asset_idx = {a: i for i, a in enumerate(assets)}
@@ -346,9 +338,7 @@ class Simulator:
             side_s = str(row.side).lower()
             bar_list.append(i)
             asset_list.append(j)
-            side_list.append(
-                _sim_pyfb.SIDE_SELL if side_s == "sell" else _sim_pyfb.SIDE_BUY
-            )
+            side_list.append(_sim_pyfb.SIDE_SELL if side_s == "sell" else _sim_pyfb.SIDE_BUY)
             qty_list.append(qty)
             notional_list.append(notional)
             kind_list.append(kind)
@@ -364,7 +354,8 @@ class Simulator:
             exec_kind=cfg.exec_kind,
         )
         sim_out = _sim_dispatcher.run_orders(
-            open_np, close_np,
+            open_np,
+            close_np,
             np.asarray(bar_list, dtype=np.intp),
             np.asarray(asset_list, dtype=np.intp),
             np.asarray(side_list, dtype=np.intp),
@@ -521,10 +512,7 @@ def _forward_fill_prices(bars: pd.DataFrame) -> pd.DataFrame:
         return bars.copy()
     out = bars.copy()
     if isinstance(out.columns, pd.MultiIndex):
-        price_cols = [
-            c for c in out.columns
-            if str(c[0]).lower() in _PRICE_FIELDS
-        ]
+        price_cols = [c for c in out.columns if str(c[0]).lower() in _PRICE_FIELDS]
         if price_cols:
             out[price_cols] = out[price_cols].ffill()
     else:
@@ -731,8 +719,7 @@ def _rehydrate_sim_result(
     if n_orders:
         sides = ["buy" if int(s) == _sim_pyfb.SIDE_BUY else "sell" for s in sim_out["order_side"]]
         kinds = [
-            "market" if int(k) == _sim_pyfb.KIND_MARKET else "limit"
-            for k in sim_out["order_kind"]
+            "market" if int(k) == _sim_pyfb.KIND_MARKET else "limit" for k in sim_out["order_kind"]
         ]
         qtys = [float(q) if q != 0 else None for q in sim_out["order_qty"]]
         notionals = [float(n) if n != 0 else None for n in sim_out["order_notional"]]

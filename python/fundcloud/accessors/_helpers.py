@@ -56,9 +56,7 @@ def portfolio_from_frame(
 
     if df.shape[1] == 1:
         col = df.iloc[:, 0]
-        return Portfolio(
-            returns=col, benchmark=benchmark, name=name or str(col.name or "strategy")
-        )
+        return Portfolio(returns=col, benchmark=benchmark, name=name or str(col.name or "strategy"))
 
     # Multi-column: combine via weights.
     if weights is None:
@@ -95,9 +93,7 @@ def portfolios_per_column(
     out: list[tuple[str, Portfolio]] = []
     for col in df.columns:
         series = df[col].dropna().rename(str(col))
-        out.append(
-            (str(col), Portfolio(returns=series, benchmark=benchmark, name=str(col)))
-        )
+        out.append((str(col), Portfolio(returns=series, benchmark=benchmark, name=str(col))))
     return out
 
 

@@ -31,9 +31,18 @@ def run_weights(
 ) -> dict[str, Any]:
     if _have_rust_sim():
         return _core.sim_run_weights(
-            open_panel, close_panel, target_weights, target_bar_indices,
-            cfg.cash, cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-            cfg.slip_kind, cfg.slip_param1, cfg.exec_kind, float(tolerance),
+            open_panel,
+            close_panel,
+            target_weights,
+            target_bar_indices,
+            cfg.cash,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+            cfg.exec_kind,
+            float(tolerance),
         )
     return _pyfb.run_weights_loop(
         open_panel, close_panel, target_weights, target_bar_indices, cfg, tolerance=tolerance
@@ -54,16 +63,34 @@ def run_orders(
 ) -> dict[str, Any]:
     if _have_rust_sim():
         return _core.sim_run_orders(
-            open_panel, close_panel,
-            order_bar, order_asset, order_side, order_qty, order_notional,
-            order_kind, order_limit_price,
-            cfg.cash, cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-            cfg.slip_kind, cfg.slip_param1, cfg.exec_kind,
+            open_panel,
+            close_panel,
+            order_bar,
+            order_asset,
+            order_side,
+            order_qty,
+            order_notional,
+            order_kind,
+            order_limit_price,
+            cfg.cash,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+            cfg.exec_kind,
         )
     return _pyfb.run_orders_loop(
-        open_panel, close_panel,
-        order_bar, order_asset, order_side, order_qty, order_notional,
-        order_kind, order_limit_price, cfg,
+        open_panel,
+        close_panel,
+        order_bar,
+        order_asset,
+        order_side,
+        order_qty,
+        order_notional,
+        order_kind,
+        order_limit_price,
+        cfg,
     )
 
 
@@ -80,10 +107,24 @@ def run_signals(
         en8 = np.ascontiguousarray(entries, dtype=np.uint8)
         ex8 = np.ascontiguousarray(exits, dtype=np.uint8)
         return _core.sim_run_signals(
-            open_panel, close_panel, en8, ex8, float(size),
-            cfg.cash, cfg.cost_kind, cfg.cost_param1, cfg.cost_param2,
-            cfg.slip_kind, cfg.slip_param1, cfg.exec_kind,
+            open_panel,
+            close_panel,
+            en8,
+            ex8,
+            float(size),
+            cfg.cash,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+            cfg.exec_kind,
         )
     return _pyfb.run_signals_loop(
-        open_panel, close_panel, entries, exits, size, cfg,
+        open_panel,
+        close_panel,
+        entries,
+        exits,
+        size,
+        cfg,
     )

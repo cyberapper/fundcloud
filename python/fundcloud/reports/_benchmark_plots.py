@@ -46,17 +46,13 @@ def rolling_alpha_beta_figure(
         row=1,
         col=1,
     )
-    fig.add_hline(
-        y=0, line={"color": "rgba(0,0,0,0.4)", "width": 1, "dash": "dot"}, row=1, col=1
-    )
+    fig.add_hline(y=0, line={"color": "rgba(0,0,0,0.4)", "width": 1, "dash": "dot"}, row=1, col=1)
     fig.add_trace(
         go.Scatter(x=beta.index, y=beta.values, name="beta", line={"width": 1.6}),
         row=2,
         col=1,
     )
-    fig.add_hline(
-        y=1, line={"color": "rgba(0,0,0,0.4)", "width": 1, "dash": "dot"}, row=2, col=1
-    )
+    fig.add_hline(y=1, line={"color": "rgba(0,0,0,0.4)", "width": 1, "dash": "dot"}, row=2, col=1)
     fig.update_yaxes(tickformat=".2%", row=1, col=1)
     fig.update_yaxes(tickformat=".2f", row=2, col=1)
     fig.update_layout(

@@ -185,14 +185,12 @@ def missing_timeline(df: pd.DataFrame, *, sample_rows: int = 2_000) -> Figure:
     """
     go = _go()
     if df.shape[1] != 1:
-        msg = "missing_timeline expects a single-column frame; got " f"{df.shape[1]} columns"
+        msg = f"missing_timeline expects a single-column frame; got {df.shape[1]} columns"
         raise ValueError(msg)
     col = df.columns[0]
     ser = df[col]
     sampled = (
-        ser.sample(n=sample_rows, random_state=0).sort_index()
-        if len(ser) > sample_rows
-        else ser
+        ser.sample(n=sample_rows, random_state=0).sort_index() if len(ser) > sample_rows else ser
     )
     mask = sampled.isna().astype(int).to_numpy().reshape(1, -1)
     fig = go.Figure(  # type: ignore[attr-defined]

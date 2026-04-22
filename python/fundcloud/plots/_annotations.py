@@ -65,7 +65,9 @@ def cumulative_pill(
 ) -> str:
     # Column widths: matches the longest value format we emit.
     W_TOTAL, W_CAGR, W_VOL, W_SHARPE = 11, 9, 9, 7
-    bench_name = str(benchmark.name) if benchmark is not None and benchmark.name is not None else "benchmark"
+    bench_name = (
+        str(benchmark.name) if benchmark is not None and benchmark.name is not None else "benchmark"
+    )
     label_w = _label_width(series_list, extra=bench_name if benchmark is not None else "")
 
     lines = [
@@ -79,7 +81,9 @@ def cumulative_pill(
         total = _fmt_pct(_metrics.total_return(series), width=W_TOTAL)
         cagr = _fmt_pct(_metrics.cagr(series, periods_per_year=periods_per_year), width=W_CAGR)
         vol = _fmt_pct(_metrics.volatility(series, periods_per_year=periods_per_year), width=W_VOL)
-        sharpe = _fmt_num(_metrics.sharpe(series, periods_per_year=periods_per_year), width=W_SHARPE)
+        sharpe = _fmt_num(
+            _metrics.sharpe(series, periods_per_year=periods_per_year), width=W_SHARPE
+        )
         lines.append(f"{_row_label(name, label_w)}{total}{cagr}{vol}{sharpe}")
     return "<br>".join(lines)
 
@@ -89,8 +93,7 @@ def drawdown_pill(series_list: list[tuple[str, pd.Series]]) -> str:
     label_w = _label_width(series_list)
 
     lines = [
-        f"{' ' * (label_w + 1)}"
-        f"{'Max DD':>{W_MAX}}{'Peak → Trough':>{W_PT}}{'Avg DD':>{W_AVG}}"
+        f"{' ' * (label_w + 1)}{'Max DD':>{W_MAX}}{'Peak → Trough':>{W_PT}}{'Avg DD':>{W_AVG}}"
     ]
     for name, series in series_list:
         dd = _metrics.drawdown_series(series)

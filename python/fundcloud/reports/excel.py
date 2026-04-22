@@ -131,15 +131,13 @@ def _write_summary(
     title_fmt = wb.add_format({"bold": True, "font_size": 16})
     subtitle_fmt = wb.add_format({"italic": True, "font_color": "#6B7280"})
     header_fmt = wb.add_format({"bold": True, "bg_color": "#F3F4F6", "border": 1})
-    section_fmt = wb.add_format(
-        {
-            "bold": True,
-            "bg_color": "#E0E7FF",
-            "border": 1,
-            "font_size": 11,
-            "font_color": "#1F2A44",
-        }
-    )
+    section_fmt = wb.add_format({
+        "bold": True,
+        "bg_color": "#E0E7FF",
+        "border": 1,
+        "font_size": 11,
+        "font_color": "#1F2A44",
+    })
     key_fmt = wb.add_format({"bold": True, "border": 1})
     pct_fmt = wb.add_format({"num_format": "0.00%", "border": 1})
     num_fmt = wb.add_format({"num_format": "0.00", "border": 1})
@@ -179,9 +177,7 @@ def _write_summary(
             _write_metric_value(ws, row, 1, key, val, pct_fmt, num_fmt, int_fmt, key_fmt)
             if bench_stats is not None and benchmark_label is not None:
                 b_val = bench_stats.get(key, float("nan"))
-                _write_metric_value(
-                    ws, row, 2, key, b_val, pct_fmt, num_fmt, int_fmt, key_fmt
-                )
+                _write_metric_value(ws, row, 2, key, b_val, pct_fmt, num_fmt, int_fmt, key_fmt)
             row += 1
 
     ws.set_column(0, 0, 30)
@@ -240,9 +236,7 @@ def _write_metric_value(
 # --------------------------------------------------------------------- returns charts
 
 
-def _add_returns_charts(
-    writer: Any, df: pd.DataFrame, *, with_benchmark: bool = False
-) -> None:
+def _add_returns_charts(writer: Any, df: pd.DataFrame, *, with_benchmark: bool = False) -> None:
     wb = writer.book
     ws = writer.sheets["Returns"]
     n = len(df)
@@ -301,9 +295,7 @@ def _add_returns_charts(
 # --------------------------------------------------------------------- new sheets
 
 
-def _write_period_returns(
-    writer: Any, r: pd.Series, *, benchmark: pd.Series | None
-) -> None:
+def _write_period_returns(writer: Any, r: pd.Series, *, benchmark: pd.Series | None) -> None:
     """MTD / 3M / … / All-time sheet, percentage-formatted."""
     df = _period_returns(r, benchmark=benchmark)
     if isinstance(df, pd.Series):
@@ -328,9 +320,7 @@ def _write_yearly_returns(
     strat = _yearly_returns(r).rename(strategy_label or "Strategy")
     cols: list[pd.Series] = []
     if benchmark is not None:
-        bench_label = (
-            str(benchmark.name) if benchmark.name is not None else "Benchmark"
-        )
+        bench_label = str(benchmark.name) if benchmark.name is not None else "Benchmark"
         cols.append(_yearly_returns(benchmark).rename(bench_label))
     cols.append(strat)
     df = pd.concat(cols, axis=1)
@@ -343,9 +333,7 @@ def _write_yearly_returns(
     ws.set_column(1, 1 + len(df.columns) - 1, 16, pct_fmt)
 
 
-def _write_episode_sheet(
-    writer: Any, *, sheet_name: str, df: pd.DataFrame, pct_col: str
-) -> None:
+def _write_episode_sheet(writer: Any, *, sheet_name: str, df: pd.DataFrame, pct_col: str) -> None:
     """Worst-drawdowns / top-runups sheet with date + pct + int formatting."""
     if df.empty:
         df.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -370,7 +358,8 @@ def _drawdowns_view(r: pd.Series, *, top: int) -> pd.DataFrame:
     if dd.empty:
         return pd.DataFrame(columns=["Started", "Recovered", "Drawdown", "Days"])
     return (
-        dd.head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
+        dd
+        .head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",
@@ -388,7 +377,8 @@ def _runups_view(r: pd.Series, *, top: int) -> pd.DataFrame:
     if ru.empty:
         return pd.DataFrame(columns=["Started", "Peaked", "Runup", "Days"])
     return (
-        ru.head(top)[["start", "peak", "max_runup", "duration_days"]]
+        ru
+        .head(top)[["start", "peak", "max_runup", "duration_days"]]
         .rename(
             columns={
                 "start": "Started",

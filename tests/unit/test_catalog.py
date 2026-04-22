@@ -170,7 +170,8 @@ def test_load_uses_refresh_kwargs_defaults(small_panel: pd.DataFrame) -> None:
     src = _RecordingSource(small_panel)
     cat = Catalog(store=Memory())
     cat.register(
-        "equity", src,
+        "equity",
+        src,
         refresh_kwargs={"start": "2024-01-04", "end": "2024-01-06"},
     )
     cat.load("equity")  # no call-site overrides → uses spec defaults

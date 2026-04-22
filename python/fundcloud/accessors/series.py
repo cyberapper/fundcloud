@@ -67,12 +67,8 @@ class SeriesAccessor:
             self._obj, risk_free=risk_free, periods_per_year=periods_per_year
         )
 
-    def smart_sortino(
-        self, *, target: float = 0.0, periods_per_year: int | None = None
-    ) -> float:
-        return _metrics.smart_sortino(
-            self._obj, target=target, periods_per_year=periods_per_year
-        )
+    def smart_sortino(self, *, target: float = 0.0, periods_per_year: int | None = None) -> float:
+        return _metrics.smart_sortino(self._obj, target=target, periods_per_year=periods_per_year)
 
     # --- return / risk ------------------------------------------------------
     def total_return(self) -> float:
@@ -154,9 +150,7 @@ class SeriesAccessor:
     def kelly_criterion(self) -> float:
         return _metrics.kelly_criterion(self._obj)
 
-    def risk_of_ruin(
-        self, *, starting_capital: float = 1.0, ruin_level: float = 0.0
-    ) -> float:
+    def risk_of_ruin(self, *, starting_capital: float = 1.0, ruin_level: float = 0.0) -> float:
         return _metrics.risk_of_ruin(
             self._obj, starting_capital=starting_capital, ruin_level=ruin_level
         )
@@ -210,12 +204,8 @@ class SeriesAccessor:
     def information_ratio(self, benchmark: pd.Series) -> float:
         return _metrics.information_ratio(self._obj, benchmark)
 
-    def tracking_error(
-        self, benchmark: pd.Series, *, periods_per_year: int | None = None
-    ) -> float:
-        return _metrics.tracking_error(
-            self._obj, benchmark, periods_per_year=periods_per_year
-        )
+    def tracking_error(self, benchmark: pd.Series, *, periods_per_year: int | None = None) -> float:
+        return _metrics.tracking_error(self._obj, benchmark, periods_per_year=periods_per_year)
 
     def up_capture(self, benchmark: pd.Series) -> float:
         return _metrics.up_capture(self._obj, benchmark)
@@ -244,9 +234,7 @@ class SeriesAccessor:
     def monthly_returns(self) -> pd.DataFrame:
         return _metrics.monthly_returns(self._obj)
 
-    def yearly_returns(
-        self, *, benchmark: pd.Series | None = None
-    ) -> pd.Series | pd.DataFrame:
+    def yearly_returns(self, *, benchmark: pd.Series | None = None) -> pd.Series | pd.DataFrame:
         """End-of-year compounded returns.
 
         Returns a :class:`pd.Series` when no benchmark is supplied, or a
@@ -477,9 +465,7 @@ class SeriesAccessor:
 
         return monthly_heatmap(self._obj, **kw)
 
-    def plot_yearly_returns(
-        self, *, benchmark: pd.Series | None = None, **kw: object
-    ) -> object:
+    def plot_yearly_returns(self, *, benchmark: pd.Series | None = None, **kw: object) -> object:
         """Plotly EOY-returns paired bar chart (strategy vs optional benchmark)."""
         from fundcloud.plots import yearly_returns_bars
 

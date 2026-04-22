@@ -715,9 +715,7 @@ def probabilistic_sharpe_ratio(
     n = len(df)
     sk = df.skew()
     ku = df.kurtosis()  # Fisher excess
-    denom = np.sqrt(
-        1.0 - sk * sr_per_period + ((ku) / 4.0) * (sr_per_period**2)
-    )
+    denom = np.sqrt(1.0 - sk * sr_per_period + ((ku) / 4.0) * (sr_per_period**2))
     z = (sr_per_period - target_per_period) * np.sqrt(n - 1) / denom
     out = pd.Series(norm.cdf(z), index=sr.index).replace([np.inf, -np.inf], np.nan)
     return _collapse(out, returns)

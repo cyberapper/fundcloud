@@ -75,9 +75,7 @@ def test_dca_scalar_amount_defaults_to_equal_weights() -> None:
     assert strat._amounts == pytest.approx({"A": 250.0, "B": 250.0})
 
     # End-to-end: the Simulator accepts the same strategy without a ValueError.
-    result = Simulator(bars, cash=10_000).run_strategy(
-        DCA(amount=500, horizon="weekly")
-    )
+    result = Simulator(bars, cash=10_000).run_strategy(DCA(amount=500, horizon="weekly"))
     assert len(result.trades) >= 2
     traded_assets = set(result.trades["asset"].unique())
     assert {"A", "B"}.issubset(traded_assets)

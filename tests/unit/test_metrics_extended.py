@@ -212,9 +212,7 @@ def test_tracking_error_vs_self_zero(returns: pd.Series) -> None:
     assert pytest.approx(0.0, abs=1e-12) == tracking_error(returns, returns)
 
 
-def test_capture_ratio_agrees_with_components(
-    returns: pd.Series, benchmark: pd.Series
-) -> None:
+def test_capture_ratio_agrees_with_components(returns: pd.Series, benchmark: pd.Series) -> None:
     up = up_capture(returns, benchmark)
     down = down_capture(returns, benchmark)
     cap = capture_ratio(returns, benchmark)

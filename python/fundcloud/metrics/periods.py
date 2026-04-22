@@ -46,9 +46,7 @@ def monthly_returns(returns: pd.Series) -> pd.DataFrame:
     table["year"] = idx.year
     table["month"] = idx.month
     wide = table.pivot(index="year", columns="month", values="ret")
-    wide.columns = [
-        pd.Timestamp(2000, m, 1).strftime("%b") for m in wide.columns
-    ]
+    wide.columns = [pd.Timestamp(2000, m, 1).strftime("%b") for m in wide.columns]
     return wide
 
 
@@ -171,9 +169,7 @@ def period_returns(
 
     def _per_series(s: pd.Series) -> pd.Series:
         vals = {
-            label: _window_return(
-                s, _period_cutoff(anchor, spec), annualize=ann, ppy=ppy
-            )
+            label: _window_return(s, _period_cutoff(anchor, spec), annualize=ann, ppy=ppy)
             for label, spec, ann in _PERIOD_SPECS
         }
         return pd.Series(vals, name=s.name or "strategy")

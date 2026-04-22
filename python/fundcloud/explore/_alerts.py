@@ -74,9 +74,7 @@ def profile_alerts(stats: pd.DataFrame, corr: pd.DataFrame | None) -> list[Alert
         kurt = row.get("kurtosis", float("nan"))
         if pd.notna(kurt) and abs(kurt) > _HIGH_KURTOSIS:
             alerts.append(
-                Alert(
-                    "info", "high_kurtosis", f"Column {name!r} has kurtosis {kurt:.2f}.", (name,)
-                )
+                Alert("info", "high_kurtosis", f"Column {name!r} has kurtosis {kurt:.2f}.", (name,))
             )
         mode_freq = row.get("mode_freq", float("nan"))
         if pd.notna(mode_freq) and mode_freq > _QUASI_CONST_PCT:

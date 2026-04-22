@@ -135,9 +135,7 @@ class DataFrameAccessor:
             self._obj, benchmark=benchmark, periods_per_year=periods_per_year
         )
 
-    def yearly_returns(
-        self, *, benchmark: pd.Series | None = None
-    ) -> pd.Series | pd.DataFrame:
+    def yearly_returns(self, *, benchmark: pd.Series | None = None) -> pd.Series | pd.DataFrame:
         """End-of-year compounded returns, optionally alongside a benchmark column."""
         if isinstance(self._obj, pd.Series):
             strategy = _metrics.yearly_returns(self._obj)
@@ -152,9 +150,7 @@ class DataFrameAccessor:
         bench_name = str(benchmark.name) if benchmark.name is not None else "benchmark"
         bench_yearly = _metrics.yearly_returns(benchmark).rename(bench_name)
         if isinstance(strategy, pd.Series):
-            return pd.concat(
-                [bench_yearly, strategy.rename(self._obj.name or "strategy")], axis=1
-            )
+            return pd.concat([bench_yearly, strategy.rename(self._obj.name or "strategy")], axis=1)
         return pd.concat([bench_yearly, strategy], axis=1)
 
     # ========================================================== EDA
@@ -343,16 +339,12 @@ class DataFrameAccessor:
             from fundcloud.reports import multi as _multi
 
             portfolios = portfolios_per_column(frame, benchmark=bench)
-            return _multi.render_excel(
-                portfolios, path=path, title=title, benchmark=bench
-            )
+            return _multi.render_excel(portfolios, path=path, title=title, benchmark=bench)
 
         from fundcloud.reports import Tearsheet
 
         portfolio = portfolio_from_frame(frame, benchmark=bench, weights=weights)
-        return Tearsheet(portfolio, benchmark=bench, title=title, **ts_kwargs).render_excel(
-            path
-        )
+        return Tearsheet(portfolio, benchmark=bench, title=title, **ts_kwargs).render_excel(path)
 
     # ========================================================== simulator
     def run_strategy(self, strategy: BaseStrategy, **sim_kwargs: Any) -> SimResult:
@@ -362,9 +354,7 @@ class DataFrameAccessor:
 
         return Simulator(self._obj, **as_sim_kwargs(sim_kwargs)).run_strategy(strategy)
 
-    def run_weights(
-        self, target_weights: pd.DataFrame, **sim_kwargs: Any
-    ) -> SimResult:
+    def run_weights(self, target_weights: pd.DataFrame, **sim_kwargs: Any) -> SimResult:
         """Backtest a target-weights path on this Bars frame."""
         require_bars_frame(self._obj, operation="run_weights")
         from fundcloud.sim import Simulator
@@ -518,9 +508,7 @@ class DataFrameAccessor:
 
         return composition(self._obj, **kw)
 
-    def plot_yearly_returns(
-        self, *, benchmark: pd.Series | None = None, **kw: Any
-    ) -> Any:
+    def plot_yearly_returns(self, *, benchmark: pd.Series | None = None, **kw: Any) -> Any:
         """Plotly EOY-returns paired bar chart (strategy vs optional benchmark)."""
         from fundcloud.plots import yearly_returns_bars
 

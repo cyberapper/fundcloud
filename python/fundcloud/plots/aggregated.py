@@ -215,9 +215,7 @@ def _rolling_alpha_figure(
     periods_per_year: int = 252,
 ) -> go.Figure:
     """One-row figure of rolling α vs ``benchmark``, ready to be harvested."""
-    alpha = rolling_alpha(
-        returns, benchmark, window=window, periods_per_year=periods_per_year
-    )
+    alpha = rolling_alpha(returns, benchmark, window=window, periods_per_year=periods_per_year)
     fig = go.Figure()
     for name, _series in to_series_list(returns):
         col = alpha[name] if isinstance(alpha, pd.DataFrame) else alpha
@@ -264,9 +262,7 @@ def _rolling_beta_figure(
     return fig
 
 
-def _heatmap_colorbar_from_weights(
-    row_heights: list[float], *, heatmap_row: int
-) -> dict[str, Any]:
+def _heatmap_colorbar_from_weights(row_heights: list[float], *, heatmap_row: int) -> dict[str, Any]:
     """Anchor the heatmap colorbar at the heatmap row's paper y-center.
 
     Works with make_subplots row_heights so the bar tracks the heatmap row
@@ -447,7 +443,9 @@ def _apply_trace_color(trace: Any, color: str) -> None:
     if ttype == "histogram":
         existing = getattr(trace.marker, "color", None) if trace.marker else None
         if existing is None:
-            trace.marker = ((trace.marker.to_plotly_json() if trace.marker else {}) | {"color": color})
+            trace.marker = (trace.marker.to_plotly_json() if trace.marker else {}) | {
+                "color": color
+            }
         return
     # Scatter / line traces
     if trace.line is not None and trace.line.color is None:

@@ -61,18 +61,14 @@ def beta(returns: pd.Series, benchmark: pd.Series) -> float: ...
 def beta(returns: pd.DataFrame, benchmark: pd.Series) -> pd.Series: ...
 
 
-def beta(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def beta(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Regression beta: ``cov(r, benchmark) / var(benchmark)``."""
     r, b = _align(returns, benchmark)
     var_b = b.var(ddof=1)
     if not var_b or not np.isfinite(var_b):
         out = pd.Series(np.nan, index=r.columns, dtype=float)
         return _collapse(out, returns)
-    covs = pd.Series(
-        {c: r[c].cov(b) for c in r.columns}, dtype=float
-    )
+    covs = pd.Series({c: r[c].cov(b) for c in r.columns}, dtype=float)
     out = (covs / var_b).replace([np.inf, -np.inf], np.nan)
     return _collapse(out, returns)
 
@@ -102,9 +98,7 @@ def alpha(
     return _collapse(out, returns)
 
 
-def r_squared(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def r_squared(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Coefficient of determination of the strategy vs. the benchmark."""
     r, b = _align(returns, benchmark)
     out = pd.Series(
@@ -114,9 +108,7 @@ def r_squared(
     return _collapse(out, returns)
 
 
-def correlation(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def correlation(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Pearson correlation of ``returns`` with ``benchmark``.
 
     Unlike :func:`r_squared` which squares the coefficient, this keeps the
@@ -131,9 +123,7 @@ def correlation(
     return _collapse(out, returns)
 
 
-def information_ratio(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def information_ratio(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Active-return / active-volatility ratio.
 
     Mean of ``returns - benchmark`` divided by its sample standard deviation.
@@ -160,9 +150,7 @@ def tracking_error(
     return _collapse(out, returns)
 
 
-def up_capture(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def up_capture(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Mean strategy return / mean benchmark return on benchmark-up periods."""
     r, b = _align(returns, benchmark)
     up_mask = b > 0
@@ -171,16 +159,16 @@ def up_capture(
         return _collapse(out, returns)
     up_bench_mean = b.loc[up_mask].mean()
     out = pd.Series(
-        {c: r.loc[up_mask, c].mean() / up_bench_mean if up_bench_mean else np.nan
-         for c in r.columns},
+        {
+            c: r.loc[up_mask, c].mean() / up_bench_mean if up_bench_mean else np.nan
+            for c in r.columns
+        },
         dtype=float,
     )
     return _collapse(out, returns)
 
 
-def down_capture(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def down_capture(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """Mean strategy return / mean benchmark return on benchmark-down periods.
 
     Lower is better (less participation in the drawdown).
@@ -192,16 +180,16 @@ def down_capture(
         return _collapse(out, returns)
     down_bench_mean = b.loc[down_mask].mean()
     out = pd.Series(
-        {c: r.loc[down_mask, c].mean() / down_bench_mean if down_bench_mean else np.nan
-         for c in r.columns},
+        {
+            c: r.loc[down_mask, c].mean() / down_bench_mean if down_bench_mean else np.nan
+            for c in r.columns
+        },
         dtype=float,
     )
     return _collapse(out, returns)
 
 
-def capture_ratio(
-    returns: pd.Series | pd.DataFrame, benchmark: pd.Series
-) -> float | pd.Series:
+def capture_ratio(returns: pd.Series | pd.DataFrame, benchmark: pd.Series) -> float | pd.Series:
     """``up_capture / down_capture`` — Morningstar-style single number."""
     up = up_capture(returns, benchmark)
     down = down_capture(returns, benchmark)

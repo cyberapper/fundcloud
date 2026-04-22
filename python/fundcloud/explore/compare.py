@@ -65,9 +65,7 @@ def compare(
 
     target_shift_html, target_shifts = _target_shift(a, b, target, numeric_shared)
 
-    alerts = compare_alerts(
-        drift, list(a.columns), list(b.columns), target_shifts=target_shifts
-    )
+    alerts = compare_alerts(drift, list(a.columns), list(b.columns), target_shifts=target_shifts)
 
     template = env.from_string(COMPARE_TEMPLATE)
     html = template.render(
@@ -141,16 +139,16 @@ def _target_shift(
             continue
         if np.isnan(corr_a) and np.isnan(corr_b):
             continue
-        delta = (corr_b if not np.isnan(corr_b) else 0.0) - (corr_a if not np.isnan(corr_a) else 0.0)
-        shifts[col] = delta
-        rows.append(
-            {
-                "feature": col,
-                f"corr_{target}_a": corr_a,
-                f"corr_{target}_b": corr_b,
-                "delta": delta,
-            }
+        delta = (corr_b if not np.isnan(corr_b) else 0.0) - (
+            corr_a if not np.isnan(corr_a) else 0.0
         )
+        shifts[col] = delta
+        rows.append({
+            "feature": col,
+            f"corr_{target}_a": corr_a,
+            f"corr_{target}_b": corr_b,
+            "delta": delta,
+        })
     if not rows:
         return "", None
     frame = pd.DataFrame(rows).set_index("feature")

@@ -137,6 +137,7 @@ ignore = [
   "PT011",
   "PT018",
   "SIM108",
+  "SIM118",
   "RUF003",
   "RUF007",
   "RUF012",
@@ -184,10 +185,8 @@ ignore_missing_imports = true
 # `no-any-return` on those modules only; every other strict check still runs.
 [[tool.mypy.overrides]]
 module = [
-  "fundcloud.data.bars",
-  "fundcloud.data.catalog",
-  "fundcloud.data.sources.*",
-  "fundcloud.data.stores.*",
+  "fundcloud._benchmark",
+  "fundcloud.data.*",
   "fundcloud.features.indicators.*",
   "fundcloud.metrics.*",
   "fundcloud.accessors.*",

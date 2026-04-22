@@ -93,10 +93,14 @@ class ProfileReport:
         # compact alert summary. Full report via to_html().
         alert_html = ""
         if self.alerts:
-            alert_html = "<ul style='margin-top:12px;'>" + "".join(
-                f"<li><strong>{a.severity}</strong> · {a.code}: {a.message}</li>"
-                for a in self.alerts[:10]
-            ) + "</ul>"
+            alert_html = (
+                "<ul style='margin-top:12px;'>"
+                + "".join(
+                    f"<li><strong>{a.severity}</strong> · {a.code}: {a.message}</li>"
+                    for a in self.alerts[:10]
+                )
+                + "</ul>"
+            )
         head = (
             f"<h4 style='margin:0 0 6px;'>{self.title}</h4>"
             f"<p style='color:#64748b;margin:0 0 10px;font-size:12px;'>"
@@ -141,8 +145,7 @@ class ProfileReport:
             "overview": self.overview,
             "stats": self.stats.reset_index().to_dict(orient="records"),
             "correlations": {
-                k: v.reset_index().to_dict(orient="records")
-                for k, v in self.correlations.items()
+                k: v.reset_index().to_dict(orient="records") for k, v in self.correlations.items()
             },
             "missing": self.missing.to_dict(),
             "alerts": [

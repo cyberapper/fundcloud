@@ -373,9 +373,8 @@ class Portfolio:
         if dd.empty:
             return pd.DataFrame(columns=["Started", "Recovered", "Drawdown", "Days"])
         view = (
-            dd.head(top)[
-                ["start", "recovery", "max_drawdown", "duration_days"]
-            ]
+            dd
+            .head(top)[["start", "recovery", "max_drawdown", "duration_days"]]
             .rename(
                 columns={
                     "start": "Started",
@@ -398,7 +397,8 @@ class Portfolio:
         if ru.empty:
             return pd.DataFrame(columns=["Started", "Peaked", "Runup", "Days"])
         view = (
-            ru.head(top)[["start", "peak", "max_runup", "duration_days"]]
+            ru
+            .head(top)[["start", "peak", "max_runup", "duration_days"]]
             .rename(
                 columns={
                     "start": "Started",
@@ -430,9 +430,7 @@ class Portfolio:
             periods_per_year=periods_per_year,
         )
 
-    def yearly_returns(
-        self, *, benchmark: pd.Series | None = None
-    ) -> pd.Series | pd.DataFrame:
+    def yearly_returns(self, *, benchmark: pd.Series | None = None) -> pd.Series | pd.DataFrame:
         """End-of-year returns.
 
         Returns a :class:`pd.Series` when no benchmark is available, or a

@@ -112,9 +112,7 @@ def test_read_with_start_end_and_columns(
 ) -> None:
     backend = factory(tmp_path)
     backend.write("k", small_frame)
-    sliced = backend.read(
-        "k", start="2024-01-03", end="2024-01-07", columns=["close"]
-    )
+    sliced = backend.read("k", start="2024-01-03", end="2024-01-07", columns=["close"])
     assert list(sliced.columns) == ["close"]
     assert sliced.index.min() == pd.Timestamp("2024-01-03")
     assert sliced.index.max() == pd.Timestamp("2024-01-07")
@@ -149,9 +147,7 @@ def test_multiindex_columns_round_trip(
     backend.write("us_eq", multi_frame)
     got = backend.read("us_eq")
     assert isinstance(got.columns, pd.MultiIndex)
-    pd.testing.assert_frame_equal(
-        got.sort_index(axis=1), multi_frame.sort_index(axis=1)
-    )
+    pd.testing.assert_frame_equal(got.sort_index(axis=1), multi_frame.sort_index(axis=1))
 
 
 @pytest.mark.parametrize("factory", _FACTORIES)

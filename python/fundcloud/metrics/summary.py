@@ -44,9 +44,7 @@ def _series_metrics(
     d["total_return"] = float(core.total_return(r))
     d["cagr"] = float(core.cagr(r, periods_per_year=periods_per_year))
     d["ann_volatility"] = float(core.volatility(r, periods_per_year=periods_per_year))
-    d["downside_volatility"] = float(
-        core.downside_volatility(r, periods_per_year=periods_per_year)
-    )
+    d["downside_volatility"] = float(core.downside_volatility(r, periods_per_year=periods_per_year))
     d["avg_return"] = float(core.avg_return(r))
     d["best"] = float(core.best(r))
     d["worst"] = float(core.worst(r))
@@ -84,9 +82,7 @@ def _series_metrics(
     d["sortino"] = float(core.sortino(r, periods_per_year=periods_per_year))
     d["calmar"] = float(core.calmar(r, periods_per_year=periods_per_year))
     d["omega"] = float(core.omega(r))
-    d["adjusted_sortino"] = float(
-        core.adjusted_sortino(r, periods_per_year=periods_per_year)
-    )
+    d["adjusted_sortino"] = float(core.adjusted_sortino(r, periods_per_year=periods_per_year))
     d["probabilistic_sharpe"] = float(
         core.probabilistic_sharpe_ratio(r, periods_per_year=periods_per_year)
     )
@@ -110,9 +106,7 @@ def _series_metrics(
     # Benchmark-relative
     if benchmark is not None:
         d["alpha"] = float(
-            _bench.alpha(
-                r, benchmark, risk_free=risk_free, periods_per_year=periods_per_year
-            )
+            _bench.alpha(r, benchmark, risk_free=risk_free, periods_per_year=periods_per_year)
         )
         d["beta"] = float(_bench.beta(r, benchmark))
         d["correlation"] = float(_bench.correlation(r, benchmark))
@@ -244,37 +238,29 @@ def drawdown_details(returns: pd.Series) -> pd.DataFrame:
                 # "start" of this drawdown = last timestamp where peak changed,
                 # which is the bar immediately before cur_start.
                 prior_idx = returns.index.get_indexer([cur_start])[0] - 1
-                start_ts = (
-                    returns.index[prior_idx] if prior_idx >= 0 else returns.index[0]
-                )
-                rows.append(
-                    {
-                        "start": start_ts,
-                        "valley": valley,
-                        "recovery": ts,
-                        "max_drawdown": float(drawdown.loc[valley]),
-                        "duration_days": float((ts - start_ts).days),
-                        "days_to_recover": float((ts - valley).days),
-                    }
-                )
+                start_ts = returns.index[prior_idx] if prior_idx >= 0 else returns.index[0]
+                rows.append({
+                    "start": start_ts,
+                    "valley": valley,
+                    "recovery": ts,
+                    "max_drawdown": float(drawdown.loc[valley]),
+                    "duration_days": float((ts - start_ts).days),
+                    "days_to_recover": float((ts - valley).days),
+                })
                 cur_start = None
     if cur_start is not None:
         segment = drawdown.loc[cur_start:]
         valley = segment.idxmin()
         prior_idx = returns.index.get_indexer([cur_start])[0] - 1
         start_ts = returns.index[prior_idx] if prior_idx >= 0 else returns.index[0]
-        rows.append(
-            {
-                "start": start_ts,
-                "valley": valley,
-                "recovery": pd.NaT,
-                "max_drawdown": float(drawdown.loc[valley]),
-                "duration_days": float(
-                    (returns.index[-1] - start_ts).days
-                ),
-                "days_to_recover": np.nan,
-            }
-        )
+        rows.append({
+            "start": start_ts,
+            "valley": valley,
+            "recovery": pd.NaT,
+            "max_drawdown": float(drawdown.loc[valley]),
+            "duration_days": float((returns.index[-1] - start_ts).days),
+            "days_to_recover": np.nan,
+        })
     df = pd.DataFrame(rows)
     if df.empty:
         return df
@@ -311,9 +297,7 @@ def runup_details(returns: pd.Series) -> pd.DataFrame:
         )
     wealth = (1.0 + returns).cumprod()
     dd = drawdown_details(returns)
-    dd_sorted = (
-        dd.sort_values("start").reset_index(drop=True) if not dd.empty else dd
-    )
+    dd_sorted = dd.sort_values("start").reset_index(drop=True) if not dd.empty else dd
 
     rows: list[dict[str, object]] = []
     cur_ts: pd.Timestamp = wealth.index[0]
@@ -321,9 +305,7 @@ def runup_details(returns: pd.Series) -> pd.DataFrame:
         peak_ts = row["start"]
         if peak_ts > cur_ts:
             _append_runup_row(rows, wealth, start_ts=cur_ts, retreat_ts=peak_ts)
-        cur_ts = (
-            row["recovery"] if pd.notna(row["recovery"]) else wealth.index[-1]
-        )
+        cur_ts = row["recovery"] if pd.notna(row["recovery"]) else wealth.index[-1]
     if cur_ts < wealth.index[-1]:
         _append_runup_row(rows, wealth, start_ts=cur_ts, retreat_ts=pd.NaT)
 
@@ -350,16 +332,12 @@ def _append_runup_row(
     peak_val = float(segment.loc[peak_ts])
     if peak_val <= start_val:
         return
-    days_after = (
-        float((retreat_ts - peak_ts).days) if pd.notna(retreat_ts) else float("nan")
-    )
-    rows.append(
-        {
-            "start": start_ts,
-            "peak": peak_ts,
-            "end": retreat_ts,
-            "max_runup": peak_val / start_val - 1.0,
-            "duration_days": float((peak_ts - start_ts).days),
-            "days_after_peak": days_after,
-        }
-    )
+    days_after = float((retreat_ts - peak_ts).days) if pd.notna(retreat_ts) else float("nan")
+    rows.append({
+        "start": start_ts,
+        "peak": peak_ts,
+        "end": retreat_ts,
+        "max_runup": peak_val / start_val - 1.0,
+        "duration_days": float((peak_ts - start_ts).days),
+        "days_after_peak": days_after,
+    })
