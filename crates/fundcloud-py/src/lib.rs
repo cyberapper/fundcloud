@@ -165,37 +165,51 @@ fn cvar_batch<'py>(
 
 // ---------------------------------------------------------------------- sim
 
-fn sim_output_to_dict<'py>(
-    py: Python<'py>,
-    out: core_sim::SimOutput,
-) -> PyResult<Bound<'py, PyDict>> {
+fn sim_output_to_dict<'py>(py: Python<'py>, out: core_sim::SimOutput) -> Bound<'py, PyDict> {
     let dict = PyDict::new_bound(py);
-    dict.set_item("equity", out.equity.into_pyarray_bound(py))?;
+    dict.set_item("equity", out.equity.into_pyarray_bound(py))
+        .expect("set equity");
     // weights_history = list of (bar_idx, dict[asset_idx->weight])
     let wh = PyList::empty_bound(py);
     for (bar, pairs) in &out.weights_history {
         let inner = PyDict::new_bound(py);
         for (aj, w) in pairs {
-            inner.set_item(*aj, *w)?;
+            inner.set_item(*aj, *w).expect("set weight");
         }
-        wh.append(PyTuple::new_bound(py, [bar.into_py(py), inner.into_py(py)]))?;
+        wh.append(PyTuple::new_bound(py, [bar.into_py(py), inner.into_py(py)]))
+            .expect("append wh entry");
     }
-    dict.set_item("weights_history", wh)?;
-    dict.set_item("trade_bar", out.trade_bar)?;
-    dict.set_item("trade_asset", out.trade_asset)?;
-    dict.set_item("trade_qty", out.trade_qty)?;
-    dict.set_item("trade_price", out.trade_price)?;
-    dict.set_item("trade_fee", out.trade_fee)?;
-    dict.set_item("trade_slip_bps", out.trade_slip_bps)?;
-    dict.set_item("order_bar", out.order_bar)?;
-    dict.set_item("order_asset", out.order_asset)?;
-    dict.set_item("order_side", out.order_side)?;
-    dict.set_item("order_qty", out.order_qty)?;
-    dict.set_item("order_notional", out.order_notional)?;
-    dict.set_item("order_kind", out.order_kind)?;
-    dict.set_item("order_limit_price", out.order_limit_price)?;
-    dict.set_item("order_filled", out.order_filled)?;
-    Ok(dict)
+    dict.set_item("weights_history", wh)
+        .expect("set weights_history");
+    dict.set_item("trade_bar", out.trade_bar)
+        .expect("set trade_bar");
+    dict.set_item("trade_asset", out.trade_asset)
+        .expect("set trade_asset");
+    dict.set_item("trade_qty", out.trade_qty)
+        .expect("set trade_qty");
+    dict.set_item("trade_price", out.trade_price)
+        .expect("set trade_price");
+    dict.set_item("trade_fee", out.trade_fee)
+        .expect("set trade_fee");
+    dict.set_item("trade_slip_bps", out.trade_slip_bps)
+        .expect("set trade_slip_bps");
+    dict.set_item("order_bar", out.order_bar)
+        .expect("set order_bar");
+    dict.set_item("order_asset", out.order_asset)
+        .expect("set order_asset");
+    dict.set_item("order_side", out.order_side)
+        .expect("set order_side");
+    dict.set_item("order_qty", out.order_qty)
+        .expect("set order_qty");
+    dict.set_item("order_notional", out.order_notional)
+        .expect("set order_notional");
+    dict.set_item("order_kind", out.order_kind)
+        .expect("set order_kind");
+    dict.set_item("order_limit_price", out.order_limit_price)
+        .expect("set order_limit_price");
+    dict.set_item("order_filled", out.order_filled)
+        .expect("set order_filled");
+    dict
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -218,7 +232,7 @@ fn sim_run_weights<'py>(
     slip_p1: f64,
     exec_kind: u8,
     tolerance: f64,
-) -> PyResult<Bound<'py, PyDict>> {
+) -> Bound<'py, PyDict> {
     let open_v = open_panel.as_array();
     let close_v = close_panel.as_array();
     let tw_v = target_weights.as_array();
@@ -262,7 +276,7 @@ fn sim_run_orders<'py>(
     slip_kind: u8,
     slip_p1: f64,
     exec_kind: u8,
-) -> PyResult<Bound<'py, PyDict>> {
+) -> Bound<'py, PyDict> {
     let cfg = core_sim::SimCfg {
         cash,
         cost_kind,
@@ -303,7 +317,7 @@ fn sim_run_signals<'py>(
     slip_kind: u8,
     slip_p1: f64,
     exec_kind: u8,
-) -> PyResult<Bound<'py, PyDict>> {
+) -> Bound<'py, PyDict> {
     let cfg = core_sim::SimCfg {
         cash,
         cost_kind,

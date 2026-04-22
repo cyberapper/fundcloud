@@ -102,7 +102,7 @@ pub fn rolling_std_batch(x: ArrayView2<'_, f64>, window: usize, ddof: usize) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use ndarray::{arr1, arr2, Axis};
 
     #[test]
     fn rolling_mean_matches_hand_calc() {
