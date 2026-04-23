@@ -73,6 +73,11 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    # `mike deploy --push` updates the `gh-pages` branch via git, which needs
+    # write access to repo contents. Override the workflow-level read-only
+    # default for this job only.
+    permissions:
+      contents: write
     environment:
       name: github-pages
       url: https://cyberapper.github.io/fundcloud/
