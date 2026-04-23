@@ -1,0 +1,31 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fundcloud-core",
+    "crates/fundcloud-py",
+]
+# `cargo test --workspace` by default only touches the pure-Rust crate.
+# The PyO3 bindings crate builds through `maturin develop` / `maturin build`
+# which handles Python linking correctly on every platform.
+default-members = ["crates/fundcloud-core"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT"
+authors = ["Fundcloud Authors"]
+homepage = "https://github.com/cyberapper/fundcloud"
+repository = "https://github.com/cyberapper/fundcloud"
+
+[workspace.dependencies]
+ndarray = "0.16"
+rayon   = "1.10"
+thiserror = "1.0"
+# PyO3 / rust-numpy only used by fundcloud-py
+pyo3 = { version = "0.22", features = ["abi3-py310"] }
+numpy = "0.22"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

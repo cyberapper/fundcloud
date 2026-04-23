@@ -1,0 +1,119 @@
+name: Release
+
+# Pipeline shape (patterned on pydantic/pydantic, with an added TestPyPI stage):
+#   1. tag-triggered (vX.Y.Z)
+#   2. build wheels + sdist via maturin
+#   3. publish to TestPyPI  — gated by the `testpypi` GitHub environment
+#   4. smoke-test install from TestPyPI
+#   5. publish to PyPI     — gated by the `release` GitHub environment
+#
+# Both stages use PyPI trusted publishing (OIDC) — no tokens required.
+# Create the two environments under repo → Settings → Environments and add
+# required-reviewers on `release` to get manual approval before prod publish.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    name: Wheel ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --strip --out dist --interpreter 3.10
+          manylinux: auto
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.target }}
+          path: dist/*.whl
+
+  build-sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: [build-wheels, build-sdist]
+    runs-on: ubuntu-latest
+    environment: testpypi              # set this environment up on the repo first
+    permissions:
+      id-token: write                  # required for PyPI trusted publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v3
+      - name: Publish to TestPyPI
+        run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
+        working-directory: .
+
+  smoke-test-from-testpypi:
+    name: Smoke test (TestPyPI)
+    needs: publish-testpypi
+    runs-on: ubuntu-latest
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: astral-sh/setup-uv@v3
+      - name: Install from TestPyPI in a clean venv
+        run: |
+          version="${REF_NAME#v}"
+          # `--index` lets uv pull from TestPyPI; fall through to PyPI for deps.
+          uv run --isolated --no-project \
+            --with "fundcloud==${version}" \
+            --index https://test.pypi.org/simple/ \
+            --index-strategy unsafe-best-match \
+            python -c "import fundcloud; from fundcloud.kernels import HAS_RUST, kernel_version; print(fundcloud.__version__, HAS_RUST, kernel_version())"
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: smoke-test-from-testpypi
+    runs-on: ubuntu-latest
+    environment: release               # guarded by required-reviewers in repo settings
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v3
+      - name: Publish to PyPI
+        run: uv publish --trusted-publishing always
+        working-directory: .

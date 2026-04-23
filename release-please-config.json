@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "Cargo.toml",
+          "jsonpath": "$.workspace.package.version"
+        }
+      ]
+    }
+  },
+  "changelog-sections": [
+    {"type": "feat",     "section": "### Added"},
+    {"type": "fix",      "section": "### Fixed"},
+    {"type": "perf",     "section": "### Performance"},
+    {"type": "refactor", "section": "### Changed"},
+    {"type": "docs",     "section": "### Documentation"},
+    {"type": "deps",     "section": "### Dependencies"}
+  ],
+  "bump-minor-pre-major": true,
+  "changelog-path": "CHANGELOG.md"
+}

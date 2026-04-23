@@ -1,0 +1,246 @@
+{# Shared CSS for tear-sheet pages — extracted so the single-asset and
+   multi-asset templates stay in lockstep. #}
+<style>
+  :root {
+    --fg: #1c1c1c;
+    --muted: #6b7280;
+    --accent: #2F6EE6;
+    --rule: #e5e7eb;
+    --surface: #ffffff;
+    --subtle: #f8fafc;
+    --pos: #1F9B64;
+    --neg: #C0392B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    color: var(--fg);
+    margin: 0;
+    padding: 32px 40px;
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+    background: var(--surface);
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 600; }
+  h2 {
+    font-size: 16px;
+    margin: 28px 0 12px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 4px;
+  }
+  .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 13px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--subtle);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .stat .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+  }
+  .stat .value { font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .stat .value.pos { color: var(--pos); }
+  .stat .value.neg { color: var(--neg); }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 18px; }
+  th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--rule); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    background: var(--subtle);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+  .chart { margin: 16px 0; }
+  footer { color: var(--muted); font-size: 11px; margin-top: 32px; text-align: center; }
+
+  /* Sidebar layout */
+  .fc-content {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 28px;
+    align-items: start;
+  }
+  .fc-charts { min-width: 0; }
+  .fc-sidebar {
+    /* Intentionally NO inner scroll. Setting overflow-y: auto forces
+       overflow-x to a non-visible value per CSS spec, which clips the
+       hover popover on any metric badge near the sidebar's right edge.
+       Instead, the sidebar flows naturally down the page; when tall it
+       just sits next to the charts column without truncation. */
+    padding-right: 4px;
+  }
+  .fc-sidebar__title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    padding: 0 4px;
+    line-height: 1.5;
+  }
+  .fc-sidebar__title .fc-sidebar__scope {
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    margin-top: 2px;
+  }
+  .fc-sidebar__title .fc-sidebar__scope .vs {
+    color: var(--muted);
+    font-weight: 500;
+    margin: 0 6px;
+  }
+  .fc-metrics thead th {
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 4px 10px 2px;
+    border-bottom: 1px solid var(--rule);
+    text-align: right;
+  }
+  .fc-metrics thead th:first-child { text-align: left; }
+  details.fc-group {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--subtle);
+    margin-bottom: 8px;
+    /* overflow: visible (the default) is load-bearing here — setting
+       overflow: hidden would clip the .m-help::after popover to this
+       section's rounded rectangle. The rounded corners still render fine
+       because the inner table cells don't extend past the radius. */
+  }
+  details.fc-group > summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--fg);
+    list-style: none;
+    user-select: none;
+  }
+  details.fc-group > summary::-webkit-details-marker { display: none; }
+  details.fc-group > summary::before {
+    content: "▸";
+    display: inline-block;
+    width: 14px;
+    color: var(--muted);
+    font-size: 10px;
+    transition: transform 120ms ease;
+  }
+  details.fc-group[open] > summary::before { transform: rotate(90deg); }
+  table.fc-metrics { margin-bottom: 0; background: var(--surface); font-size: 12px; }
+  table.fc-metrics td { padding: 5px 10px; }
+  /* Compact styling for numeric tables inside sidebar accordions
+     (period returns, yearly returns, drawdowns, runups). */
+  .fc-sidebar-table { padding: 0; margin: 0; }
+  .fc-sidebar-table table {
+    margin-bottom: 0;
+    background: var(--surface);
+    font-size: 11.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .fc-sidebar-table th,
+  .fc-sidebar-table td { padding: 4px 8px; }
+  .fc-sidebar-table thead th {
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  table.fc-metrics td.m-label { color: var(--muted); font-weight: 500; }
+  table.fc-metrics td.m-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+  table.fc-metrics td.m-value.pos { color: var(--pos); }
+  table.fc-metrics td.m-value.neg { color: var(--neg); }
+  table.fc-metrics td.m-bench {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 11px;
+  }
+  .m-help {
+    display: inline-block;
+    width: 14px; height: 14px; line-height: 14px;
+    text-align: center;
+    border-radius: 50%;
+    background: #d1d5db;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    margin-left: 4px;
+    cursor: help;
+    user-select: none;
+    position: relative;
+  }
+  .m-help:hover, .m-help:focus { background: var(--accent); outline: none; }
+  /* CSS-only popover — beats the unreliable ``title=`` native tooltip. The
+     definition and formula ride on data-* attributes; we join them with
+     ``\A\A`` and let ``white-space: pre-line`` convert the escape into a
+     visible paragraph break. Monospace only for the formula part would
+     need two pseudo-elements, which caused stacking bugs — this single-
+     block version is simpler and more reliable. */
+  .m-help::after {
+    content: attr(data-def) "\A\A" "Formula: " attr(data-formula);
+    position: absolute;
+    /* Right of the badge, vertically centered. Sidebar intentionally has
+       no overflow clipping so the popover can extend past the sidebar's
+       right edge without being cut off. */
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
+    /* Plotly modebar creates stacking contexts around z-index 1000; sit
+       safely above anything the embedded figures render. */
+    z-index: 10000;
+    display: none;
+    max-width: 320px;
+    width: max-content;
+    padding: 10px 12px;
+    background: #1f2937;
+    color: #f9fafb;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 400;
+    text-align: left;
+    line-height: 1.5;
+    white-space: pre-line;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+  }
+  .m-help:hover::after,
+  .m-help:focus::after { display: block; }
+
+  @media (max-width: 900px) {
+    body { padding: 16px 20px; }
+    .fc-content { grid-template-columns: minmax(0, 1fr); }
+    .fc-sidebar { position: static; max-height: none; }
+  }
+  @media print {
+    body { padding: 16px; max-width: none; }
+    .fc-content { grid-template-columns: 1fr; }
+    .fc-sidebar { position: static; max-height: none; page-break-before: always; }
+    h2 { page-break-before: auto; }
+    .chart { page-break-inside: avoid; }
+    details.fc-group { break-inside: avoid; }
+    details.fc-group > summary::before { display: none; }
+    details.fc-group { border: none; background: none; }
+  }
+</style>

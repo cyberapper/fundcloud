@@ -1,0 +1,244 @@
+[project]
+name = "fundcloud"
+version = "0.1.0"
+description = "Portfolio research, end-to-end, with a Rust core."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Fundcloud Authors" }]
+keywords = [
+  "portfolio",
+  "quant",
+  "finance",
+  "backtest",
+  "skfolio",
+  "sklearn",
+  "optimization",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Financial and Insurance Industry",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
+  "Topic :: Office/Business :: Financial :: Investment",
+  "Typing :: Typed",
+]
+dependencies = [
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "pyarrow>=15",
+  "duckdb>=1.0",
+  "scipy>=1.12",
+  "scikit-learn>=1.4",
+  "jinja2>=3.1",
+  "plotly>=5.22",
+  "tenacity>=8.2",
+  "typing-extensions>=4.10; python_version < '3.12'",
+]
+
+[project.optional-dependencies]
+pf = ["skfolio>=0.6"]
+ta = ["ta-lib>=0.4"]
+data-yf = ["yfinance>=0.2"]
+data-fmp = ["httpx>=0.27"]
+data-av = ["httpx>=0.27"]
+data-bn = ["ccxt>=4.3"]
+data = ["fundcloud[data-yf,data-fmp,data-av,data-bn]"]
+viz = ["matplotlib>=3.8", "kaleido>=0.2.1"]
+reports = ["weasyprint>=62", "xlsxwriter>=3.2"]
+all = ["fundcloud[pf,ta,data,viz,reports]"]
+
+[project.urls]
+Homepage = "https://github.com/cyberapper/fundcloud"
+Documentation = "https://cyberapper.github.io/fundcloud"
+Repository = "https://github.com/cyberapper/fundcloud"
+Issues = "https://github.com/cyberapper/fundcloud/issues"
+Changelog = "https://github.com/cyberapper/fundcloud/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+  "ruff>=0.4",
+  "mypy>=1.10",
+  "pytest>=8",
+  "pytest-cov>=5",
+  "pytest-xdist>=3",
+  "hypothesis>=6.100",
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.25",
+  "mike>=2.1",
+  "maturin>=1.6",
+  "pandas-stubs",
+  # Network-source extras pulled in so test-suite exercises them.
+  "yfinance>=0.2",
+  "httpx>=0.27",
+  "ccxt>=4.3",
+  # TA-Lib wrapper (requires the C lib: `brew install ta-lib` on macOS).
+  "ta-lib>=0.4",
+  # skfolio for optimize-adapter tests.
+  "skfolio>=0.6",
+  # Slice-5 optional stack — plots + reports (explore ships in core).
+  "matplotlib>=3.8",
+  "weasyprint>=62",
+  "xlsxwriter>=3.2",
+  "openpyxl>=3.1",        # read-side (tests verify the workbook we wrote)
+  "ipython>=8.39.0",
+]
+
+[build-system]
+requires = ["maturin>=1.6,<2"]
+build-backend = "maturin"
+
+[tool.maturin]
+features = ["pyo3/extension-module", "pyo3/abi3-py310"]
+module-name = "fundcloud._core"
+python-source = "python"
+manifest-path = "crates/fundcloud-py/Cargo.toml"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["docs", "examples"]
+
+[tool.ruff.lint]
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "B",   # flake8-bugbear
+  "UP",  # pyupgrade
+  "SIM", # flake8-simplify
+  "N",   # pep8-naming
+  "ANN", # flake8-annotations
+  "PT",  # flake8-pytest-style
+  "RUF", # ruff-specific
+]
+ignore = [
+  "ANN401", # allow `Any` in typed public API (accessors proxies)
+  "E501",   # enforced by formatter
+  "N803",   # sklearn's ``X, y`` param names are a canonical convention
+  "N806",   # same — capital ``X`` is idiomatic in fit/transform signatures
+  "RUF001", # unicode minus / multiplication signs in maths strings (metric formulas, pill text)
+  "RUF002", # ambiguous unicode in docstrings (en dashes, etc.)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "ANN",
+  "S101",
+  "N803",
+  "N806",
+  "N812",
+  "PT011",
+  "PT018",
+  "SIM108",
+  "SIM118",
+  "RUF003",
+  "RUF007",
+  "RUF012",
+  "SLF001",
+  "B007",
+  "B905",
+]
+"python/fundcloud/data/sources/duckdb.py" = ["N812"]
+"python/fundcloud/data/sources/parquet.py" = ["N812"]
+"python/fundcloud/data/sources/pandas.py" = ["N812"]
+"python/fundcloud/data/sources/csv.py" = ["N812"]
+"python/fundcloud/data/stores/duckdb.py" = ["N812"]
+"python/fundcloud/data/stores/parquet.py" = ["N812"]
+
+[tool.ruff.format]
+preview = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["python/fundcloud"]
+plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+  "sklearn.*",
+  "pyarrow.*",
+  "duckdb.*",
+  "scipy.*",
+  "ta_lib.*",
+  "talib.*",
+  "skfolio.*",
+  "yfinance.*",
+  "ccxt.*",
+  "weasyprint.*",
+  "xlsxwriter.*",
+  "plotly.*",
+  "matplotlib.*",
+  "openpyxl.*",
+]
+ignore_missing_imports = true
+
+# pandas stubs mark many DataFrame operations as returning ``Any``, which
+# trips strict mypy on modules that do lots of pandas plumbing. Silence
+# `no-any-return` on those modules only; every other strict check still runs.
+[[tool.mypy.overrides]]
+module = [
+  "fundcloud._benchmark",
+  "fundcloud.data.*",
+  "fundcloud.features.indicators.*",
+  "fundcloud.metrics.*",
+  "fundcloud.accessors.*",
+  "fundcloud.optimize.*",
+  "fundcloud.portfolio.*",
+  "fundcloud.sim.*",
+  "fundcloud.strategies.*",
+  "fundcloud.plots.*",
+  "fundcloud.reports.*",
+  "fundcloud.explore.*",
+  "fundcloud.kernels.*",
+]
+warn_return_any = false
+# pandas-stubs flag `df.columns.swaplevel`, `Series[X]` slicing with None,
+# etc. that are valid at runtime; accept those noisy calls in plumbing layers.
+disable_error_code = [
+  "attr-defined",
+  "arg-type",
+  "misc",
+  "no-untyped-call",
+  "unused-ignore",
+  "has-type",
+  "call-overload",
+  "assignment",
+  "operator",
+  "index",
+  "union-attr",
+  "return-value",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra --cov=fundcloud --cov-report=term --cov-report=xml --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "network: tests that hit the network (skipped by default)",
+  "slow: tests that take more than a few seconds",
+  "interop: sklearn/skfolio interoperability checks",
+]
+filterwarnings = [
+  "error",
+  # matplotlib 3.8 + pyparsing 3.2 deprecation warning storm — upstream issue.
+  "ignore::pyparsing.PyparsingDeprecationWarning",
+  # yfinance leaves its sqlite cache open until process exit — harmless but
+  # trips strict ResourceWarnings. Not something we control.
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+  "ignore::ResourceWarning",
+]
+
+[tool.coverage.run]
+source = ["fundcloud"]
+branch = true
+omit = ["python/fundcloud/_version.py", "python/fundcloud/**/_talib_autogen.py"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]

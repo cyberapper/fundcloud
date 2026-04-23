@@ -1,0 +1,128 @@
+name: Docs
+
+# ─────────────────────────────────────────────────────────────
+# Fundcloud documentation pipeline
+#
+#   · PRs + pushes to main  → build with --strict (fails on
+#     broken nav, missing files, dead snippets). Uploads an
+#     artefact for reviewers to preview.
+#
+#   · Tag  vX.Y.Z           → build + deploy via `mike`. The
+#     minor track (e.g. 0.1) gets the `latest` alias; major
+#     releases bump the default.
+#
+#   · Manual dispatch       → deploy an arbitrary alias (e.g.
+#     `dev`, `preview`) without tagging a release.
+# ─────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      alias:
+        description: 'Version alias to publish (e.g. dev, preview, 0.2)'
+        required: true
+        default: 'dev'
+      title:
+        description: 'Display title for this version (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+
+  # ── 1. Build-only — runs for PRs + non-tag pushes ──────────
+  build:
+    runs-on: ubuntu-latest
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0         # mike + git-revision-date need history
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install (dev group)
+        run: uv sync --group dev
+
+      - name: Build site (strict)
+        run: uv run mkdocs build --strict --clean
+
+      - name: Upload preview artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ github.sha }}
+          path: site/
+          retention-days: 7
+
+  # ── 2. Deploy — only on tags or manual dispatch ────────────
+  deploy:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://cyberapper.github.io/fundcloud/
+    env:
+      REF_NAME: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install (dev group)
+        run: uv sync --group dev
+
+      - name: Configure git for mike
+        run: |
+          git config user.name  "fundcloud-docs-bot"
+          git config user.email "docs-bot@users.noreply.github.com"
+
+      - name: Resolve version + alias
+        id: meta
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # e.g. ref=refs/tags/v0.1.3  → version=0.1.3  track=0.1
+            VERSION="${REF_NAME#v}"
+            TRACK="${VERSION%.*}"
+            ALIAS="latest"
+            TITLE="v${VERSION}"
+          else
+            VERSION="${{ github.event.inputs.alias }}"
+            TRACK="${VERSION}"
+            ALIAS="${{ github.event.inputs.alias }}"
+            TITLE="${{ github.event.inputs.title }}"
+            [[ -z "${TITLE}" ]] && TITLE="${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "track=${TRACK}"     >> "$GITHUB_OUTPUT"
+          echo "alias=${ALIAS}"     >> "$GITHUB_OUTPUT"
+          echo "title=${TITLE}"     >> "$GITHUB_OUTPUT"
+
+      - name: Deploy with mike
+        run: |
+          uv run mike deploy \
+            --push \
+            --update-aliases \
+            --title "${{ steps.meta.outputs.title }}" \
+            "${{ steps.meta.outputs.track }}" \
+            "${{ steps.meta.outputs.alias }}"
+
+      - name: Point `latest` at this release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: uv run mike set-default --push latest

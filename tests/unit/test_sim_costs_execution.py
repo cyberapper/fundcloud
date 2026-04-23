@@ -1,0 +1,98 @@
+"""Tests for cost + slippage + execution models."""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+from fundcloud.sim import (
+    FixedBps,
+    HalfSpread,
+    NextBarOpen,
+    NoCost,
+    NoSlippage,
+    PerShare,
+    SameBarClose,
+)
+
+# -------------------------------------------------------------------- costs
+
+
+def test_no_cost_is_zero() -> None:
+    assert NoCost().fee(price=100, qty=10) == 0.0
+
+
+def test_fixed_bps_scales_with_notional() -> None:
+    model = FixedBps(bps=10.0)
+    assert model.fee(price=100, qty=10) == pytest.approx(1.0)  # 1000 notional * 10 bps
+    assert model.fee(price=100, qty=-20) == pytest.approx(2.0)  # signed qty OK
+
+
+def test_fixed_bps_minimum() -> None:
+    model = FixedBps(bps=1.0, minimum=5.0)
+    assert model.fee(price=1, qty=1) == 5.0
+
+
+def test_per_share_flat_rate() -> None:
+    model = PerShare(rate=0.01, minimum=0.5)
+    assert model.fee(price=100, qty=100) == 1.0
+    assert model.fee(price=100, qty=10) == 0.5
+
+
+# -------------------------------------------------------------------- slippage
+
+
+def test_no_slippage() -> None:
+    px, bps = NoSlippage().apply(price=100.0, side="buy")
+    assert px == 100.0
+    assert bps == 0.0
+
+
+def test_half_spread_adjusts_buy_up_sell_down() -> None:
+    m = HalfSpread(spread_bps=20)
+    buy_px, buy_bps = m.apply(price=100.0, side="buy")
+    sell_px, sell_bps = m.apply(price=100.0, side="sell")
+    assert buy_px > 100.0
+    assert sell_px < 100.0
+    assert buy_bps == sell_bps == pytest.approx(10.0)
+
+
+# -------------------------------------------------------------------- execution
+
+
+@pytest.fixture
+def ohlcv() -> pd.DataFrame:
+    idx = pd.date_range("2024-01-02", periods=5, freq="B")
+    cols = pd.MultiIndex.from_tuples([
+        ("open", "A"),
+        ("high", "A"),
+        ("low", "A"),
+        ("close", "A"),
+        ("volume", "A"),
+    ])
+    data = np.array(
+        [
+            [100, 101, 99, 100.5, 1],
+            [100.5, 102, 100, 101.5, 1],
+            [101.5, 103, 101, 102.5, 1],
+            [102.5, 103, 101, 102, 1],
+            [102, 104, 101, 103, 1],
+        ],
+        dtype=float,
+    )
+    return pd.DataFrame(data, index=idx, columns=cols)
+
+
+def test_next_bar_open_references_next_bar_open(ohlcv: pd.DataFrame) -> None:
+    ex = NextBarOpen()
+    assert ex.fill_at(signal_index=0, bars_index_size=5) == 1
+    assert ex.fill_at(signal_index=4, bars_index_size=5) is None
+    price = ex.reference_price(bars=ohlcv, fill_index=1, asset="A")
+    assert price == pytest.approx(100.5)
+
+
+def test_same_bar_close_references_current_close(ohlcv: pd.DataFrame) -> None:
+    ex = SameBarClose()
+    assert ex.fill_at(signal_index=2, bars_index_size=5) == 2
+    price = ex.reference_price(bars=ohlcv, fill_index=0, asset="A")
+    assert price == pytest.approx(100.5)

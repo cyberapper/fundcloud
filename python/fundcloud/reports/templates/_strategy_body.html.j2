@@ -1,0 +1,117 @@
+{# Strategy tear-sheet body — no <html>/<body> wrappers so the same fragment
+   works inside the single-asset full page and inside each tab of the
+   multi-asset report. #}
+<h1>{{ title }}</h1>
+<div class="subtitle">{{ period_start }} → {{ period_end }} · {{ n_periods }} periods{% if benchmark_label %} · vs {{ benchmark_label }}{% endif %}</div>
+
+<div class="stats">
+  {% for card in stat_cards %}
+  <div class="stat">
+    <div class="label">{{ card.label }}</div>
+    <div class="value {{ card.klass }}">{{ card.value }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="fc-content">
+  <div class="fc-charts">
+    <h2>Cumulative returns</h2>
+    <div class="chart">{{ cumulative_html | safe }}</div>
+
+    <h2>Drawdown</h2>
+    <div class="chart">{{ drawdown_html | safe }}</div>
+
+    <h2>Rolling Sharpe</h2>
+    <div class="chart">{{ rolling_sharpe_html | safe }}</div>
+
+    {% if rolling_alpha_beta_html %}
+    <h2>Rolling alpha &amp; beta</h2>
+    <div class="chart">{{ rolling_alpha_beta_html | safe }}</div>
+    {% endif %}
+
+    <h2>Return distribution</h2>
+    <div class="chart">{{ distribution_html | safe }}</div>
+
+    {% if monthly_heatmap_html %}
+    <h2>Monthly returns (%)</h2>
+    <div class="chart">{{ monthly_heatmap_html | safe }}</div>
+    {% endif %}
+
+    {% if yearly_bars_html %}
+    <h2>EOY returns{% if benchmark_label %} vs {{ benchmark_label }}{% endif %}</h2>
+    <div class="chart">{{ yearly_bars_html | safe }}</div>
+    {% endif %}
+  </div>
+
+  <aside class="fc-sidebar">
+    <div class="fc-sidebar__title">
+      Metrics
+      {% if strategy_label %}
+      <span class="fc-sidebar__scope">
+        {{ strategy_label }}{% if benchmark_label %}<span class="vs">vs</span>{{ benchmark_label }}{% endif %}
+      </span>
+      {% endif %}
+    </div>
+    {% for section in sidebar_sections %}
+    <details class="fc-group" open>
+      <summary>{{ section.category }}</summary>
+      <table class="fc-metrics">
+        {% if benchmark_label %}
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>{{ strategy_label or 'Strategy' }}</th>
+            <th>{{ benchmark_label }}</th>
+          </tr>
+        </thead>
+        {% endif %}
+        <tbody>
+        {% for row in section.rows %}
+          <tr>
+            <td class="m-label">
+              {{ row.label }}
+              {% if row.definition %}
+              <span class="m-help"
+                    data-def="{{ row.definition }}"
+                    data-formula="{{ row.formula }}"
+                    aria-label="{{ row.label }} definition">?</span>
+              {% endif %}
+            </td>
+            <td class="m-value {{ row.klass }}">{{ row.value }}</td>
+            {% if benchmark_label %}<td class="m-bench">{{ row.bench_value or '—' }}</td>{% endif %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </details>
+    {% endfor %}
+
+    {% if period_table_html %}
+    <details class="fc-group" open>
+      <summary>Period performance</summary>
+      <div class="fc-sidebar-table">{{ period_table_html | safe }}</div>
+    </details>
+    {% endif %}
+
+    {% if yearly_table_html %}
+    <details class="fc-group" open>
+      <summary>EOY returns</summary>
+      <div class="fc-sidebar-table">{{ yearly_table_html | safe }}</div>
+    </details>
+    {% endif %}
+
+    {% if worst_drawdowns_html %}
+    <details class="fc-group" open>
+      <summary>Worst 10 drawdowns</summary>
+      <div class="fc-sidebar-table">{{ worst_drawdowns_html | safe }}</div>
+    </details>
+    {% endif %}
+
+    {% if worst_runups_html %}
+    <details class="fc-group" open>
+      <summary>Top 10 runups</summary>
+      <div class="fc-sidebar-table">{{ worst_runups_html | safe }}</div>
+    </details>
+    {% endif %}
+  </aside>
+</div>

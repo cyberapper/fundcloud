@@ -1,0 +1,18 @@
+{#
+  Fundcloud — footer copyright strip override.
+#}
+<div class="md-copyright" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:0.6rem;">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    <span style="font-weight:500;letter-spacing:-0.005em;">
+      {{ config.copyright }}
+    </span>
+  </div>
+  {% if config.extra.generator | default(true) %}
+    <div class="md-copyright__highlight" style="opacity:0.7;font-size:0.72rem;">
+      Built with
+      <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener" style="color:inherit;">Material for MkDocs</a>
+      · theme by Fundcloud
+    </div>
+  {% endif %}
+</div>
