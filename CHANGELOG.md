@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/cyberapper/fundcloud/compare/v0.1.0...v0.2.0) (2026-04-23)
+
+
+### ### Added
+
+* initial public release — fundcloud v0.1.0 ([a610800](https://github.com/cyberapper/fundcloud/commit/a6108004333c2056cf3f23ed9d0d54dc50e2f819))
+* initial public release — fundcloud v0.1.0 ([d46cee5](https://github.com/cyberapper/fundcloud/commit/d46cee5d5577cba39f5fe3396489550c696c769c))
+
+
+### ### Fixed
+
+* address all CodeRabbit review findings + strengthen contributor tooling ([58092ef](https://github.com/cyberapper/fundcloud/commit/58092ef874926a1bf52f9fe9d4816ed0c4890270))
+* resolve CI failures — cargo fmt, matplotlib 3.14 legend recursion ([2b8eff8](https://github.com/cyberapper/fundcloud/commit/2b8eff834994b9e635b16c9636a492218872dbc4))
+* resolve CI failures — cargo fmt, matplotlib 3.14 legend recursion ([6f04d96](https://github.com/cyberapper/fundcloud/commit/6f04d960da4b38b8a237dd9b5c4968dbdb393a38))
+* resolve CI failures — format, DuckDB in-operator, mypy overrides ([3ece4c4](https://github.com/cyberapper/fundcloud/commit/3ece4c45342590d2d5fee36658d1123cb1d25175))
+* resolve CI lint, Python 3.14 recursion, and Windows encoding failures ([4a63943](https://github.com/cyberapper/fundcloud/commit/4a63943d02e61470477842f41f2f042894395af1))
+* **rust:** resolve all cargo clippy warnings for CI ([32cedbb](https://github.com/cyberapper/fundcloud/commit/32cedbb032ec2167dcba24ae3c08296a8e96262e))
+
 ## [Unreleased]
 
 ## [0.1.0] - 2026-04-22
