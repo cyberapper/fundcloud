@@ -99,6 +99,14 @@ features = ["pyo3/extension-module", "pyo3/abi3-py310"]
 module-name = "fundcloud._core"
 python-source = "python"
 manifest-path = "crates/fundcloud-py/Cargo.toml"
+# Maturin builds the sdist relative to `manifest-path`, so the repo-root
+# LICENSE/NOTICE files would be left out — but maturin still writes
+# `License-File: LICENSE` into METADATA, which makes PyPI reject the upload
+# under PEP 639. Force them into the sdist.
+include = [
+  { path = "LICENSE", format = "sdist" },
+  { path = "NOTICE",  format = "sdist" },
+]
 
 [tool.ruff]
 line-length = 100
