@@ -100,6 +100,9 @@ jobs:
 
       - name: Resolve version + alias
         id: meta
+        env:
+          INPUT_ALIAS: ${{ github.event.inputs.alias }}
+          INPUT_TITLE: ${{ github.event.inputs.title }}
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             # e.g. ref=refs/tags/v0.1.3  → version=0.1.3  track=0.1
@@ -108,10 +111,15 @@ jobs:
             ALIAS="latest"
             TITLE="v${VERSION}"
           else
-            VERSION="${{ github.event.inputs.alias }}"
+            # Dispatch deploys a single named version (e.g. `dev`, `0.2`).
+            # We deliberately leave ALIAS empty here — passing the same string
+            # as both version and alias makes `mike deploy` reject with
+            # "duplicated version and alias". Use a follow-up `mike alias`
+            # invocation if you need to attach `latest` to a dispatch deploy.
+            VERSION="${INPUT_ALIAS}"
             TRACK="${VERSION}"
-            ALIAS="${{ github.event.inputs.alias }}"
-            TITLE="${{ github.event.inputs.title }}"
+            ALIAS=""
+            TITLE="${INPUT_TITLE}"
             [[ -z "${TITLE}" ]] && TITLE="${VERSION}"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
@@ -120,13 +128,18 @@ jobs:
           echo "title=${TITLE}"     >> "$GITHUB_OUTPUT"
 
       - name: Deploy with mike
+        env:
+          TITLE: ${{ steps.meta.outputs.title }}
+          TRACK: ${{ steps.meta.outputs.track }}
+          ALIAS: ${{ steps.meta.outputs.alias }}
         run: |
-          uv run mike deploy \
-            --push \
-            --update-aliases \
-            --title "${{ steps.meta.outputs.title }}" \
-            "${{ steps.meta.outputs.track }}" \
-            "${{ steps.meta.outputs.alias }}"
+          args=(deploy --push --update-aliases --title "$TITLE" "$TRACK")
+          # Only pass an alias positional when it is non-empty and different
+          # from the track — mike rejects duplicates.
+          if [[ -n "$ALIAS" && "$ALIAS" != "$TRACK" ]]; then
+            args+=("$ALIAS")
+          fi
+          uv run mike "${args[@]}"
 
       - name: Point `latest` at this release
         if: startsWith(github.ref, 'refs/tags/v')
