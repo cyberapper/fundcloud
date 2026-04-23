@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/cyberapper/fundcloud/compare/v0.2.0...v0.2.1) (2026-04-23)
+
+
+### ### Fixed
+
+* **build:** include LICENSE and NOTICE in sdist for PEP 639 ([047a416](https://github.com/cyberapper/fundcloud/commit/047a416011b9ee9a20a171a2d0ca90cb5d67992d))
+* **build:** include LICENSE and NOTICE in sdist for PEP 639 ([c5b3dfb](https://github.com/cyberapper/fundcloud/commit/c5b3dfb1175ca1125a1afbf4f9669dc9b676a662))
+
 ## [0.2.0](https://github.com/cyberapper/fundcloud/compare/v0.1.0...v0.2.0) (2026-04-23)
 
 
