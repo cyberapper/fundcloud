@@ -21,7 +21,7 @@ repository = "https://github.com/cyberapper/fundcloud"
 [workspace.dependencies]
 ndarray = "0.16"
 rayon   = "1.10"
-thiserror = "1.0"
+thiserror = "2.0"
 # PyO3 / rust-numpy only used by fundcloud-py
 pyo3 = { version = "0.22", features = ["abi3-py310"] }
 numpy = "0.22"
