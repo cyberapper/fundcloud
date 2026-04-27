@@ -6,9 +6,10 @@ history, current positions, executed trades, and capital flows. Every
 provider satisfies the :class:`AccountProvider` protocol, so the
 analysis surface is the same regardless of the backing source.
 
-v0.1 ships one provider — :class:`fundcloud.accounts.FundCloud`, over
-the FundCloud platform API. Future providers (IBKR, Plaid) plug into
-the same protocol without any changes to downstream code.
+Two providers ship today: :class:`fundcloud.accounts.FundCloud` (over
+the FundCloud platform API) and :class:`fundcloud.accounts.IB` (over
+Interactive Brokers Flex Query CSV exports). Future providers plug
+into the same protocol without any changes to downstream code.
 
 The typical flow is::
 
@@ -30,6 +31,7 @@ from fundcloud.accounts._base import (
 )
 
 __all__ = [
+    "IB",
     "AccountProvider",
     "BaseAccountProvider",
     "FundCloud",
@@ -38,6 +40,7 @@ __all__ = [
 
 _LAZY: dict[str, tuple[str, str]] = {
     "FundCloud": ("fundcloud.accounts.fundcloud", "FundCloud"),
+    "IB": ("fundcloud.accounts.ib", "IB"),
 }
 
 
@@ -58,3 +61,4 @@ def __dir__() -> list[str]:
 
 if TYPE_CHECKING:  # pragma: no cover — static-analysis only
     from fundcloud.accounts.fundcloud import FundCloud
+    from fundcloud.accounts.ib import IB

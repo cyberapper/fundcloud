@@ -5,7 +5,7 @@ contract (``list_funds`` / ``list_accounts`` / ``nav`` / ``positions`` /
 ``trades`` / ``capital_flows``) plus a default ``to_portfolio`` composition
 defined on :class:`BaseAccountProvider`. The composition wires NAV + flows
 through :meth:`fundcloud.portfolio.Portfolio.from_nav`, applying the
-right sign convention per ``basis`` — so IBKR / Plaid will reuse the
+right sign convention per ``basis`` — so IB / Plaid will reuse the
 same correct-return logic without re-implementing anything.
 """
 
@@ -33,7 +33,8 @@ class AccountProvider(Protocol):
     """Unified protocol for account-level data providers.
 
     Concrete implementations: :class:`fundcloud.accounts.FundCloud`
-    (v0.1); IBKR and Plaid providers will follow the same contract.
+    and :class:`fundcloud.accounts.IB`. Future providers (e.g., Plaid)
+    follow the same contract.
 
     Every method returns a :class:`pd.DataFrame` (or :class:`pd.Series`
     where natural) — typed entities stay in docstrings as documented
@@ -82,7 +83,7 @@ class AccountProvider(Protocol):
 
         ``adjust_for_flows=True`` (default) requests a flow-smoothed
         NAV — implementation-defined per provider (server-side query
-        flag for FundCloud; client-side fallback for IBKR / Plaid
+        flag for FundCloud; client-side fallback for IB / Plaid
         when those land). Pass ``False`` for the raw, unadjusted
         NAV series.
         """

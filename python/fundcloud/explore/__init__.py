@@ -11,7 +11,7 @@
   a ``target=`` column is supplied).
 
 All three ship in the core install; no extras required. ``quickview`` is
-a deprecated alias for ``describe`` — it will be removed next release.
+a deprecated alias for ``describe`` — pending removal.
 """
 
 from __future__ import annotations

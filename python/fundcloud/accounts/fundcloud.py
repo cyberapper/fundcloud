@@ -53,7 +53,7 @@ class FundCloud(BaseAccountProvider):
     (``adjust_for_flows=True``); :meth:`to_portfolio` always opts out
     and applies the canonical client-side TWR in
     :func:`fundcloud.metrics.returns_from_nav`, which keeps results
-    comparable across providers (IBKR, Plaid) that don't offer the same
+    comparable across providers (IB, Plaid) that don't offer the same
     server-side flag.
     """
 

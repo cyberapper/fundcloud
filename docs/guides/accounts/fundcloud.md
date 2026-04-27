@@ -391,7 +391,7 @@ parameter menu.
 
 ## Currency and FX
 
-v0.1 of the accounts package **does not** convert currencies.
+The accounts package **does not** convert currencies.
 
 - A fund's NAV is denominated in the fund's `currency` (USD for the
   examples above).
@@ -401,7 +401,7 @@ v0.1 of the accounts package **does not** convert currencies.
 
 If you analyse a multi-currency fund, ensure your benchmark, your
 display formatting, and any cross-fund roll-ups are all in the same
-currency. FX support is planned for a later release.
+currency.
 
 ---
 

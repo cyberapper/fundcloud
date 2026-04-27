@@ -1,8 +1,8 @@
 """``Cadence`` + ``Scheduler`` — when does a strategy fire?
 
 Strategies driven by the simulator express their rebalance / investment
-rhythm through a :class:`Cadence`. For the v0.1 presets we ship three named
-cadences — ``daily`` / ``weekly`` / ``monthly`` — plus arbitrary
+rhythm through a :class:`Cadence`. Three named presets — ``daily`` /
+``weekly`` / ``monthly`` — ship today, plus arbitrary
 ``pandas.Timedelta``-compatible step strings.
 """
 

@@ -193,6 +193,7 @@ nav:
           - Pulling and caching market data: guides/data/backends-and-catalog.md
       - Accounts:
           - Analysing a FundCloud fund: guides/accounts/fundcloud.md
+          - Analysing an Interactive Brokers account: guides/accounts/ib.md
       - Reporting:
           - Tear sheets: guides/reports/tearsheets.md
           - Plots:

@@ -23,6 +23,11 @@ site documents its own mapping):
 * **Transient** — 5xx responses, connection errors, read timeouts, 429s:
   raise :class:`TransientError`. The shared ``HttpClient`` already retries
   these automatically; raising is reserved for when retries are exhausted.
+* **Malformed source data** — the source payload is structurally invalid:
+  unknown section, missing essential column, unparseable date, etc.: raise
+  :class:`MalformedDataError`. Distinct from :class:`NotFoundError`
+  (the resource exists at the source but wasn't found by id) and
+  :class:`AmbiguousError` (a lookup matched multiple).
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ __all__ = [
     "AmbiguousError",
     "AuthError",
     "FundcloudError",
+    "MalformedDataError",
     "NotFoundError",
     "QuotaError",
     "TransientError",
@@ -84,4 +90,18 @@ class TransientError(FundcloudError):
     sustained 429 rate-limit responses. The shared HTTP client retries
     these automatically; this exception surfaces only when the retry
     budget is exhausted.
+    """
+
+
+class MalformedDataError(FundcloudError, ValueError):
+    """Source data is structurally invalid.
+
+    Typical causes: unknown section in a CSV / JSON payload, missing
+    essential column, unparseable timestamp, mismatched section header.
+    Distinct from :class:`NotFoundError` (resource exists at the source
+    but isn't found by id) and :class:`AmbiguousError` (a lookup
+    matched multiple).
+
+    Also a :class:`ValueError` so callers catching ``ValueError`` (the
+    natural Python choice for "you gave me bad inputs") still see it.
     """

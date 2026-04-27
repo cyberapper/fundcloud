@@ -1455,10 +1455,11 @@ wheels = [
 
 [[package]]
 name = "fundcloud"
-version = "0.1.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "duckdb" },
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1551,6 +1552,7 @@ requires-dist = [
     { name = "duckdb", specifier = ">=1.0" },
     { name = "fundcloud", extras = ["data-yf", "data-fmp", "data-av", "data-bn"], marker = "extra == 'data'" },
     { name = "fundcloud", extras = ["pf", "ta", "data", "viz", "reports"], marker = "extra == 'all'" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'data-av'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'data-fmp'", specifier = ">=0.27" },
     { name = "jinja2", specifier = ">=3.1" },

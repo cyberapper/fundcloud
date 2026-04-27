@@ -2,11 +2,12 @@
 
 The `fundcloud.accounts` package wraps account-level data sources —
 historical NAV, positions, trades, and capital flows from platforms
-like FundCloud (today), IBKR and Plaid (planned). Every provider
-satisfies the same [`AccountProvider`](#fundcloud.accounts._base.AccountProvider)
+like FundCloud and Interactive Brokers. Every provider satisfies the
+same [`AccountProvider`](#fundcloud.accounts._base.AccountProvider)
 protocol, so the analysis surface is identical regardless of source.
-For the task-first walkthrough, start with [Analysing a FundCloud
-fund](../guides/accounts/fundcloud.md).
+For task-first walkthroughs, start with [Analysing a FundCloud
+fund](../guides/accounts/fundcloud.md) or [Analysing an Interactive
+Brokers account](../guides/accounts/ib.md).
 
 ## Provider protocol
 
@@ -21,6 +22,12 @@ fund](../guides/accounts/fundcloud.md).
 ## FundCloud provider
 
 ::: fundcloud.accounts.fundcloud.FundCloud
+    options:
+      filters: []
+
+## Interactive Brokers provider
+
+::: fundcloud.accounts.ib.IB
     options:
       filters: []
 
