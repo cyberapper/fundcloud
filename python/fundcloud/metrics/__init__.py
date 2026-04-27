@@ -43,6 +43,7 @@ from fundcloud.metrics.benchmark import (
     up_capture,
 )
 from fundcloud.metrics.core import (
+    ReturnMethod,
     adjusted_sortino,
     avg_loss,
     avg_return,
@@ -67,6 +68,7 @@ from fundcloud.metrics.core import (
     payoff_ratio,
     probabilistic_sharpe_ratio,
     profit_factor,
+    returns_from_nav,
     returns_stats,
     risk_of_ruin,
     sharpe,
@@ -105,6 +107,7 @@ from fundcloud.metrics.rolling import (
 from fundcloud.metrics.summary import drawdown_details, metrics, runup_details
 
 __all__ = [
+    "ReturnMethod",
     "adjusted_sortino",
     "alpha",
     "avg_loss",
@@ -149,6 +152,7 @@ __all__ = [
     "probabilistic_sharpe_ratio",
     "profit_factor",
     "r_squared",
+    "returns_from_nav",
     "returns_stats",
     "risk_of_ruin",
     "rolling_alpha",

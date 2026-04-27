@@ -191,6 +191,8 @@ nav:
           - sklearn & skfolio interop: guides/interop/sklearn.md
       - Data:
           - Pulling and caching market data: guides/data/backends-and-catalog.md
+      - Accounts:
+          - Analysing a FundCloud fund: guides/accounts/fundcloud.md
       - Reporting:
           - Tear sheets: guides/reports/tearsheets.md
           - Plots:
@@ -203,6 +205,7 @@ nav:
           - Using Python help(): guides/using-python-help.md
   - Reference:
       - Data: reference/data.md
+      - Accounts: reference/accounts.md
       - Strategies: reference/strategies.md
       - Simulator: reference/sim.md
       - Portfolio: reference/portfolio.md
@@ -210,5 +213,6 @@ nav:
       - Optimize: reference/optimize.md
       - Validate: reference/validate.md
       - Reports: reference/reports.md
+      - Errors: reference/errors.md
       - Plots: reference/plots.md
       - Kernels: reference/kernels.md

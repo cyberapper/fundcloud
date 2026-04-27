@@ -52,6 +52,7 @@ __all__ = [
     "Catalog",
     "DatasetSpec",
     "DuckDB",
+    "FundCloud",
     "Memory",
     "Parquet",
     "ReadOnlyError",
@@ -75,6 +76,7 @@ _LAZY: dict[str, tuple[str, str]] = {
     "FMP": ("fundcloud.data.fmp", "FMP"),
     "AV": ("fundcloud.data.av", "AV"),
     "Binance": ("fundcloud.data.binance", "Binance"),
+    "FundCloud": ("fundcloud.data.fundcloud", "FundCloud"),
 }
 
 
@@ -97,4 +99,5 @@ if TYPE_CHECKING:  # pragma: no cover — static-analysis only
     from fundcloud.data.av import AV
     from fundcloud.data.binance import Binance
     from fundcloud.data.fmp import FMP
+    from fundcloud.data.fundcloud import FundCloud
     from fundcloud.data.yf import YF
