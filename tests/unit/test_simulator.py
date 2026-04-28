@@ -194,9 +194,10 @@ def test_hold_fills_both_legs_despite_mixed_frequency_nan() -> None:
     result = Simulator(panel, cash=1_000_000).run_strategy(Hold(weights={"BTC": 0.5, "EQ": 0.5}))
     # Exactly two trades — one per leg. Both must have filled.
     assets_filled = set(result.trades["asset"])
-    assert assets_filled == {"BTC", "EQ"}, (
-        f"hold dropped a leg on a NaN bar; trades filled for {assets_filled}"
-    )
+    assert assets_filled == {
+        "BTC",
+        "EQ",
+    }, f"hold dropped a leg on a NaN bar; trades filled for {assets_filled}"
 
 
 def test_mark_to_market_uses_last_price_on_nan_bar() -> None:

@@ -16,7 +16,6 @@ import time
 
 import numpy as np
 import pandas as pd
-
 from fundcloud.kernels import HAS_RUST
 from fundcloud.kernels import _sim as _dispatcher
 from fundcloud.sim import FixedBps, HalfSpread, NextBarOpen, Simulator
@@ -82,7 +81,7 @@ def main() -> int:
         return 1
     print("size (bars x assets) | path          | wall (s) | speedup")
     print("-" * 64)
-    for (nb, na) in [(500, 5), (2000, 10), (5000, 20), (10000, 30)]:
+    for nb, na in [(500, 5), (2000, 10), (5000, 20), (10000, 30)]:
         bars = _synthetic_bars(nb, na)
         call = _run_weights_case(bars)
         t_py = _run_under_backend(call, rust=False)

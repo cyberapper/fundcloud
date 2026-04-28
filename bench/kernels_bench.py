@@ -23,7 +23,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
-
 from fundcloud import kernels
 from fundcloud.kernels import _pyfallback
 
@@ -181,18 +180,21 @@ def main(argv: list[str] | None = None) -> int:
             writer = csv.writer(f)
             writer.writerow(["kernel", "n", "m", "python_ms", "rust_ms", "speedup"])
             for row in rows:
-                writer.writerow(
-                    [row.kernel, row.n, row.m, f"{row.python_ms:.3f}",
-                     f"{row.rust_ms:.3f}", f"{row.speedup:.2f}"]
-                )
+                writer.writerow([
+                    row.kernel,
+                    row.n,
+                    row.m,
+                    f"{row.python_ms:.3f}",
+                    f"{row.rust_ms:.3f}",
+                    f"{row.speedup:.2f}",
+                ])
         print(f"\nwrote {args.csv}")
     return 0
 
 
 def _print_table(rows: list[Benchmark]) -> None:
     print(
-        f"{'kernel':<22} {'n':>7} {'m':>5} {'python (ms)':>13} "
-        f"{'rust (ms)':>11} {'speedup':>9}"
+        f"{'kernel':<22} {'n':>7} {'m':>5} {'python (ms)':>13} " f"{'rust (ms)':>11} {'speedup':>9}"
     )
     print("-" * 72)
     for row in rows:
