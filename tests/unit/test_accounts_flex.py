@@ -257,6 +257,20 @@ def test_no_header_at_all_raises() -> None:
         parse_flex_csv("garbage,more garbage\n1,2,3\n")
 
 
+def test_unparseable_amount_raises() -> None:
+    """Cash-tx with non-numeric Amount triggers MalformedDataError instead
+    of silently NaN-ing through downstream sign + abs calculations."""
+    from fundcloud.accounts._flex import parse_flex_csv
+    from fundcloud.errors import MalformedDataError
+
+    text = _nav_section() + (
+        '"ClientAccountID","CurrencyPrimary","FXRateToBase","Date/Time","Amount","Type"\n'
+        '"U_TEST_0001","USD","1","20240102","NOT-A-NUMBER","Deposits/Withdrawals"\n'
+    )
+    with pytest.raises(MalformedDataError, match="Cannot parse Amount"):
+        parse_flex_csv(text)
+
+
 # ---------------------------------------------------------------- deposit-type variants
 
 

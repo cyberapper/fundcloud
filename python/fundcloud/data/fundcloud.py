@@ -20,6 +20,7 @@ from fundcloud.data._columns import (
     canonicalize_ohlcv_order,
     normalize_ohlcv_columns,
 )
+from fundcloud.errors import MalformedDataError
 
 __all__ = ["FundCloud"]
 
@@ -177,7 +178,11 @@ def _parse_candles(payload: object) -> pd.DataFrame:
         ts_raw = c.get("timestamp")
         if ts_raw is None:
             continue
-        ts = pd.Timestamp(ts_raw)
+        try:
+            ts = pd.Timestamp(ts_raw)
+        except (TypeError, ValueError) as e:
+            msg = f"Invalid candle timestamp from FundCloud: {ts_raw!r}"
+            raise MalformedDataError(msg) from e
         # The API ships UTC ISO8601 for daily/weekly bars. Strip tz info so
         # the index matches the tz-naive convention used across other backends
         # (YF, FMP, AV, Binance all return tz-naive daily indices).
@@ -185,14 +190,30 @@ def _parse_candles(payload: object) -> pd.DataFrame:
             ts = ts.tz_convert("UTC").tz_localize(None)
         index_vals.append(ts)
         rows.append({
-            "open": float(c.get("open", float("nan"))),
-            "high": float(c.get("high", float("nan"))),
-            "low": float(c.get("low", float("nan"))),
-            "close": float(c.get("close", float("nan"))),
-            "volume": float(c.get("volume", float("nan"))),
+            "open": _coerce_candle_field(c.get("open"), "open", ts_raw),
+            "high": _coerce_candle_field(c.get("high"), "high", ts_raw),
+            "low": _coerce_candle_field(c.get("low"), "low", ts_raw),
+            "close": _coerce_candle_field(c.get("close"), "close", ts_raw),
+            "volume": _coerce_candle_field(c.get("volume"), "volume", ts_raw),
         })
     if not rows:
         return pd.DataFrame(columns=list(OHLCV_COLUMNS))
     df = pd.DataFrame(rows, index=pd.DatetimeIndex(index_vals))
     df.index.name = None
     return df.sort_index()
+
+
+def _coerce_candle_field(value: object, field: str, ts_raw: object) -> float:
+    """Cast a candle field to float, raising :class:`MalformedDataError`
+    with row context if the upstream payload is malformed.
+
+    Missing values pass through as NaN (the OHLCV-frame convention) —
+    only genuinely unparseable values raise.
+    """
+    if value is None:
+        return float("nan")
+    try:
+        return float(value)
+    except (TypeError, ValueError) as e:
+        msg = f"Invalid candle field {field!r}={value!r} at timestamp {ts_raw!r}"
+        raise MalformedDataError(msg) from e

@@ -63,13 +63,16 @@ def main(argv: list[str]) -> int:
 
         # Try a benchmark (best-effort — skip if YF/network unavailable).
         benchmark = None
-        try:
-            from fundcloud.data import YF
+        if pf.returns.empty:
+            print("  (benchmark skipped: empty return series)")
+        else:
+            try:
+                from fundcloud.data import YF
 
-            spy = YF("SPY", start=str(pf.returns.index[0].date())).read()
-            benchmark = spy.xs("close", level=0, axis=1).iloc[:, 0]
-        except Exception as e:  # noqa: BLE001 — example tolerates lookup failure
-            print(f"  (benchmark skipped: {type(e).__name__}: {e})")
+                spy = YF("SPY", start=str(pf.returns.index[0].date())).read()
+                benchmark = spy.xs("close", level=0, axis=1).iloc[:, 0]
+            except Exception as e:  # noqa: BLE001 — example tolerates lookup failure
+                print(f"  (benchmark skipped: {type(e).__name__}: {e})")
 
         out_path = OUT / f"ib_{acct.replace(' ', '_').lower()}.html"
         fc.reports.Tearsheet(pf, benchmark=benchmark).render_html(out_path)

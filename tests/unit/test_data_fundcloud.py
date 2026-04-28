@@ -193,6 +193,36 @@ def test_empty_payload_returns_empty_frame(monkeypatch: pytest.MonkeyPatch) -> N
     assert out.empty
 
 
+def test_malformed_candle_field_raises_typed_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-numeric candle field surfaces as MalformedDataError with row
+    context, not a raw ValueError leaking from ``float(...)``."""
+    from fundcloud.data import fundcloud as fc_mod
+    from fundcloud.errors import MalformedDataError
+
+    bad = {
+        "symbol": "AAPL",
+        "candles": [
+            {
+                "timestamp": "2024-01-02T00:00:00Z",
+                "open": "not-a-number",
+                "high": 1.0,
+                "low": 1.0,
+                "close": 1.0,
+                "volume": 1.0,
+            },
+        ],
+    }
+    monkeypatch.setattr(
+        fc_mod.FundCloudClient,
+        "get",
+        lambda self, path, params=None: bad,
+    )
+    with pytest.raises(MalformedDataError, match="Invalid candle field 'open'"):
+        fc_mod.FundCloud("AAPL").read()
+
+
 def test_is_read_only(monkeypatch: pytest.MonkeyPatch) -> None:
     from fundcloud.data import ReadOnlyError
     from fundcloud.data import fundcloud as fc_mod

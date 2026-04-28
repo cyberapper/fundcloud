@@ -85,8 +85,14 @@ def parse_flex_csv(
     ----------
     source
         Filesystem path (``str`` or :class:`pathlib.Path`), a text-mode
-        file-like object, raw ``bytes``, or an inline CSV string
-        (detected by the presence of a newline character).
+        file-like object, raw ``bytes``, or an inline CSV string. A
+        ``str`` is treated as inline CSV only if it contains a newline;
+        a single-line string is treated as a path and will raise
+        :class:`FileNotFoundError` if it doesn't exist on disk. Pass a
+        :class:`pathlib.Path`, a file-like object, or raw ``bytes`` to
+        bypass that heuristic — single-line Flex exports are essentially
+        never seen in practice (every real export has at least a header
+        plus one data row), but tests / fixtures sometimes do.
     require_nav
         Raise :class:`MalformedDataError` if no NAV section is detected.
         Default ``True`` because every IB Flex Query the library
@@ -357,6 +363,25 @@ def _normalize_cash_tx(raw: pd.DataFrame) -> pd.DataFrame:
         if "TransactionID" in raw.columns
         else pd.Series([""] * len(raw))
     )
+
+    # ``Amount`` parses with ``errors="coerce"`` so genuinely numeric values
+    # in unusual formats still flow through; but if any row produces NaN
+    # we'd silently sign+abs into a NaN flow further downstream — refuse
+    # rather than emit garbage.
+    amount_native = pd.to_numeric(raw["Amount"], errors="coerce")
+    if amount_native.isna().any():
+        bad = (
+            raw
+            .loc[amount_native.isna(), ["Date/Time", "Type", "Amount"]]
+            .head(3)
+            .to_dict(orient="records")
+        )
+        msg = (
+            f"Cannot parse Amount in {amount_native.isna().sum()} cash-transaction "
+            f"row(s). First bad rows: {bad!r}"
+        )
+        raise MalformedDataError(msg)
+
     df = pd.DataFrame(
         {
             "account_id": raw["ClientAccountID"].astype(str).to_numpy(),
@@ -365,7 +390,7 @@ def _normalize_cash_tx(raw: pd.DataFrame) -> pd.DataFrame:
             .to_numeric(raw["FXRateToBase"], errors="coerce")
             .fillna(1.0)
             .to_numpy(),
-            "amount_native": pd.to_numeric(raw["Amount"], errors="coerce").to_numpy(),
+            "amount_native": amount_native.to_numpy(),
             "flow_type_raw": raw["Type"].astype(str).to_numpy(),
             "description": desc.to_numpy(),
             "transaction_id": txid.to_numpy(),

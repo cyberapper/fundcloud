@@ -14,7 +14,13 @@ from types import TracebackType
 from typing import Any
 
 from fundcloud.data._http import HttpClient, TransientHttpError, require_httpx
-from fundcloud.errors import AuthError, NotFoundError, QuotaError, TransientError
+from fundcloud.errors import (
+    AuthError,
+    MalformedDataError,
+    NotFoundError,
+    QuotaError,
+    TransientError,
+)
 
 __all__ = ["FUNDCLOUD_BASE_URL", "FUNDCLOUD_ENV_VAR", "FundCloudClient"]
 
@@ -154,13 +160,26 @@ class FundCloudClient:
         for _ in range(_MAX_PAGES):
             payload = self.get(path, params=current)
             if not isinstance(payload, dict):
-                # Defensive: every listing endpoint we consume returns an object
-                return
+                # Fail closed: returning here would yield partial data
+                # silently, which is much worse than a typed error for
+                # data-pipeline consumers.
+                msg = (
+                    f"FundCloud returned non-object payload for {path!r}: "
+                    f"{type(payload).__name__}. Expected JSON object with "
+                    f"`data` and `meta` keys."
+                )
+                raise MalformedDataError(msg)
             data = payload.get("data", [])
             if isinstance(data, list):
                 yield from data
-            meta = payload.get("meta") or {}
-            if _has_more_pages(meta, current["page"]):
+            meta = payload.get("meta")
+            if meta is not None and not isinstance(meta, Mapping):
+                msg = (
+                    f"FundCloud returned non-mapping `meta` for {path!r}: "
+                    f"{type(meta).__name__}. Cannot determine pagination state."
+                )
+                raise MalformedDataError(msg)
+            if _has_more_pages(meta or {}, current["page"]):
                 current["page"] = int(current["page"]) + 1
             else:
                 return

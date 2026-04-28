@@ -828,13 +828,26 @@ def returns_from_nav(
     Raises
     ------
     TypeError
-        If ``nav`` is not a :class:`pd.Series`.
+        If ``nav``, ``distributions``, or ``capital_flows`` is not a
+        :class:`pd.Series`.
     ValueError
         If ``method`` is unknown, or if ``capital_flows`` is required
         (``modified_dietz``, ``daily_twr``) but not provided.
     """
     if not isinstance(nav, pd.Series):
         msg = f"`nav` must be a pandas Series; got {type(nav).__name__}"
+        raise TypeError(msg)
+    if distributions is not None and not isinstance(distributions, pd.Series):
+        msg = (
+            "`distributions` must be a pandas Series when provided; "
+            f"got {type(distributions).__name__}"
+        )
+        raise TypeError(msg)
+    if capital_flows is not None and not isinstance(capital_flows, pd.Series):
+        msg = (
+            "`capital_flows` must be a pandas Series when provided; "
+            f"got {type(capital_flows).__name__}"
+        )
         raise TypeError(msg)
 
     nav_s = nav.sort_index().astype(float)

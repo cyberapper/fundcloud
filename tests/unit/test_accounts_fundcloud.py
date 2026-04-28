@@ -311,6 +311,19 @@ def test_returns_from_nav_series_name_is_returns() -> None:
     assert returns_from_nav(nav).name == "returns"
 
 
+def test_returns_from_nav_rejects_non_series_optional_inputs() -> None:
+    """Non-Series ``distributions`` / ``capital_flows`` must surface a clear
+    ``TypeError`` instead of leaking ``AttributeError`` from ``.astype(...)``.
+    """
+    from fundcloud.metrics import returns_from_nav
+
+    nav = pd.Series([100.0, 110.0], index=pd.date_range("2024-01-01", periods=2))
+    with pytest.raises(TypeError, match="`distributions` must be a pandas Series"):
+        returns_from_nav(nav, distributions=[0.0, 0.0])  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="`capital_flows` must be a pandas Series"):
+        returns_from_nav(nav, capital_flows=[0.0, 5.0], method="modified_dietz")  # type: ignore[arg-type]
+
+
 # ---------------------------------------------------------------- Portfolio.from_nav
 
 
@@ -527,6 +540,33 @@ def test_get_paginated_falls_back_to_total_pages_when_has_next_missing(
     client = client_mod.FundCloudClient(api_key="fc_test")
     items = list(client.get_paginated("/x"))
     assert [i["id"] for i in items] == ["a", "b", "c", "d", "e"]
+
+
+def test_get_paginated_raises_on_non_dict_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-object response must raise MalformedDataError, not silently
+    truncate the page stream with whatever we already collected."""
+    from fundcloud._clients import fundcloud as client_mod
+    from fundcloud.errors import MalformedDataError
+
+    monkeypatch.setattr(client_mod.FundCloudClient, "get", lambda self, path, params=None: "")
+
+    client = client_mod.FundCloudClient(api_key="fc_test")
+    with pytest.raises(MalformedDataError, match="non-object payload"):
+        list(client.get_paginated("/x"))
+
+
+def test_get_paginated_raises_on_non_mapping_meta(monkeypatch: pytest.MonkeyPatch) -> None:
+    from fundcloud._clients import fundcloud as client_mod
+    from fundcloud.errors import MalformedDataError
+
+    bad_payload = {"data": [{"id": "a"}], "meta": ["not", "a", "mapping"]}
+    monkeypatch.setattr(
+        client_mod.FundCloudClient, "get", lambda self, path, params=None: bad_payload
+    )
+
+    client = client_mod.FundCloudClient(api_key="fc_test")
+    with pytest.raises(MalformedDataError, match="non-mapping `meta`"):
+        list(client.get_paginated("/x"))
 
 
 def test_nav_aggregation_is_always_daily(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1129,10 +1169,6 @@ def test_http_status_401_maps_to_auth_error(monkeypatch: pytest.MonkeyPatch) -> 
 
     class _FakeResp:
         status_code = 401
-
-    class _HTTPError(Exception):
-        def __init__(self) -> None:
-            self.response = _FakeResp()
 
     def fake_get_json(self: Any, url: str, *, params: Any = None) -> Any:
         import httpx
