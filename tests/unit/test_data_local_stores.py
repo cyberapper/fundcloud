@@ -165,13 +165,19 @@ def test_memory_write_append_concats(daily_frame: pd.DataFrame) -> None:
 
 
 def test_memory_write_upsert_dedupes(daily_frame: pd.DataFrame) -> None:
+    """Upsert collapses overlapping timestamps and keeps the *second* write."""
     from fundcloud.data.memory import Memory
 
     src = Memory()
-    src.write("k", daily_frame.iloc[:5])
-    # Overlapping range — last write wins.
-    src.write("k", daily_frame.iloc[3:], mode="upsert")
-    assert len(src.read("k")) == 8
+    first = daily_frame.iloc[:5]
+    second = daily_frame.iloc[3:].copy()
+    # Mark the overlapping cell so we can prove last-write-wins semantics.
+    second.loc[second.index[0], "close"] = -1.0
+    src.write("k", first)
+    src.write("k", second, mode="upsert")
+    out = src.read("k")
+    assert len(out) == 8
+    assert out.loc[second.index[0], "close"] == -1.0
 
 
 def test_memory_write_rejects_non_datetime_index() -> None:
@@ -435,7 +441,7 @@ def test_parquet_last_index_default_key(tmp_path: Path, daily_frame: pd.DataFram
     src = Parquet(tmp_path)
     src.write("k", daily_frame)
     last = src.last_index()
-    assert last is not None
+    assert last == daily_frame.index[-1]
 
 
 def test_parquet_last_index_returns_none_for_missing(tmp_path: Path) -> None:
@@ -476,12 +482,18 @@ def test_parquet_write_append(tmp_path: Path, daily_frame: pd.DataFrame) -> None
 
 
 def test_parquet_write_upsert(tmp_path: Path, daily_frame: pd.DataFrame) -> None:
+    """Upsert collapses overlapping timestamps and keeps the *second* write."""
     from fundcloud.data.parquet import Parquet
 
     src = Parquet(tmp_path)
-    src.write("k", daily_frame.iloc[:5])
-    src.write("k", daily_frame.iloc[3:], mode="upsert")
-    assert len(src.read("k")) == 8
+    first = daily_frame.iloc[:5]
+    second = daily_frame.iloc[3:].copy()
+    second.loc[second.index[0], "close"] = -1.0
+    src.write("k", first)
+    src.write("k", second, mode="upsert")
+    out = src.read("k")
+    assert len(out) == 8
+    assert out.loc[second.index[0], "close"] == -1.0
 
 
 def test_parquet_write_rejects_non_datetime_index(tmp_path: Path) -> None:
@@ -629,12 +641,18 @@ def test_duckdb_write_append(tmp_path: Path, daily_frame: pd.DataFrame) -> None:
 
 
 def test_duckdb_write_upsert(tmp_path: Path, daily_frame: pd.DataFrame) -> None:
+    """Upsert collapses overlapping timestamps and keeps the *second* write."""
     from fundcloud.data.duckdb import DuckDB
 
     with DuckDB(tmp_path / "x.db") as src:
-        src.write("k", daily_frame.iloc[:5])
-        src.write("k", daily_frame.iloc[3:], mode="upsert")
-        assert len(src.read("k")) == 8
+        first = daily_frame.iloc[:5]
+        second = daily_frame.iloc[3:].copy()
+        second.loc[second.index[0], "close"] = -1.0
+        src.write("k", first)
+        src.write("k", second, mode="upsert")
+        out = src.read("k")
+        assert len(out) == 8
+        assert out.loc[second.index[0], "close"] == -1.0
 
 
 def test_duckdb_write_rejects_non_datetime_index(tmp_path: Path) -> None:

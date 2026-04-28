@@ -3,6 +3,10 @@ repos:
     rev: v4.6.0
     hooks:
       - id: check-yaml
+        # mkdocs.yml uses python-name tags (material.extensions.emoji.twemoji,
+        # pymdownx.superfences.fence_code_format) that the safe loader can't
+        # construct. --unsafe lets the loader skip those constructors.
+        args: ["--unsafe"]
       - id: check-toml
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -11,7 +15,7 @@ repos:
       - id: check-merge-conflict
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.10
+    rev: v0.15.11
     hooks:
       - id: ruff
         args: ["--fix"]

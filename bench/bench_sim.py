@@ -13,6 +13,7 @@ regressions across releases.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -37,13 +38,13 @@ def _synthetic_bars(n_bars: int, n_assets: int) -> pd.DataFrame:
     return df
 
 
-def _time_once(fn) -> float:
+def _time_once(fn: Callable[[], object]) -> float:
     t0 = time.perf_counter()
     fn()
     return time.perf_counter() - t0
 
 
-def _run_under_backend(fn, *, rust: bool) -> float:
+def _run_under_backend(fn: Callable[[], object], *, rust: bool) -> float:
     orig = _dispatcher._have_rust_sim
     _dispatcher._have_rust_sim = lambda: rust
     try:

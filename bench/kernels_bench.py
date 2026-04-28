@@ -19,6 +19,7 @@ import argparse
 import csv
 import sys
 import timeit
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,7 +48,7 @@ class Benchmark:
 # -------------------------------------------------------------------- harness
 
 
-def _time(fn, *, repeat: int = 5, number: int = 1) -> float:
+def _time(fn: Callable[[], object], *, repeat: int = 5, number: int = 1) -> float:
     """Wall time of the fastest of ``repeat`` invocations, in milliseconds."""
     best = min(timeit.repeat(fn, repeat=repeat, number=number)) / number
     return best * 1_000.0
@@ -193,9 +194,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _print_table(rows: list[Benchmark]) -> None:
-    print(
-        f"{'kernel':<22} {'n':>7} {'m':>5} {'python (ms)':>13} " f"{'rust (ms)':>11} {'speedup':>9}"
-    )
+    print(f"{'kernel':<22} {'n':>7} {'m':>5} {'python (ms)':>13} {'rust (ms)':>11} {'speedup':>9}")
     print("-" * 72)
     for row in rows:
         print(

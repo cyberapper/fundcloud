@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+# Force matplotlib onto a non-interactive backend before anyone imports pyplot.
+# Windows CI runners default to TkAgg but ship without Tcl/Tk, so the first
+# `plt.figure()` blows up with `_tkinter.TclError`. The Agg backend is headless
+# and bundled with matplotlib, so it's safe everywhere.
+import matplotlib
+
+matplotlib.use("Agg")
+
 from datetime import datetime
 
 import numpy as np

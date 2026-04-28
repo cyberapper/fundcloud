@@ -41,10 +41,6 @@ def test_client_maps_401_to_auth_error(monkeypatch: pytest.MonkeyPatch) -> None:
 
     httpx = pytest.importorskip("httpx")
 
-    class _FakeResponse:
-        def __init__(self, status_code: int) -> None:
-            self.status_code = status_code
-
     def fake_get_json(self: Any, path: str, params: Any = None) -> Any:
         raise httpx.HTTPStatusError(
             "401 Unauthorized",
@@ -215,6 +211,65 @@ def test_flex_invalid_datetime_raises() -> None:
     )
     with pytest.raises(MalformedDataError, match="Date/Time"):
         parse_flex_csv(csv)
+
+
+def test_flex_blank_datetime_raises() -> None:
+    """Empty `Date/Time` cells in a required column must fail closed too —
+    silently dropping them as `NaT` would make the export look healthy."""
+    from fundcloud.accounts._flex import parse_flex_csv
+    from fundcloud.errors import MalformedDataError
+
+    csv = (
+        _nav_header()
+        + '\n"U_A","USD","20240102","100","1000"\n'
+        + _cash_header()
+        + '\n"U_A","USD","1.0","","100.0","Deposits"\n'
+    )
+    with pytest.raises(MalformedDataError, match="Date/Time"):
+        parse_flex_csv(csv)
+
+
+def test_flex_invalid_nav_total_raises() -> None:
+    """A non-numeric `Total` would silently poison every downstream return —
+    fail closed instead of writing NaN into the AUM column."""
+    from fundcloud.accounts._flex import parse_flex_csv
+    from fundcloud.errors import MalformedDataError
+
+    csv = _nav_header() + '\n"U_A","USD","20240102","100","not-a-number"\n'
+    with pytest.raises(MalformedDataError, match="NAV Total"):
+        parse_flex_csv(csv)
+
+
+def test_flex_invalid_fx_rate_raises() -> None:
+    """A malformed FXRateToBase (e.g. "abc") must raise — collapsing to 1.0
+    via `errors="coerce"` + `.fillna(1.0)` would let bad data masquerade as
+    a valid 1:1 rate."""
+    from fundcloud.accounts._flex import parse_flex_csv
+    from fundcloud.errors import MalformedDataError
+
+    csv = (
+        _nav_header()
+        + '\n"U_A","USD","20240102","100","1000"\n'
+        + _cash_header()
+        + '\n"U_A","USD","abc","20240103","100.0","Deposits"\n'
+    )
+    with pytest.raises(MalformedDataError, match="FXRateToBase"):
+        parse_flex_csv(csv)
+
+
+def test_flex_blank_fx_rate_falls_back_to_one() -> None:
+    """An empty FXRateToBase is treated as missing → defaults to 1.0
+    (distinguishes 'missing' from 'malformed')."""
+    from fundcloud.accounts._flex import parse_flex_csv
+
+    csv = (
+        _nav_header()
+        + '\n"U_A","USD","20240102","100","1000"\n'
+        + _cash_header()
+        + '\n"U_A","USD","","20240103","100.0","Deposits"\n'
+    )
+    out = parse_flex_csv(csv)
+    assert out.cash_transactions["fx_rate_to_base"].iloc[0] == 1.0
 
 
 def test_flex_unknown_section_warns_by_default() -> None:

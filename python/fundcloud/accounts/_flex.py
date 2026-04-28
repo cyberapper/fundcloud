@@ -321,11 +321,23 @@ def _normalize_nav(raw: pd.DataFrame) -> pd.DataFrame:
         bad_vals = raw.loc[bad, "ReportDate"].head(3).tolist()
         msg = f"Cannot parse NAV ReportDate values (expected '%Y%m%d'). First bad: {bad_vals!r}"
         raise MalformedDataError(msg)
+    # Same fail-closed argument as `Amount` below: a bad NAV `Total` would
+    # silently poison every downstream return / drawdown calculation.
+    aum = pd.to_numeric(raw["Total"], errors="coerce")
+    if aum.isna().any():
+        bad_rows = (
+            raw
+            .loc[aum.isna(), ["ClientAccountID", "ReportDate", "Total"]]
+            .head(3)
+            .to_dict(orient="records")
+        )
+        msg = f"Cannot parse NAV Total in {aum.isna().sum()} row(s). First bad rows: {bad_rows!r}"
+        raise MalformedDataError(msg)
     df = pd.DataFrame(
         {
             "account_id": raw["ClientAccountID"].astype(str).to_numpy(),
             "currency": raw["CurrencyPrimary"].astype(str).to_numpy(),
-            "aum": pd.to_numeric(raw["Total"], errors="coerce").to_numpy(),
+            "aum": aum.to_numpy(),
         },
         index=pd.DatetimeIndex(date.to_numpy(), name="date"),
     )
@@ -382,14 +394,30 @@ def _normalize_cash_tx(raw: pd.DataFrame) -> pd.DataFrame:
         )
         raise MalformedDataError(msg)
 
+    # Distinguish "missing" (empty / NaN) from "malformed" (non-empty but
+    # un-parseable, e.g. "abc"). Missing falls back to 1.0; malformed raises.
+    raw_fx = raw["FXRateToBase"]
+    fx_rate_to_base = pd.to_numeric(raw_fx, errors="coerce")
+    invalid_fx = fx_rate_to_base.isna() & raw_fx.astype(str).str.strip().ne("")
+    if invalid_fx.any():
+        bad_fx = (
+            raw
+            .loc[invalid_fx, ["Date/Time", "Type", "FXRateToBase"]]
+            .head(3)
+            .to_dict(orient="records")
+        )
+        msg = (
+            f"Cannot parse FXRateToBase in {invalid_fx.sum()} cash-transaction "
+            f"row(s). First bad rows: {bad_fx!r}"
+        )
+        raise MalformedDataError(msg)
+    fx_rate_to_base = fx_rate_to_base.fillna(1.0)
+
     df = pd.DataFrame(
         {
             "account_id": raw["ClientAccountID"].astype(str).to_numpy(),
             "currency": raw["CurrencyPrimary"].astype(str).to_numpy(),
-            "fx_rate_to_base": pd
-            .to_numeric(raw["FXRateToBase"], errors="coerce")
-            .fillna(1.0)
-            .to_numpy(),
+            "fx_rate_to_base": fx_rate_to_base.to_numpy(),
             "amount_native": amount_native.to_numpy(),
             "flow_type_raw": raw["Type"].astype(str).to_numpy(),
             "description": desc.to_numpy(),
@@ -415,12 +443,13 @@ def _parse_flex_datetime(series: pd.Series) -> pd.Series:
         parsed.loc[fallback_mask] = pd.to_datetime(
             s.loc[fallback_mask], format="%Y%m%d", errors="coerce"
         )
-    if parsed.isna().any():
-        bad = s[parsed.isna() & s.ne("")].head(3).tolist()
-        if bad:
-            msg = (
-                f"Cannot parse Flex Date/Time values "
-                f"(tried '%Y%m%d;%H%M%S' then '%Y%m%d'). First bad: {bad!r}"
-            )
-            raise MalformedDataError(msg)
+    bad_mask = parsed.isna()
+    if bad_mask.any():
+        # Required column — empty cells are just as malformed as garbage.
+        bad = s.loc[bad_mask].replace("", "<blank>").head(3).tolist()
+        msg = (
+            f"Cannot parse Flex Date/Time values "
+            f"(tried '%Y%m%d;%H%M%S' then '%Y%m%d'). First bad: {bad!r}"
+        )
+        raise MalformedDataError(msg)
     return parsed
