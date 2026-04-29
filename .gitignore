@@ -53,3 +53,7 @@ tests/integration/out/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Local strategy / scratch development (not committed)
+local/*
+!local/.gitkeep
