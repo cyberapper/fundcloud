@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/cyberapper/fundcloud/compare/v0.2.1...v0.3.0) (2026-04-29)
+
+
+### ### Added
+
+* **accounts:** add FundCloud platform integration for NAV and market data ([eec2d66](https://github.com/cyberapper/fundcloud/commit/eec2d6698e225c1aa2e24d18b100f493b95d1f9b))
+* **accounts:** add Interactive Brokers Flex Query CSV provider ([1952dd6](https://github.com/cyberapper/fundcloud/commit/1952dd6b3469e528390f8288a0858055280a565b))
+* **accounts:** FundCloud + Interactive Brokers account providers ([7735fb7](https://github.com/cyberapper/fundcloud/commit/7735fb72bab85b5a5ad2a376d3ae848edfdf9f5f))
+
+
+### ### Fixed
+
+* **accounts:** fail closed on malformed source data with typed errors ([072c487](https://github.com/cyberapper/fundcloud/commit/072c4878e5088e19c4e7e2a45be7b3f4c8ffdd05))
+* address CI failure, PR review round, and pre-commit drift ([48cb057](https://github.com/cyberapper/fundcloud/commit/48cb057a64a18435066eb9015e2a95f7227acfc3))
+
 ## [0.2.1](https://github.com/cyberapper/fundcloud/compare/v0.2.0...v0.2.1) (2026-04-23)
 
 
