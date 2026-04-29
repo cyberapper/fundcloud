@@ -1,0 +1,2935 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Drop an Interactive Brokers Flex Query CSV into the same `Portfolio` analytics surface you'd use for a backtest. Tearsheets, drawdown tables, attribution — all work without changes.">
+      
+      
+        <meta name="author" content="Fundcloud Authors">
+      
+      
+        <link rel="canonical" href="https://cyberapper.github.io/fundcloud/latest/guides/accounts/ib/">
+      
+      
+        <link rel="prev" href="../fundcloud/">
+      
+      
+        <link rel="next" href="../../reports/tearsheets/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Analysing an Interactive Brokers account - Fundcloud</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22m14.06%209%20.94.94L5.92%2019H5v-.92zm3.6-6c-.25%200-.51.1-.7.29l-1.83%201.83%203.75%203.75%201.83-1.83c.39-.39.39-1.04%200-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6%203.19L3%2017.25V21h3.75L17.81%209.94z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17%208C8%2010%205.9%2016.17%203.82%2021.34l1.89.66.95-2.3c.48.17.98.3%201.34.3C19%2020%2022%203%2022%203c-1%202-8%202.25-13%203.25S2%2011.5%202%2013.5s1.75%203.75%201.75%203.75C7%208%2017%208%2017%208%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%202%201%2021h22M12%206l7.53%2013H4.47M11%2010v4h2v-4m-2%206v2h2v-2%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17.66%2011.2c-.23-.3-.51-.56-.77-.82-.67-.6-1.43-1.03-2.07-1.66C13.33%207.26%2013%204.85%2013.95%203c-.95.23-1.78.75-2.49%201.32-2.59%202.08-3.61%205.75-2.39%208.9.04.1.08.2.08.33%200%20.22-.15.42-.35.5-.23.1-.47.04-.66-.12a.6.6%200%200%201-.14-.17c-1.13-1.43-1.31-3.48-.55-5.12C5.78%2010%204.87%2012.3%205%2014.47c.06.5.12%201%20.29%201.5.14.6.41%201.2.71%201.73%201.08%201.73%202.95%202.97%204.96%203.22%202.14.27%204.43-.12%206.07-1.6%201.83-1.66%202.47-4.32%201.53-6.6l-.13-.26c-.21-.46-.77-1.26-.77-1.26m-3.16%206.3c-.28.24-.74.5-1.1.6-1.12.4-2.24-.16-2.9-.82%201.19-.28%201.9-1.16%202.11-2.05.17-.8-.15-1.46-.28-2.23-.12-.74-.1-1.37.17-2.06.19.38.39.76.63%201.06.77%201%201.98%201.44%202.24%202.8.04.14.06.28.06.43.03.82-.33%201.72-.93%202.27%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%2019a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1c0-.21-.07-.41-.18-.57L13%208.35V4h-2v4.35L5.18%2018.43c-.11.16-.18.36-.18.57m1%203a3%203%200%200%201-3-3c0-.6.18-1.16.5-1.63L9%207.81V6a1%201%200%200%201-1-1V4a2%202%200%200%201%202-2h4a2%202%200%200%201%202%202v1a1%201%200%200%201-1%201v1.81l5.5%209.56c.32.47.5%201.03.5%201.63a3%203%200%200%201-3%203zm7-6%201.34-1.34L16.27%2018H7.73l2.66-4.61zm-.5-4a.5.5%200%200%201%20.5.5.5.5%200%200%201-.5.5.5.5%200%200%201-.5-.5.5.5%200%200%201%20.5-.5%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+    
+    
+  
+  <meta name="theme-color" content="#003a70">
+  <meta property="og:type" content="website">
+  
+  
+  <meta property="og:title" content="Analysing an Interactive Brokers account — Fundcloud">
+  <meta property="og:description" content="Drop an Interactive Brokers Flex Query CSV into the same `Portfolio` analytics surface you'd use for a backtest. Tearsheets, drawdown tables, attribution — all work without changes.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://rsms.me" crossorigin>
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#analysing-an-interactive-brokers-account" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;font-size:0.72rem;letter-spacing:0.02em;">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    Put this workflow to work on your own portfolio.
+    <a href="https://fundcloud.com" style="color:inherit;text-decoration:underline;">Create your account →</a>
+  </div>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Fundcloud" class="md-header__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fundcloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Analysing an Interactive Brokers account
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../install/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Install
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../portfolio/returns-analysis/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/data/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Fundcloud" class="md-nav__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    Fundcloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing Returns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysing Returns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/returns-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Returns analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategies & Simulation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Strategies & Simulation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../strategies/dca/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DCA & Hold strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/simulator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator performance (Rust kernel)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio Optimisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolio Optimisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio optimisation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../interop/sklearn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sklearn & skfolio interop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/backends-and-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pulling and caching market data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accounts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Accounts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fundcloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing a FundCloud fund
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing an Interactive Brokers account
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing an Interactive Brokers account
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#60-second-tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        60-second tour
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-the-flex-query-in-interactive-brokers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting up the Flex Query in Interactive Brokers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setting up the Flex Query in Interactive Brokers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-fields-to-tick-two-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which fields to tick — two paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Which fields to tick — two paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#path-a-just-tick-everything-zero-thinking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path A — "Just tick everything" (zero thinking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-minimal-essentials-smaller-export-faster-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path B — Minimal essentials (smaller export, faster download)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-the-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading the CSV
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-headline-workflow-tearsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The headline workflow — tearsheet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-ibs-defaults-differ-from-fundclouds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why IB's defaults differ from FundCloud's
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daily-pl-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Daily P&amp;L check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reconciliation-sanity-checking-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconciliation — sanity-checking flows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-account-master-account-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-account ("master account") usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bring-your-own-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bring your own formula
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bring your own formula">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defaults-you-should-know-about" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defaults you should know about
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute-your-own-return-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute your own return convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#currency-fx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency / FX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors-you-might-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors you might see
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reporting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/tearsheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tear sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../plots/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plots
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference & Internals
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference & Internals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../accelerators/rust-kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust kernels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-python-help/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Python help()
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../reference/data/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#60-second-tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        60-second tour
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setting-up-the-flex-query-in-interactive-brokers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setting up the Flex Query in Interactive Brokers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Setting up the Flex Query in Interactive Brokers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#which-fields-to-tick-two-paths" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which fields to tick — two paths
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Which fields to tick — two paths">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#path-a-just-tick-everything-zero-thinking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path A — "Just tick everything" (zero thinking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#path-b-minimal-essentials-smaller-export-faster-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path B — Minimal essentials (smaller export, faster download)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#loading-the-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loading the CSV
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-headline-workflow-tearsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The headline workflow — tearsheet
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-ibs-defaults-differ-from-fundclouds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why IB's defaults differ from FundCloud's
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#daily-pl-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Daily P&amp;L check
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reconciliation-sanity-checking-flows" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reconciliation — sanity-checking flows
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#multi-account-master-account-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-account ("master account") usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bring-your-own-formula" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bring your own formula
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bring your own formula">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defaults-you-should-know-about" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defaults you should know about
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute-your-own-return-convention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute your own return convention
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#currency-fx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency / FX
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors-you-might-see" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors you might see
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#whats-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What's next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../portfolio/returns-analysis/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Guides
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../fundcloud/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Accounts
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/cyberapper/fundcloud/edit/main/docs/guides/accounts/ib.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="analysing-an-interactive-brokers-account">Analysing an Interactive Brokers account<a class="headerlink" href="#analysing-an-interactive-brokers-account" title="Anchor link to this section">&para;</a></h1>
+<p>If you trade through <strong>Interactive Brokers</strong>, your account's daily NAV
+plus its deposit / withdrawal history is one Flex Query export away.
+Drop the CSV into <code>fundcloud.accounts.IB</code> and your live track record
+gets the same <code>Portfolio</code>-flavoured treatment as a backtested
+strategy: drawdown tables, period returns, monthly heatmaps,
+benchmark comparisons, skfolio-compatible attribution — all
+unchanged from how they work for a simulated book.</p>
+<p>This guide is written for portfolio managers and traders. For the
+protocol-level reference, see <a href="../../../reference/accounts/">Reference → Accounts</a>.</p>
+<hr />
+<h2 id="60-second-tour">60-second tour<a class="headerlink" href="#60-second-tour" title="Anchor link to this section">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fundcloud</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fc</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">src</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">accounts</span><span class="o">.</span><span class="n">IB</span><span class="p">(</span><span class="s2">&quot;flex_export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">pf</span>  <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">()</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">fc</span><span class="o">.</span><span class="n">reports</span><span class="o">.</span><span class="n">Tearsheet</span><span class="p">(</span><span class="n">pf</span><span class="p">)</span><span class="o">.</span><span class="n">render_html</span><span class="p">(</span><span class="s2">&quot;ib_review.html&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Three lines from "I have a Flex CSV" to "here's an investor-grade
+tearsheet". Everything below is for when you need more control or
+need to set up the export from scratch.</p>
+<div class="admonition note">
+<p class="admonition-title">Why is the class called <code>IB</code>, not <code>IBKR</code>?</p>
+<p><code>IB</code> is the call-site shorthand. The full broker name —
+Interactive Brokers — is what you'd write in a marketing deck;
+<code>IB</code> is what you want to type in a notebook 50 times a day.</p>
+</div>
+<hr />
+<h2 id="setting-up-the-flex-query-in-interactive-brokers">Setting up the Flex Query in Interactive Brokers<a class="headerlink" href="#setting-up-the-flex-query-in-interactive-brokers" title="Anchor link to this section">&para;</a></h2>
+<p>You only do this once — IB saves the query template and re-runs it on
+demand.</p>
+<ol>
+<li>Log in to <strong>Client Portal</strong> at <a href="https://www.interactivebrokers.com">https://www.interactivebrokers.com</a>.</li>
+<li>Go to <strong>Reports → Flex Queries → Activity Flex Query</strong> and click
+   the <strong>+</strong> button to create a new query.</li>
+<li>Name it anything (<code>Fundcloud</code> is a fine convention).</li>
+<li>Tick the two sections we use: <strong>Net Asset Value (NAV) in Base</strong>
+   and <strong>Cash Transactions</strong>.</li>
+<li>Set the <strong>Delivery Configuration</strong> to match the parser defaults:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Format</td>
+<td><code>CSV</code></td>
+</tr>
+<tr>
+<td>Period</td>
+<td><code>Last 365 Calendar Days</code> (or longer)</td>
+</tr>
+<tr>
+<td>Include header and trailer records?</td>
+<td><code>No</code></td>
+</tr>
+<tr>
+<td>Include column headers?</td>
+<td><code>Yes</code></td>
+</tr>
+<tr>
+<td>Display single column header row?</td>
+<td><code>No</code></td>
+</tr>
+<tr>
+<td>Include section code and line descriptor?</td>
+<td><code>No</code></td>
+</tr>
+<tr>
+<td>Date Format</td>
+<td><code>yyyyMMdd</code></td>
+</tr>
+<tr>
+<td>Time Format</td>
+<td><code>HHmmss</code></td>
+</tr>
+<tr>
+<td>Date/Time Separator</td>
+<td><code>; (semi-colon)</code></td>
+</tr>
+</tbody>
+</table>
+<ol>
+<li>Save, then run and download the CSV.</li>
+</ol>
+<h3 id="which-fields-to-tick-two-paths">Which fields to tick — two paths<a class="headerlink" href="#which-fields-to-tick-two-paths" title="Anchor link to this section">&para;</a></h3>
+<h4 id="path-a-just-tick-everything-zero-thinking">Path A — "Just tick everything" (zero thinking)<a class="headerlink" href="#path-a-just-tick-everything-zero-thinking" title="Anchor link to this section">&para;</a></h4>
+<p>In each of the two sections, click <strong>Select All</strong> on the field grid.
+The parser ignores extra columns, so a maximalist export works out
+of the box. Recommended unless you specifically want a leaner
+download.</p>
+<p>In the <strong>Cash Transactions</strong> section's <strong>Options</strong> panel, tick
+everything if you don't want to think — but if you want the smallest
+possible export, the only option that matters is <strong>Deposits &amp;
+Withdrawals</strong> (plus <strong>Detail</strong> on the right column). The parser
+drops every other event type — dividends, broker interest,
+withholding tax — automatically.</p>
+<h4 id="path-b-minimal-essentials-smaller-export-faster-download">Path B — Minimal essentials (smaller export, faster download)<a class="headerlink" href="#path-b-minimal-essentials-smaller-export-faster-download" title="Anchor link to this section">&para;</a></h4>
+<p>Everything below is optional except the listed fields.</p>
+<p><strong>Net Asset Value (NAV) in Base — required fields</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Why we need it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Account ID</code></td>
+<td>Identifies the row's account (<code>ClientAccountID</code>).</td>
+</tr>
+<tr>
+<td><code>Currency</code></td>
+<td>Base currency for the NAV (<code>CurrencyPrimary</code>).</td>
+</tr>
+<tr>
+<td><code>Report Date</code></td>
+<td>Date of the NAV row.</td>
+</tr>
+<tr>
+<td><code>Cash</code></td>
+<td>Used to disambiguate this section from Cash Transactions during parsing. Doesn't have to be non-zero — its presence in the header is what matters.</td>
+</tr>
+<tr>
+<td><code>Total</code></td>
+<td>The AUM in base currency. <strong>This is the NAV value we read.</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cash Transactions — required Options + fields</strong></p>
+<p>Under the section's <strong>Options</strong> panel, tick at minimum:</p>
+<ul>
+<li><strong>Deposits &amp; Withdrawals</strong> (the only event type we care about)</li>
+<li><strong>Detail</strong> (we need row-level data, not the Summary aggregate)</li>
+</ul>
+<p>Under the field grid:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Why we need it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Account ID</code></td>
+<td>Identifies the row's account.</td>
+</tr>
+<tr>
+<td><code>Currency</code></td>
+<td>Native currency of the flow (e.g., <code>HKD</code>, <code>USD</code>).</td>
+</tr>
+<tr>
+<td><code>FX Rate To Base</code></td>
+<td>Multiplier for native → base currency conversion.</td>
+</tr>
+<tr>
+<td><code>Date/Time</code></td>
+<td>When the flow happened. Both <code>yyyyMMdd</code> and <code>yyyyMMdd;HHmmss</code> work.</td>
+</tr>
+<tr>
+<td><code>Amount</code></td>
+<td>Signed amount (positive = deposit, negative = withdrawal).</td>
+</tr>
+<tr>
+<td><code>Type</code></td>
+<td>The "Deposits/Withdrawals" filter label.</td>
+</tr>
+</tbody>
+</table>
+<p>Recommended-but-optional: <code>Description</code> (becomes the <code>notes</code> column —
+useful for reconciliation), <code>TransactionID</code> (lets you stitch
+multiple exports without duplicating rows).</p>
+<div class="admonition tip">
+<p class="admonition-title">If you're not sure, pick Path A</p>
+<p>The parser is designed to ignore everything it doesn't use.
+The only practical difference between Path A and Path B is the
+file size. For most users, click-everything is the safer choice.</p>
+</div>
+<hr />
+<h2 id="loading-the-csv">Loading the CSV<a class="headerlink" href="#loading-the-csv" title="Anchor link to this section">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.accounts</span><span class="w"> </span><span class="kn">import</span> <span class="n">IB</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Single file — the most common case</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">src</span> <span class="o">=</span> <span class="n">IB</span><span class="p">(</span><span class="s2">&quot;export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Inline content — useful in notebooks, tests, or piping from another tool</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">src</span> <span class="o">=</span> <span class="n">IB</span><span class="o">.</span><span class="n">from_string</span><span class="p">(</span><span class="n">csv_text</span><span class="p">)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="c1"># Multiple files — concatenated per-section. Use this for:</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1">#  · year-by-year exports stitched into one continuous picture</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1">#  · master-account books exported one sub-account at a time</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">src</span> <span class="o">=</span> <span class="n">IB</span><span class="p">(</span><span class="n">files</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;2023.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;2024.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;2025.csv&quot;</span><span class="p">])</span>
+</span></code></pre></div>
+<p>Loading is <strong>eager</strong> — the CSV is parsed once at construction time,
+so subsequent <code>nav()</code> / <code>capital_flows()</code> / <code>to_portfolio()</code> calls
+are pure pandas slicing. Reload by re-instantiating.</p>
+<hr />
+<h2 id="the-headline-workflow-tearsheet">The headline workflow — tearsheet<a class="headerlink" href="#the-headline-workflow-tearsheet" title="Anchor link to this section">&para;</a></h2>
+<p>For most managers, the daily question is "how did the account do?".
+One call:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fundcloud</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fc</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">src</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">accounts</span><span class="o">.</span><span class="n">IB</span><span class="p">(</span><span class="s2">&quot;export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">pf</span>  <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">()</span>
+</span></code></pre></div>
+<p><code>pf</code> is a regular <code>Portfolio</code> object — the same one a backtest
+produces. Every <code>.fc</code> accessor method, every metrics function, and
+every report renderer works on it:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Quick metrics</label><label for="__tabbed_1_2">Full tearsheet</label><label for="__tabbed_1_3">Drawdown table</label><label for="__tabbed_1_4">Period returns</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">pf</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>           <span class="c1"># 11-metric snapshot</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">pf</span><span class="o">.</span><span class="n">sharpe</span><span class="p">()</span>            <span class="c1"># single number</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">pf</span><span class="o">.</span><span class="n">max_drawdown</span><span class="p">()</span>      <span class="c1"># peak-to-trough loss</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">pf</span><span class="o">.</span><span class="n">cvar</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="mf">0.95</span><span class="p">)</span>    <span class="c1"># tail-risk measure</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">fc</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">cagr</span><span class="p">(</span><span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="p">,</span> <span class="n">periods_per_year</span><span class="o">=</span><span class="mi">252</span><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">spy</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">YF</span><span class="p">(</span><span class="s2">&quot;SPY&quot;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">date</span><span class="p">()))</span><span class="o">.</span><span class="n">read</span><span class="p">()[</span><span class="s2">&quot;close&quot;</span><span class="p">]</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">fc</span><span class="o">.</span><span class="n">reports</span><span class="o">.</span><span class="n">Tearsheet</span><span class="p">(</span><span class="n">pf</span><span class="p">,</span> <span class="n">benchmark</span><span class="o">=</span><span class="n">spy</span><span class="p">)</span><span class="o">.</span><span class="n">render_html</span><span class="p">(</span><span class="s2">&quot;ib_review.html&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Produces a fully-formatted tearsheet with cumulative-return chart,
+drawdown table, monthly-return heatmap, period-return table, and
+benchmark comparison. Send to the LP. Pin to the wall.</p>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">pf</span><span class="o">.</span><span class="n">worst_drawdowns</span><span class="p">(</span><span class="n">top</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1">#     Started     Recovered  Drawdown   Days</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1">#   2025-10-23   2026-01-08    -0.18      78</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1">#   2025-12-04   2025-12-19    -0.07      16</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1">#   2026-02-14   2026-03-02    -0.05      17</span>
+</span></code></pre></div>
+<p><code>Started → Recovered</code> is what risk committees actually ask
+about. <code>pf.drawdown_details()</code> returns the full DataFrame
+including <code>valley</code> and <code>days_to_recover</code>.</p>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">pf</span><span class="o">.</span><span class="n">period_returns</span><span class="p">(</span><span class="n">benchmark</span><span class="o">=</span><span class="n">spy</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1">#                       SPY    Strategy</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># MTD                0.0148      0.0289</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># 3M                 0.0521      0.1147</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># YTD                0.0964      0.1832</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># 1Y (ann.)          0.1212      0.2401</span>
+</span></code></pre></div>
+<p>Standard monthly-report layout. 3Y / 5Y / 10Y rows are
+annualised — directly comparable to 1Y.</p>
+</div>
+</div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">FundCloud users can swap providers without changing analytics</p>
+<p><code>fc.accounts.IB("export.csv").to_portfolio()</code> and
+<code>fc.accounts.FundCloud().to_portfolio(fund_id="…")</code> return
+structurally identical <code>Portfolio</code> objects. Once you've got one,
+every downstream tool — Tearsheet, drawdown analysis, optimizer
+integration — is the same.</p>
+</div>
+<hr />
+<h2 id="why-ibs-defaults-differ-from-fundclouds">Why IB's defaults differ from FundCloud's<a class="headerlink" href="#why-ibs-defaults-differ-from-fundclouds" title="Anchor link to this section">&para;</a></h2>
+<p>When you call <code>to_portfolio()</code> on the FundCloud provider, the default
+is <code>basis="nav_per_share"</code> + <code>method="total_return"</code> — the metric a
+public mutual fund quotes when reporting investor return.</p>
+<p>For IB, the defaults flip to <code>basis="aum"</code> + <code>method="modified_dietz"</code>.</p>
+<p>The reason: a brokerage account doesn't issue shares. There's no
+<code>shares_outstanding</code> for the per-share NAV concept to apply to. The
+GIPS-standard alternative is <strong>AUM-basis Modified Dietz</strong> — a
+time-weighted return formula that backs out deposits and withdrawals
+mid-period:</p>
+<p>$$
+r_t = \frac{\mathrm{AUM}<em t-1="t-1">t - \mathrm{AUM}</em>
+$$} - F_t}{\mathrm{AUM}_{t-1} + 0.5 \cdot F_t</p>
+<p>where <code>F_t</code> is the signed net inflow on day <code>t</code>.</p>
+<p>For daily-precision flow timing — assumes flows happen at period
+start, more accurate when you have daily NAV and daily flow data —
+pass <code>method="daily_twr"</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">pf</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;daily_twr&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Don't expect your IB statement's headline figure</p>
+<p>IB's own statements often quote a money-weighted return
+(IRR-style) that includes the <em>timing</em> of your deposits as part
+of the return. Modified Dietz strips that out — it tells you
+"how would the underlying investments have performed without
+your deposit decisions". Useful for evaluating skill; not the
+same number as the IRR on your monthly statement. Document
+which one you're quoting in your reports.</p>
+</div>
+<hr />
+<h2 id="daily-pl-check">Daily P&amp;L check<a class="headerlink" href="#daily-pl-check" title="Anchor link to this section">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fundcloud</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fc</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">src</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">accounts</span><span class="o">.</span><span class="n">IB</span><span class="p">(</span><span class="s2">&quot;export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">pf</span>  <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">()</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="n">today</span> <span class="o">=</span> <span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="n">mtd</span>   <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="p">[</span><span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span> <span class="o">==</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">month</span><span class="p">])</span><span class="o">.</span><span class="n">prod</span><span class="p">()</span> <span class="o">-</span> <span class="mi">1</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="n">ytd</span>   <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="p">[</span><span class="n">pf</span><span class="o">.</span><span class="n">returns</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">year</span>  <span class="o">==</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">year</span><span class="p">])</span><span class="o">.</span><span class="n">prod</span><span class="p">()</span>  <span class="o">-</span> <span class="mi">1</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Today:  </span><span class="si">{</span><span class="n">today</span><span class="si">:</span><span class="s2">+.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;MTD:    </span><span class="si">{</span><span class="n">mtd</span><span class="si">:</span><span class="s2">+.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;YTD:    </span><span class="si">{</span><span class="n">ytd</span><span class="si">:</span><span class="s2">+.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>For a one-call version, <code>pf.period_returns()</code> produces MTD / 3M /
+YTD / 1Y / 3Y / 5Y / All-time in one go.</p>
+<hr />
+<h2 id="reconciliation-sanity-checking-flows">Reconciliation — sanity-checking flows<a class="headerlink" href="#reconciliation-sanity-checking-flows" title="Anchor link to this section">&para;</a></h2>
+<p>Before quoting numbers in a report or to your accountant, eyeball the
+deposits and withdrawals the parser saw:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">flows</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">capital_flows</span><span class="p">()</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">flows</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1">#                       flow_type     amount  currency  account_id  notes</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># flow_date</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="c1"># 2024-09-15            INJECTION   5_000.00       USD  U_…         CASH RECEIPTS</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># 2024-12-23            WITHDRAWAL  2_500.00       USD  U_…         ACH WITHDRAWAL</span>
+</span></code></pre></div>
+<p><code>amount</code> is always <strong>positive</strong> (in the account's base currency);
+direction is encoded in <code>flow_type</code>. IB's raw signed <code>Amount</code> and
+its native-currency value are gone by this layer — see "Bring your
+own formula" below if you need them.</p>
+<p>To prove the return calc isn't double-counting flows, compare
+adjusted vs raw NAV around a deposit date:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">raw</span>  <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">nav</span><span class="p">(</span><span class="n">adjust_for_flows</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">adj</span>  <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">nav</span><span class="p">(</span><span class="n">adjust_for_flows</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># On the day a deposit happens, raw shows a jump; adjusted does not.</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="s2">&quot;aum&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="n">adj</span><span class="p">[</span><span class="s2">&quot;aum&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">describe</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Non-zero <code>(raw − adj)</code> outside flow days is rounding noise (small)
+or a bug worth reporting (large).</p>
+<div class="admonition warning">
+<p class="admonition-title">Tax-season trap: dividends and interest are NOT capital flows</p>
+<p><code>capital_flows()</code> returns deposits and withdrawals only. Dividend
+income, broker interest paid / received, and withholding tax all
+appear in IB's Cash Transactions section but get filtered out
+here — they're investment income, not capital events. For a
+tax-time aggregation, parse the full CSV and read
+<code>src._tx_df</code> (advanced internal access — schema may move in a
+future release).</p>
+</div>
+<hr />
+<h2 id="multi-account-master-account-usage">Multi-account ("master account") usage<a class="headerlink" href="#multi-account-master-account-usage" title="Anchor link to this section">&para;</a></h2>
+<p>If your Flex Query covers multiple <code>ClientAccountID</code>s — e.g., a master
+account with linked sub-accounts — every method takes a <code>fund_id</code> /
+<code>account_id</code> kwarg:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">src</span> <span class="o">=</span> <span class="n">IB</span><span class="p">(</span><span class="s2">&quot;master_export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">src</span><span class="o">.</span><span class="n">list_accounts</span><span class="p">()</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># →  account_id  account_name   fund_id  fund_name  currency  latest_aum</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1">#    U_TEST_001  U_TEST_001   U_TEST_001 U_TEST_001     USD    500_000</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1">#    U_TEST_002  U_TEST_002   U_TEST_002 U_TEST_002     USD    150_000</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># Drill into one sub-account at a time</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="n">pf_main</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">(</span><span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;U_TEST_001&quot;</span><span class="p">)</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="n">pf_other</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">(</span><span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;U_TEST_002&quot;</span><span class="p">)</span>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="c1"># Side-by-side panel for comparison</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="n">panel</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>    <span class="n">a</span><span class="p">[</span><span class="s2">&quot;account_id&quot;</span><span class="p">]:</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">(</span><span class="n">account_id</span><span class="o">=</span><span class="n">a</span><span class="p">[</span><span class="s2">&quot;account_id&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">returns</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">src</span><span class="o">.</span><span class="n">list_accounts</span><span class="p">()</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="p">})</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="n">panel</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>              <span class="c1"># 11-metric table, one column per account</span>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="n">panel</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">plot_cumulative</span><span class="p">()</span>      <span class="c1"># one line per account</span>
+</span></code></pre></div>
+<p>For IB, <code>fund_id</code> and <code>account_id</code> are the same identifier
+(single-tier hierarchy) — passing either works. With a single
+account visible in the export, pass nothing.</p>
+<div class="admonition tip">
+<p class="admonition-title">Single account ≠ single sleeve</p>
+<p>Even a single IB account often holds multiple strategies (CTA
+sleeve + equity long/short + cash buffer, say). The Activity Flex
+CSV won't separate those — for sleeve-level attribution you need
+a separate Trades / Open Positions Flex section, or sleeve-tagged
+metadata maintained outside IB.</p>
+</div>
+<hr />
+<h2 id="bring-your-own-formula">Bring your own formula<a class="headerlink" href="#bring-your-own-formula" title="Anchor link to this section">&para;</a></h2>
+<p>Every method returns a plain pandas DataFrame, ready for whatever
+custom analytic you need:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>What it gives you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src.nav()</code></td>
+<td>Daily <code>nav</code> (= AUM, since IB has no shares), <code>aum</code>, <code>shares</code> (synthesised <code>1.0</code>), <code>daily_return</code>, <code>fill_type</code>. Adjusted by default.</td>
+</tr>
+<tr>
+<td><code>src.capital_flows()</code></td>
+<td>One row per deposit / withdrawal: <code>flow_type</code> (INJECTION / WITHDRAWAL), <code>amount</code> (always positive, base currency), <code>currency</code>, <code>account_id</code>, <code>notes</code>.</td>
+</tr>
+<tr>
+<td><code>src.positions()</code></td>
+<td>Empty frame — the Activity Flex Query doesn't include per-symbol position rows. Configure a separate <strong>Open Positions</strong> Flex section in IB to populate it.</td>
+</tr>
+<tr>
+<td><code>src.trades()</code></td>
+<td>Empty frame — the Activity Flex Query doesn't include per-symbol trade rows. Configure a separate <strong>Trades</strong> Flex section in IB to populate it.</td>
+</tr>
+</tbody>
+</table>
+<p>All four take optional <code>fund_id</code>, <code>account_id</code>, <code>start</code>, <code>end</code>. NAV
+also takes <code>adjust_for_flows</code>.</p>
+<h3 id="defaults-you-should-know-about">Defaults you should know about<a class="headerlink" href="#defaults-you-should-know-about" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li><strong>The full CSV period is shown by default.</strong> Unlike the network
+  providers (which apply a 1-year-back default to limit bandwidth),
+  the IB provider doesn't trim — the CSV is already bounded by
+  whatever export window you set in the Flex Query. Pass <code>start=</code> /
+  <code>end=</code> to narrow.</li>
+<li><strong><code>nav()</code> returns flow-adjusted values by default.</strong> The synthetic
+  curve replays returns as if no deposits / withdrawals had occurred
+  — useful for charting and explaining returns to non-traders. Pass
+  <code>adjust_for_flows=False</code> for the raw <code>Total</code> column straight from
+  the CSV (useful for reconciliation).</li>
+<li><strong><code>capital_flows()</code> is in base currency.</strong> Native amounts and the
+  FX rate to base are preserved on <code>src._tx_df</code> if you need them.</li>
+</ul>
+<h3 id="compute-your-own-return-convention">Compute your own return convention<a class="headerlink" href="#compute-your-own-return-convention" title="Anchor link to this section">&para;</a></h3>
+<p>If you need a return formula we don't ship:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">nav</span>   <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">nav</span><span class="p">(</span><span class="n">adjust_for_flows</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>            <span class="c1"># raw Total column</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">flows</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">capital_flows</span><span class="p">()</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Provide signed flows in the convention `returns_from_nav` expects:</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">signed</span> <span class="o">=</span> <span class="n">flows</span><span class="p">[</span><span class="s2">&quot;amount&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">flows</span><span class="p">[</span><span class="s2">&quot;flow_type&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;INJECTION&quot;</span><span class="p">,</span> <span class="o">-</span><span class="n">flows</span><span class="p">[</span><span class="s2">&quot;amount&quot;</span><span class="p">])</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">returns</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">returns_from_nav</span><span class="p">(</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">nav</span><span class="p">[</span><span class="s2">&quot;aum&quot;</span><span class="p">],</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>    <span class="n">capital_flows</span><span class="o">=</span><span class="n">signed</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">nav</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;daily_twr&quot;</span><span class="p">,</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="p">)</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="n">pf</span> <span class="o">=</span> <span class="n">fc</span><span class="o">.</span><span class="n">Portfolio</span><span class="o">.</span><span class="n">from_nav</span><span class="p">(</span><span class="n">nav</span><span class="p">[</span><span class="s2">&quot;aum&quot;</span><span class="p">],</span> <span class="n">capital_flows</span><span class="o">=</span><span class="n">signed</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;custom-IB&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>See <a href="../../../reference/metrics/"><code>returns_from_nav</code></a> for the full
+method menu.</p>
+<hr />
+<h2 id="currency-fx">Currency / FX<a class="headerlink" href="#currency-fx" title="Anchor link to this section">&para;</a></h2>
+<p>Interactive Brokers' NAV section is denominated in your account's
+<strong>base currency</strong>. The Cash Transactions section can carry flows in
+<em>other</em> currencies (e.g., HKD deposits into a USD-base account); each
+row has its own <code>Currency</code> plus an <code>FX Rate To Base</code> column.</p>
+<p>The library multiplies <code>Amount × FXRateToBase</code> so the values returned
+by <code>capital_flows()</code> are already in base currency, ready to
+reconcile against base-currency NAV. The native amount and rate are
+preserved in <code>src._tx_df</code> if you need them.</p>
+<p>FX <em>conversion</em> of the NAV itself is not performed. If you have a
+multi-base-currency export (which is unusual), the parser raises
+<code>MalformedDataError</code> rather than silently picking one — re-run the
+Flex Query in a single base currency.</p>
+<div class="admonition warning">
+<p class="admonition-title">Multi-currency reconciliation gotcha</p>
+<p>A USD-base account with HKD deposits will show flow amounts in
+USD (correctly converted). But your monthly bank statement
+probably shows the HKD figure. When reconciling against your
+bank, read native amounts from <code>src._tx_df['amount_native']</code>
+instead of <code>flows['amount']</code>.</p>
+</div>
+<hr />
+<h2 id="errors-you-might-see">Errors you might see<a class="headerlink" href="#errors-you-might-see" title="Anchor link to this section">&para;</a></h2>
+<p>Every error from <code>fc.accounts.*</code> is rooted at
+<code>fundcloud.errors.FundcloudError</code>, so a single <code>try</code>/<code>except</code> covers
+the whole library:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">pf</span> <span class="o">=</span> <span class="n">src</span><span class="o">.</span><span class="n">to_portfolio</span><span class="p">()</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">except</span> <span class="n">fc</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">MalformedDataError</span><span class="p">:</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="c1"># The CSV&#39;s structure is broken — missing essential column,</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="c1"># unrecognised section, unparseable date. The exception message</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="c1"># tells you which.</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="o">...</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="k">except</span> <span class="n">fc</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">AmbiguousError</span><span class="p">:</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="c1"># Multiple accounts visible and no account_id passed.</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="c1"># Inspect src.list_accounts() and pick one.</span>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="o">...</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="k">except</span> <span class="n">fc</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">NotFoundError</span><span class="p">:</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>    <span class="c1"># Asked-for fund_id / account_id isn&#39;t in the CSV.</span>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<p>See <a href="../../../reference/errors/">Reference → Errors</a> for the full
+hierarchy.</p>
+<hr />
+<h2 id="whats-next">What's next<a class="headerlink" href="#whats-next" title="Anchor link to this section">&para;</a></h2>
+<ul>
+<li><a href="../../portfolio/returns-analysis/"><code>Returns analysis</code></a> — every
+  metric <code>pf.summary()</code> exposes, explained for portfolio managers.</li>
+<li><a href="../../reports/tearsheets/"><code>Tearsheets</code></a> — customising the
+  rendered HTML / PDF / Excel output.</li>
+<li><a href="../fundcloud/"><code>fundcloud.accounts.FundCloud</code></a> — the matching
+  guide for the FundCloud platform integration.</li>
+<li><a href="../../../reference/accounts/">Reference → Accounts</a> — protocol /
+  class signatures.</li>
+</ul>
+
+
+
+
+
+
+
+  
+  
+
+
+
+  
+
+
+
+  <form class="md-feedback" name="feedback" hidden>
+    <fieldset>
+      <legend class="md-feedback__title">
+        Was this page useful?
+      </legend>
+      <div class="md-feedback__inner">
+        <div class="md-feedback__list">
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="True" data-md-value="1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 9v12H1V9zm4 12a2 2 0 0 1-2-2V9c0-.55.22-1.05.59-1.41L14.17 1l1.06 1.06c.27.27.44.64.44 1.05l-.03.32L14.69 8H21a2 2 0 0 1 2 2v2c0 .26-.05.5-.14.73l-3.02 7.05C19.54 20.5 18.83 21 18 21zm0-2h9.03L21 12v-2h-8.79l1.13-5.32L9 9.03z"/></svg>
+            </button>
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="False" data-md-value="0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 15V3h4v12zM15 3a2 2 0 0 1 2 2v10c0 .55-.22 1.05-.59 1.41L9.83 23l-1.06-1.06c-.27-.27-.44-.64-.44-1.06l.03-.31.95-4.57H3a2 2 0 0 1-2-2v-2c0-.26.05-.5.14-.73l3.02-7.05C4.46 3.5 5.17 3 6 3zm0 2H5.97L3 12v2h8.78l-1.13 5.32L15 14.97z"/></svg>
+            </button>
+          
+        </div>
+        <div class="md-feedback__note">
+          
+            <div data-md-value="1" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks — glad it helped.
+            </div>
+          
+            <div data-md-value="0" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Sorry. Please <a href="https://github.com/cyberapper/fundcloud/issues/new?labels=docs&title=Docs+improvement" target="_blank" rel="noopener">open a docs issue</a> and we'll fix it.
+            </div>
+          
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../fundcloud/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Analysing a FundCloud fund">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Analysing a FundCloud fund
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../reports/tearsheets/" class="md-footer__link md-footer__link--next" aria-label="Next: Tear sheets">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Tear sheets
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+<div class="md-copyright" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:0.6rem;">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    <span style="font-weight:500;letter-spacing:-0.005em;">
+      Copyright © 2026 Fundcloud Authors · MIT License
+    </span>
+  </div>
+  
+    <div class="md-copyright__highlight" style="opacity:0.7;font-size:0.72rem;">
+      Built with
+      <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener" style="color:inherit;">Material for MkDocs</a>
+      · theme by Fundcloud
+    </div>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/cyberapper/fundcloud" target="_blank" rel="noopener" title="Fundcloud on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/fundcloud/" target="_blank" rel="noopener" title="Fundcloud on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["announce.dismiss", "navigation.instant", "navigation.instant.progress", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.annotate", "content.action.edit", "content.tooltips", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>
