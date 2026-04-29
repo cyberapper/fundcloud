@@ -86,6 +86,69 @@ def test_dca_weights_must_sum_to_one() -> None:
         DCA(amount=100, horizon="weekly", weights={"A": 0.3, "B": 0.3})
 
 
+def test_dca_amount_pct_scales_with_starting_cash() -> None:
+    """Scalar ``amount_pct`` deploys ``pct * starting_cash / n_assets`` on the
+    first fire (before any equity history exists) — equal-split across
+    bars-frame assets when ``weights`` is omitted.
+    """
+    rng = np.random.default_rng(3)
+    idx = pd.DatetimeIndex(pd.date_range("2024-01-01", periods=40, freq="B").values)
+    close_a = 100 + np.cumsum(rng.normal(0, 0.4, 40))
+    close_b = 50 + np.cumsum(rng.normal(0, 0.2, 40))
+    cols = {
+        ("open", "A"): close_a,
+        ("close", "A"): close_a,
+        ("open", "B"): close_b,
+        ("close", "B"): close_b,
+    }
+    bars = pd.DataFrame(cols, index=idx)
+    bars.columns = pd.MultiIndex.from_tuples(bars.columns)
+
+    from fundcloud.portfolio import Portfolio
+
+    strat = DCA(amount_pct=0.02, horizon="weekly")
+    strat.init(bars, Portfolio(cash=100_000.0))
+    # Equal-split deferred to init: 2 % across two assets → 1 % per leg.
+    assert strat._amount_pcts == pytest.approx({"A": 0.01, "B": 0.01})
+
+    # Run the simulator — first fire deploys 1 % of starting cash per leg
+    # (equity_history is empty on the first bar, so it falls back to cash).
+    result = Simulator(bars, cash=100_000.0).run_strategy(DCA(amount_pct=0.02, horizon="weekly"))
+    assert len(result.trades) >= 2
+    assert {"A", "B"}.issubset(set(result.trades["asset"].unique()))
+
+
+def test_dca_amount_pct_with_weights(panel: pd.DataFrame) -> None:
+    """Per-asset distribution honored when ``weights`` is supplied."""
+    strat = DCA(amount_pct=0.02, horizon="weekly", weights={"A": 1.0})
+    # Pre-multiplied in __init__: 2 % * 1.0 → 2 % into asset A.
+    assert strat._amount_pcts == pytest.approx({"A": 0.02})
+
+
+def test_dca_amount_pct_per_asset_mapping() -> None:
+    """Mapping ``amount_pct`` is stored verbatim — no equal-split."""
+    strat = DCA(amount_pct={"SPY": 0.012, "AGG": 0.008}, horizon="monthly")
+    assert strat._amount_pcts == pytest.approx({"SPY": 0.012, "AGG": 0.008})
+    assert strat._amounts == {}
+
+
+def test_dca_requires_exactly_one_of_amount_or_amount_pct() -> None:
+    with pytest.raises(ValueError, match="exactly one of"):
+        DCA(amount=500, amount_pct=0.01)
+    with pytest.raises(ValueError, match="exactly one of"):
+        DCA()
+
+
+def test_dca_amount_pct_grows_with_equity(panel: pd.DataFrame) -> None:
+    """As equity grows, subsequent fires deploy more dollars."""
+    sim = Simulator(panel, cash=100_000.0)
+    result = sim.run_strategy(DCA(amount_pct=0.05, horizon="weekly", weights={"A": 1.0}))
+    # Monotonic-ish growth: trade notionals shouldn't all be identical
+    # (which would happen with fixed-dollar amount).
+    notionals = (result.trades["qty"] * result.trades["price"]).abs().to_numpy()
+    assert notionals.std() > 0.0
+
+
 def test_dca_sell_on_end_closes_positions(panel: pd.DataFrame) -> None:
     sim = Simulator(panel, cash=100_000)
     strat = DCA(

@@ -10,6 +10,7 @@ import pandas as pd
 
 from fundcloud.portfolio import Portfolio
 from fundcloud.sim.orders import Order
+from fundcloud.strategies._helpers import _assets_from_bars
 from fundcloud.strategies.base import BaseStrategy, Context
 from fundcloud.strategies.scheduler import Scheduler
 
@@ -33,13 +34,21 @@ class Hold(BaseStrategy):
     Parameters
     ----------
     weights
-        Either a mapping of ``asset -> weight`` or a callable receiving the
-        ``init`` warm-up window and returning such a mapping. Weights must sum
-        to 1.
+        Target allocation. May be a ``Mapping[str, float]``, a
+        :class:`pandas.Series`, or a callable receiving the ``init``
+        warm-up bars frame and returning such a mapping. Weights must
+        sum to 1.
+
+        When **omitted** (``None``), Hold spreads the position
+        **equally** across every asset in the bars frame it sees at
+        :meth:`init`. Useful for a quick equal-weight baseline without
+        having to enumerate the universe up front.
     rebalance
         If supplied, restore target weights at each cadence boundary.
+        See :class:`RebalanceSpec` for the cadence + tolerance knobs.
     start
-        Optional lock-out: don't place the first allocation before ``start``.
+        Optional lock-out: don't place the first allocation before
+        ``start``.
 
     Examples
     --------
@@ -48,6 +57,12 @@ class Hold(BaseStrategy):
 
     >>> from fundcloud.strategies import Hold
     >>> Hold({"SPY": 0.6, "AGG": 0.4})  # doctest: +ELLIPSIS
+    <fundcloud.strategies.hold.Hold object at ...>
+
+    Equal-weight default — distribute evenly over whatever assets are
+    in the bars frame:
+
+    >>> Hold()  # doctest: +ELLIPSIS
     <fundcloud.strategies.hold.Hold object at ...>
 
     Quarterly-rebalanced 60/40 with a 5 %-drift tolerance:
@@ -62,12 +77,12 @@ class Hold(BaseStrategy):
 
     def __init__(
         self,
-        weights: WeightsLike,
+        weights: WeightsLike | None = None,
         *,
         rebalance: RebalanceSpec | None = None,
         start: pd.Timestamp | str | None = None,
     ) -> None:
-        self._weights_spec = weights
+        self._weights_spec: WeightsLike | None = weights
         self._rebalance = rebalance
         self._start = pd.Timestamp(start) if start is not None else None
         self._resolved_weights: dict[str, float] = {}
@@ -77,14 +92,21 @@ class Hold(BaseStrategy):
     # --------------------------------------------------------------- lifecycle
 
     def init(self, bars: pd.DataFrame, portfolio: Portfolio) -> None:
-        w = self._weights_spec(bars) if callable(self._weights_spec) else self._weights_spec
-        if isinstance(w, pd.Series):
-            w = w.to_dict()
-        total = sum(w.values())
-        if abs(total - 1.0) > 1e-6:
-            msg = f"Hold weights must sum to 1, got {total}"
-            raise ValueError(msg)
-        self._resolved_weights = {k: float(v) for k, v in w.items()}
+        if self._weights_spec is None:
+            assets = _assets_from_bars(bars)
+            if not assets:
+                msg = "Hold needs at least one asset in `bars`"
+                raise ValueError(msg)
+            self._resolved_weights = {a: 1.0 / len(assets) for a in assets}
+        else:
+            w = self._weights_spec(bars) if callable(self._weights_spec) else self._weights_spec
+            if isinstance(w, pd.Series):
+                w = w.to_dict()
+            total = sum(w.values())
+            if abs(total - 1.0) > 1e-6:
+                msg = f"Hold weights must sum to 1, got {total}"
+                raise ValueError(msg)
+            self._resolved_weights = {k: float(v) for k, v in w.items()}
 
         if self._rebalance is not None:
             cadence = Scheduler.from_horizon(self._rebalance.horizon)

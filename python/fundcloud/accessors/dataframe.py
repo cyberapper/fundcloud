@@ -386,18 +386,95 @@ class DataFrameAccessor:
 
     def run_hold(
         self,
-        weights: Mapping[str, float] | pd.Series | Any,
+        weights: Mapping[str, float] | pd.Series | Any | None = None,
         *,
         rebalance: Any = None,
         start: pd.Timestamp | str | None = None,
         **sim_kwargs: Any,
     ) -> SimResult:
-        """One-liner: hold-rebalance preset. Build :class:`Hold` and run it.
+        """Backtest a buy-and-hold strategy on this Bars frame.
+
+        Builds a :class:`~fundcloud.strategies.Hold` instance and runs it
+        through :class:`~fundcloud.sim.Simulator`. The simulator buys the
+        target allocation on the first executable bar and (optionally)
+        rebalances back to it on each cadence boundary.
+
+        Parameters
+        ----------
+        weights
+            Target allocation. Accepts a ``Mapping[str, float]``, a
+            :class:`pandas.Series`, or a callable receiving the bars
+            frame and returning such a mapping. Weights must sum to 1.
+            Default ``None`` means **equal weights** across every asset
+            in the bars frame — useful for a quick equal-weight
+            baseline without enumerating the universe.
+        rebalance
+            Optional :class:`~fundcloud.strategies.RebalanceSpec`
+            (``horizon``, ``tolerance``). When supplied, the simulator
+            restores target weights at each cadence boundary, skipping
+            bars where every asset is already within ``tolerance`` of
+            its target.
+        start
+            Optional lock-out: don't place the first allocation before
+            this timestamp.
+
+        Other Parameters
+        ----------------
+        **sim_kwargs
+            Forwarded to :class:`~fundcloud.sim.Simulator`. The defaults
+            shown matter for any meaningful backtest:
+
+            * ``cash`` — starting capital (default ``1_000_000.0``).
+            * ``costs`` — :class:`~fundcloud.sim.CostModel`. Default is
+              :class:`~fundcloud.sim.FixedBps` at 5 bps per fill.
+            * ``slippage`` — :class:`~fundcloud.sim.SlippageModel`.
+              Default :class:`~fundcloud.sim.NoSlippage`.
+            * ``execution`` — :class:`~fundcloud.sim.ExecutionModel`.
+              Default :class:`~fundcloud.sim.NextBarOpen` (orders fill
+              at the next bar's open price).
+
+        Returns
+        -------
+        SimResult
+            Container with ``portfolio`` (full
+            :class:`~fundcloud.portfolio.Portfolio`), ``equity_curve``,
+            ``trades``, and ``orders``. Use ``result.pf`` as a shortcut
+            for ``result.portfolio``.
+
+        Notes
+        -----
+        ``self`` must be a Bars frame: a :class:`pandas.DataFrame` with
+        ``(field, symbol)`` MultiIndex columns containing the OHLCV
+        fields and a sorted :class:`pandas.DatetimeIndex`. Single-asset
+        flat-column frames are also accepted.
+
+        See Also
+        --------
+        run_dca : Dollar-cost-averaging preset.
+        run_strategy : Run any custom :class:`BaseStrategy`.
+        fundcloud.strategies.Hold : Underlying strategy class.
+        fundcloud.strategies.RebalanceSpec : Rebalance cadence + tolerance.
+        fundcloud.sim.Simulator : Backtest engine.
 
         Examples
         --------
-        >>> bars.fc.run_hold({"SPY": 0.6, "AGG": 0.4},           # doctest: +SKIP
-        ...                   rebalance=RebalanceSpec("91D", 0.05))
+        Equal-weight default — no ``weights`` argument needed:
+
+        >>> bars.fc.run_hold()                                   # doctest: +SKIP
+
+        Explicit 60/40 buy-and-hold on the default 1M cash pool:
+
+        >>> bars.fc.run_hold({"SPY": 0.6, "AGG": 0.4})           # doctest: +SKIP
+
+        Quarterly-rebalanced 60/40 with a 5 % drift tolerance and a
+        100k starting balance:
+
+        >>> from fundcloud.strategies import RebalanceSpec
+        >>> bars.fc.run_hold(                                    # doctest: +SKIP
+        ...     {"SPY": 0.6, "AGG": 0.4},
+        ...     rebalance=RebalanceSpec("91D", 0.05),
+        ...     cash=100_000,
+        ... )
         """
         require_bars_frame(self._obj, operation="run_hold")
         from fundcloud.sim import Simulator
@@ -408,8 +485,9 @@ class DataFrameAccessor:
 
     def run_dca(
         self,
-        amount: float | Mapping[str, float],
+        amount: float | Mapping[str, float] | None = None,
         *,
+        amount_pct: float | Mapping[str, float] | None = None,
         horizon: str = "monthly",
         weights: Mapping[str, float] | None = None,
         start: pd.Timestamp | str | None = None,
@@ -417,19 +495,115 @@ class DataFrameAccessor:
         sell_on_end: bool = False,
         **sim_kwargs: Any,
     ) -> SimResult:
-        """One-liner: dollar-cost-averaging preset.
+        """Backtest a dollar-cost-averaging strategy on this Bars frame.
 
-        When ``weights`` is omitted and ``amount`` is scalar, the deposit
-        is split **equally** across every asset in the bars frame.
+        Builds a :class:`~fundcloud.strategies.DCA` instance and runs it
+        through :class:`~fundcloud.sim.Simulator`. On every fire of the
+        cadence, DCA places buy orders sized either by a fixed dollar
+        amount (``amount=``) or by a fraction of current equity
+        (``amount_pct=``).
+
+        Exactly one of ``amount`` or ``amount_pct`` must be supplied.
+
+        Parameters
+        ----------
+        amount
+            Dollars per fire. Either a scalar (split across ``weights``)
+            or a mapping ``asset -> dollars`` (per-asset buckets bypass
+            ``weights`` entirely). Mutually exclusive with
+            ``amount_pct``.
+        amount_pct
+            Equity fraction per fire. Either a scalar in ``[0, 1]``
+            (split across ``weights``) or a mapping
+            ``asset -> fraction``. The dollar size is recomputed on
+            every fire from the **current** ``Portfolio.equity_curve``,
+            so the deposit grows or shrinks with the portfolio. On the
+            very first fire (no equity history yet) it falls back to
+            starting cash.
+            Mutually exclusive with ``amount``.
+        horizon
+            Cadence — ``"daily"``, ``"weekly"`` (every 7 calendar days
+            from the anchor), ``"monthly"`` (same day-of-month as the
+            anchor, snapped to the most recent trading bar), or a
+            :class:`~fundcloud.strategies.scheduler.Cadence` for
+            arbitrary steps. Default ``"monthly"``.
+        weights
+            Optional. When omitted with a scalar ``amount`` /
+            ``amount_pct``, DCA spreads the deposit equally across every
+            asset in the bars frame. Provide an explicit mapping
+            (fractions summing to 1) to weight unevenly.
+        start, end
+            Optional window inside which DCA fires.
+        sell_on_end
+            When ``True``, close all positions on the bar after the last
+            fire (after ``end``). Useful for clean comparisons that need
+            to liquidate at the window edge.
+
+        Other Parameters
+        ----------------
+        **sim_kwargs
+            Forwarded to :class:`~fundcloud.sim.Simulator`. The defaults
+            shown matter for any meaningful backtest:
+
+            * ``cash`` — starting capital (default ``1_000_000.0``).
+            * ``costs`` — :class:`~fundcloud.sim.CostModel`. Default is
+              :class:`~fundcloud.sim.FixedBps` at 5 bps per fill.
+            * ``slippage`` — :class:`~fundcloud.sim.SlippageModel`.
+              Default :class:`~fundcloud.sim.NoSlippage`.
+            * ``execution`` — :class:`~fundcloud.sim.ExecutionModel`.
+              Default :class:`~fundcloud.sim.NextBarOpen` (orders fill
+              at the next bar's open price).
+
+        Returns
+        -------
+        SimResult
+            Container with ``portfolio`` (full
+            :class:`~fundcloud.portfolio.Portfolio`), ``equity_curve``,
+            ``trades``, and ``orders``. Use ``result.pf`` as a shortcut
+            for ``result.portfolio``.
+
+        Notes
+        -----
+        ``self`` must be a Bars frame: a :class:`pandas.DataFrame` with
+        ``(field, symbol)`` MultiIndex columns containing the OHLCV
+        fields and a sorted :class:`pandas.DatetimeIndex`. Single-asset
+        flat-column frames are also accepted.
+
+        See Also
+        --------
+        run_hold : Buy-and-hold preset.
+        run_strategy : Run any custom :class:`BaseStrategy`.
+        fundcloud.strategies.DCA : Underlying strategy class.
+        fundcloud.sim.Simulator : Backtest engine.
 
         Examples
         --------
+        Single-asset weekly DCA on the default 1M cash pool:
+
         >>> bars.fc.run_dca(500, horizon="weekly",               # doctest: +SKIP
         ...                   weights={"SPY": 1.0})
 
-        Equal-weight split — no ``weights`` needed:
+        Equal-weight split across every asset in the bars frame —
+        no ``weights`` needed:
 
         >>> bars.fc.run_dca(500, horizon="weekly")               # doctest: +SKIP
+
+        Percentage of current equity instead of fixed dollars — deploy
+        1 % of the portfolio each month, scaling automatically as
+        equity grows:
+
+        >>> bars.fc.run_dca(amount_pct=0.01, horizon="monthly")  # doctest: +SKIP
+
+        Per-asset dollar buckets (``weights`` ignored), 100k starting
+        balance, 10 bps fixed-bps costs:
+
+        >>> from fundcloud.sim import FixedBps
+        >>> bars.fc.run_dca(                                     # doctest: +SKIP
+        ...     amount={"SPY": 300, "AGG": 200},
+        ...     horizon="monthly",
+        ...     cash=100_000,
+        ...     costs=FixedBps(10),
+        ... )
         """
         require_bars_frame(self._obj, operation="run_dca")
         from fundcloud.sim import Simulator
@@ -437,6 +611,7 @@ class DataFrameAccessor:
 
         strategy = DCA(
             amount=amount,
+            amount_pct=amount_pct,
             horizon=horizon,
             weights=weights,
             start=start,
