@@ -15,10 +15,15 @@ __all__ = ["Trade"]
 class Trade:
     """A filled :class:`Order`. The portfolio applies these to mutate state.
 
+    Trades are the simulator's output unit: each one books a quantity
+    of an asset at a fill price, charges a fee against cash, and
+    records the slippage applied vs the reference price.
+
     Attributes
     ----------
     order
-        The original :class:`Order` that produced this fill.
+        The original :class:`~fundcloud.sim.Order` that produced this
+        fill.
     ts
         Timestamp at which the fill executed.
     asset
@@ -28,9 +33,11 @@ class Trade:
     price
         Fill price after slippage is applied.
     fee
-        Commission / exchange fee charged to cash.
+        Commission / exchange fee charged to cash. Always
+        non-negative.
     slippage_bps
-        Slippage applied vs the reference price, in basis points.
+        Slippage applied vs the reference price, in basis points
+        (positive number). ``0.0`` under :class:`~fundcloud.sim.NoSlippage`.
     """
 
     order: Order
@@ -43,4 +50,10 @@ class Trade:
 
     @property
     def notional(self) -> float:
+        """Signed dollar value of the fill: ``qty * price``.
+
+        Positive for buys (cash outflow), negative for sells (cash
+        inflow). Note this excludes fees — the simulator subtracts
+        ``fee`` from cash separately.
+        """
         return self.qty * self.price

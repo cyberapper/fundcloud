@@ -33,7 +33,7 @@ pub struct SimCfg {
     pub slip_kind: u8,
     /// Primary slippage parameter: half-spread in bps for `SLIP_HALF_SPREAD`.
     pub slip_param1: f64,
-    /// Execution timing: `EXEC_NEXT_BAR_OPEN` / `EXEC_SAME_BAR_CLOSE`.
+    /// Execution timing: `EXEC_NEXT_BAR_OPEN` / `EXEC_NEXT_BAR_CLOSE`.
     pub exec_kind: u8,
 }
 
@@ -51,8 +51,8 @@ pub const SLIP_HALF_SPREAD: u8 = 1;
 
 /// Execute at the open of the bar following the signal bar.
 pub const EXEC_NEXT_BAR_OPEN: u8 = 0;
-/// Execute at the close of the bar on which the signal fires.
-pub const EXEC_SAME_BAR_CLOSE: u8 = 1;
+/// Execute at the close of the bar following the signal bar.
+pub const EXEC_NEXT_BAR_CLOSE: u8 = 1;
 
 /// Buy-side order direction.
 pub const SIDE_BUY: u8 = 0;
@@ -162,16 +162,15 @@ fn exec_price_at(
     }
 }
 
-fn fill_idx_for(signal_idx: usize, n_bars: usize, exec_kind: u8) -> i64 {
-    if exec_kind == EXEC_SAME_BAR_CLOSE {
-        signal_idx as i64
+fn fill_idx_for(signal_idx: usize, n_bars: usize, _exec_kind: u8) -> i64 {
+    // Both built-in execution models (EXEC_NEXT_BAR_OPEN and
+    // EXEC_NEXT_BAR_CLOSE) fill on bar `signal_idx + 1`; only the
+    // price column they pull from differs (handled in `exec_price_at`).
+    let nxt = signal_idx + 1;
+    if nxt < n_bars {
+        nxt as i64
     } else {
-        let nxt = signal_idx + 1;
-        if nxt < n_bars {
-            nxt as i64
-        } else {
-            -1
-        }
+        -1
     }
 }
 

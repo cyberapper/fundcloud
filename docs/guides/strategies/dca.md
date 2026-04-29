@@ -20,17 +20,17 @@ are the defaults you're agreeing to when you call `run_hold()` /
 | `cash`      | `1_000_000.0`                          | Starting cash balance — the basis for the entire backtest. |
 | `costs`     | `FixedBps(5)`                          | 5 bps fee on every fill, applied symmetrically buy/sell.   |
 | `slippage`  | `NoSlippage()`                         | Fills hit the reference price exactly. Swap in `HalfSpread(bps)` for a more realistic execution.  |
-| `execution` | `NextBarOpen()`                        | Orders queued on bar `t` fill at the open of bar `t+1`. Swap in `SameBarClose()` to fill at the close of the bar that emitted the order. |
+| `execution` | `NextBarOpen()`                        | Orders queued on bar `t` fill at the open of bar `t+1`. Swap in `NextBarClose()` to fill at the close of bar `t+1` instead — same fill bar, close price. Both options are look-ahead-free. |
 
 ```python
-from fundcloud.sim import FixedBps, HalfSpread, SameBarClose
+from fundcloud.sim import FixedBps, HalfSpread, NextBarClose
 
 bars.fc.run_hold(                       # override every default
     {"SPY": 0.6, "AGG": 0.4},
     cash=100_000,
     costs=FixedBps(10),                 # 10 bps instead of 5
     slippage=HalfSpread(2.0),           # 1 bp half-spread
-    execution=SameBarClose(),           # fill on emit-bar close
+    execution=NextBarClose(),           # fill at next bar's close
 )
 ```
 

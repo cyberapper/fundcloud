@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 from fundcloud.sim import (
     FixedBps,
+    NextBarClose,
     NoCost,
-    SameBarClose,
     SimResult,
     Simulator,
 )
@@ -55,11 +55,17 @@ def test_run_strategy_next_bar_open_default(panel: pd.DataFrame) -> None:
     assert first_trade_ts == panel.index[1]
 
 
-def test_run_strategy_same_bar_close(panel: pd.DataFrame) -> None:
-    sim = Simulator(panel, cash=100_000, execution=SameBarClose(), costs=NoCost())
+def test_run_strategy_next_bar_close(panel: pd.DataFrame) -> None:
+    """``NextBarClose`` fills on the bar after the signal — same fill bar as
+    ``NextBarOpen`` but at the bar's close price (no look-ahead).
+    """
+    sim = Simulator(panel, cash=100_000, execution=NextBarClose(), costs=NoCost())
     result = sim.run_strategy(Hold(weights={"A": 1.0}))
     first_trade_ts = result.trades["ts"].iloc[0]
-    assert first_trade_ts == panel.index[0]
+    first_trade_px = result.trades["price"].iloc[0]
+    assert first_trade_ts == panel.index[1]
+    # NextBarClose uses bar 1's close; NextBarOpen would have used bar 1's open.
+    assert first_trade_px == pytest.approx(panel[("close", "A")].iloc[1])
 
 
 # -------------------------------------------------------------------- run_weights

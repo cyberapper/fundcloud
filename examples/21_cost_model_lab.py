@@ -6,9 +6,9 @@ Friction matters. Fundcloud's ``Simulator`` accepts three orthogonal knobs:
   :class:`PerShare` (broker-style per-share commission).
 * ``slippage`` — :class:`NoSlippage` or :class:`HalfSpread` (assumes you pay
   half the bid/ask gap on each fill).
-* ``execution`` — :class:`NextBarOpen` (default, realistic — fills hit the
-  next bar's open price) or :class:`SameBarClose` (optimistic — fills at
-  the signal bar's close).
+* ``execution`` — :class:`NextBarOpen` (default — fills hit the next
+  bar's open price) or :class:`NextBarClose` (fills hit the next bar's
+  close price). Both are strictly look-ahead-free.
 
 This example runs the **same weekly-DCA strategy** under six configurations
 so you can see how each knob eats into realised return.
@@ -27,10 +27,10 @@ from _synth import AssetProfile, generate_ohlcv
 from fundcloud.sim import (
     FixedBps,
     HalfSpread,
+    NextBarClose,
     NoCost,
     NoSlippage,
     PerShare,
-    SameBarClose,
     Simulator,
 )
 from fundcloud.strategies import DCA
@@ -94,13 +94,13 @@ def main() -> int:
             ),
         ),
         (
-            "FixedBps(5) · NoSlippage · SameBarClose",
+            "FixedBps(5) · NoSlippage · NextBarClose",
             lambda b: Simulator(
                 b,
                 cash=100_000.0,
                 costs=FixedBps(5),
                 slippage=NoSlippage(),
-                execution=SameBarClose(),
+                execution=NextBarClose(),
             ),
         ),
     ]
@@ -135,9 +135,10 @@ def main() -> int:
     print("    rather than commission; under a realistic bid/ask it adds on top.")
     print("  * PerShare matters most at small dollar sizes (the $1 minimum bites")
     print("    when you're only buying a couple of shares per weekly buy).")
-    print("  * SameBarClose is optimistic — same signal bar, same bar's close —")
-    print("    and typically prints a slightly rosier equity curve than the")
-    print("    realistic NextBarOpen default.")
+    print("  * NextBarClose fills on the bar after the signal at its close")
+    print("    price, vs. NextBarOpen which fills at that same bar's open.")
+    print("    Both are look-ahead-free; the price column they pull from")
+    print("    differs.")
     return 0
 
 

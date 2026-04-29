@@ -50,17 +50,17 @@ def _synthetic_bars(n_bars: int, n_assets: int, *, seed: int) -> pd.DataFrame:
 from fundcloud.sim import (  # noqa: E402
     FixedBps,
     HalfSpread,
+    NextBarClose,
     NextBarOpen,
     NoCost,
     NoSlippage,
     PerShare,
-    SameBarClose,
     Simulator,
 )
 
 _COSTS = [NoCost(), FixedBps(5.0), PerShare(rate=0.005, minimum=1.0)]
 _SLIPPAGE = [NoSlippage(), HalfSpread(spread_bps=3.0)]
-_EXECUTION = [NextBarOpen(), SameBarClose()]
+_EXECUTION = [NextBarOpen(), NextBarClose()]
 _COMBOS = list(itertools.product(_COSTS, _SLIPPAGE, _EXECUTION))
 
 

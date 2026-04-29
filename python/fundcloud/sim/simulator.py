@@ -21,7 +21,7 @@ from fundcloud.kernels import _sim_pyfallback as _sim_pyfb
 from fundcloud.portfolio import Portfolio
 from fundcloud.sim import _py_kernel
 from fundcloud.sim.costs import CostModel, FixedBps, NoCost, PerShare
-from fundcloud.sim.execution import ExecutionModel, NextBarOpen, SameBarClose
+from fundcloud.sim.execution import ExecutionModel, NextBarClose, NextBarOpen
 from fundcloud.sim.orders import Order
 from fundcloud.sim.slippage import HalfSpread, NoSlippage, SlippageModel
 from fundcloud.sim.trades import Trade
@@ -386,8 +386,10 @@ class Simulator:
         orders_rows: list[dict[str, object]] = []
 
         for i, ts, row in _py_kernel.iterate_bars(self.bars):
-            # 1. Fill pending orders whose scheduled fill bar is `i` (produced
-            #    by earlier bars under NextBarOpen-style execution).
+            # 1. Fill pending orders whose scheduled fill bar is `i`. Every
+            #    order is scheduled for at least bar `i+1` (the no-look-ahead
+            #    invariant — see `ExecutionModel.fill_at`), so this loop is
+            #    where every fill happens.
             still_pending: list[tuple[int, Order]] = []
             for fill_idx, order in pending:
                 if fill_idx == i:
@@ -413,21 +415,22 @@ class Simulator:
                     signal_index=i, bars_index_size=n_bars
                 )
                 if maybe_fill is None:
-                    # Can't fill (e.g. last bar with NextBarOpen). Record but skip.
+                    # Can't fill (e.g. last bar). Record but skip.
                     orders_rows.append(_order_to_row(order, filled=False))
                     continue
+                if maybe_fill <= i:
+                    msg = (
+                        f"{type(self.execution).__name__}.fill_at returned "
+                        f"fill_index={maybe_fill} for signal_index={i}; the "
+                        "simulator rejects same-bar or earlier fills because "
+                        "they introduce look-ahead bias. Return "
+                        "signal_index + k for some k >= 1."
+                    )
+                    raise ValueError(msg)
                 orders_rows.append(_order_to_row(order, filled=True))
-                if maybe_fill == i:
-                    # SameBarClose-style: execute immediately so this bar's
-                    # mark-to-market reflects the fill.
-                    fill = self._execute(order, i)
-                    if fill is not None:
-                        trades_rows.append(_trade_to_row(fill))
-                        portfolio.apply(fill)
-                else:
-                    pending.append((maybe_fill, order))
+                pending.append((maybe_fill, order))
 
-            # 3. Mark to market at bar close, after any same-bar fills.
+            # 3. Mark to market at bar close.
             prices = _py_kernel.prices_at(self.bars, i, field="close")
             portfolio.mark_to_market(prices, ts)
 
@@ -621,7 +624,8 @@ def _pack_panels(bars: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, tuple[str,
                 close_np[:, j] = bars[("close", asset)].to_numpy(dtype=float)
     else:
         # Flat columns: treat each as a close-price panel; open = close
-        # under this convention (SameBarClose execution coalesces anyway).
+        # under this convention (NextBarClose / NextBarOpen coalesce on
+        # the same numeric panel anyway).
         for j, asset in enumerate(assets):
             if asset in bars.columns:
                 values = bars[asset].to_numpy(dtype=float)
@@ -669,8 +673,8 @@ def _model_tags(
     # Execution
     if isinstance(execution, NextBarOpen):
         exec_kind = _sim_pyfb.EXEC_NEXT_BAR_OPEN
-    elif isinstance(execution, SameBarClose):
-        exec_kind = _sim_pyfb.EXEC_SAME_BAR_CLOSE
+    elif isinstance(execution, NextBarClose):
+        exec_kind = _sim_pyfb.EXEC_NEXT_BAR_CLOSE
     else:
         return None
     return _sim_pyfb.SimCfg(

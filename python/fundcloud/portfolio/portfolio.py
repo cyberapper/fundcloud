@@ -32,7 +32,19 @@ __all__ = ["Portfolio", "Position"]
 
 @dataclass(slots=True)
 class Position:
-    """Live position for a single asset."""
+    """Live position for a single asset.
+
+    Attributes
+    ----------
+    qty
+        Signed share count. Positive for long, negative for short, zero
+        for closed.
+    avg_cost
+        Volume-weighted average cost per share. Updated only when adding
+        to an existing direction (or opening a new one); closes leave
+        ``avg_cost`` alone so reporting can compute realised P&L on the
+        original basis.
+    """
 
     qty: float = 0.0
     avg_cost: float = 0.0
@@ -86,9 +98,25 @@ class Portfolio:
 
     @property
     def name(self) -> str:
+        """Human-readable label for this portfolio (default ``"strategy"``)."""
         return self._name or "strategy"
 
     def rename(self, name: str) -> Portfolio:
+        """Rename in place and return ``self`` for chaining.
+
+        Renames the underlying ``returns`` Series too when present, so
+        downstream concatenations into a panel pick up the new name.
+
+        Parameters
+        ----------
+        name
+            New label.
+
+        Returns
+        -------
+        Portfolio
+            ``self``, for chaining.
+        """
         self._name = name
         if self._returns is not None:
             self._returns = self._returns.rename(name)
@@ -98,9 +126,23 @@ class Portfolio:
 
     @property
     def cash(self) -> float:
+        """Current uninvested cash (live mode only)."""
         return self._live.cash
 
     def position(self, asset: str) -> Position:
+        """Return the live :class:`Position` for ``asset`` (creating one if missing).
+
+        Parameters
+        ----------
+        asset
+            Asset ticker.
+
+        Returns
+        -------
+        Position
+            The mutable :class:`Position` object — same identity across
+            calls, so callers can inspect ``qty`` / ``avg_cost`` later.
+        """
         return self._live.positions.setdefault(asset, Position())
 
     @property
@@ -109,11 +151,29 @@ class Portfolio:
         return pd.Series({asset: p.qty for asset, p in self._live.positions.items()}, dtype=float)
 
     def apply(self, trade: Any) -> None:
-        """Apply a ``Trade`` (from :mod:`fundcloud.sim`) to live state.
+        """Apply a fill to live state — cash, positions, average cost, log.
 
-        The method only depends on the trade's duck-typed attributes
-        (``asset``, ``qty``, ``price``, ``fee``) so this module doesn't have to
-        import the simulator package.
+        Mutates the portfolio in place: subtracts notional + fee from
+        cash, adds the signed quantity to the position, updates the
+        volume-weighted average cost on adds, and appends to the
+        internal trade log.
+
+        Parameters
+        ----------
+        trade
+            Anything with the duck-typed attributes ``asset`` (str),
+            ``qty`` (signed float), ``price`` (float), ``fee`` (float;
+            optional). Typically a :class:`fundcloud.sim.Trade`, but
+            the contract is duck-typed so this module doesn't import
+            the simulator package.
+
+        Notes
+        -----
+        Average cost is recomputed only when the trade adds to an
+        existing direction (or opens a new position). Trades that close
+        or partially close a position leave ``avg_cost`` unchanged so
+        downstream reporting can compute realised P&L on the original
+        basis.
         """
         asset = str(trade.asset)
         qty = float(trade.qty)
@@ -137,12 +197,34 @@ class Portfolio:
     ) -> float:
         """Compute and record equity at timestamp ``ts``.
 
-        ``prices`` is a Series of asset → price at that timestamp. When a
-        price is missing (``NaN``) — typical for a mixed-frequency panel
-        on a weekend / market holiday — the portfolio falls back to the
-        last known price for that asset so a held position keeps its
-        value across the closed bar. Cash-only positions (``qty == 0``)
-        are skipped.
+        Walks every open position, marks it at the current bar's price
+        (with fallbacks for missing quotes — see Notes), sums into cash,
+        appends the equity snapshot and resulting weights to the
+        portfolio's history. The simulator calls this once per bar
+        after :meth:`apply`-ing any fills.
+
+        Parameters
+        ----------
+        prices
+            Asset → price at this bar. May contain ``NaN`` for assets
+            that didn't trade (mixed-frequency panels: equities on
+            weekends, etc.).
+        ts
+            Bar timestamp; used as the index value when recording the
+            snapshot.
+
+        Returns
+        -------
+        float
+            Total equity at ``ts`` (cash + sum of position values).
+
+        Notes
+        -----
+        Missing-price fallback chain (in order): ``prices[asset]`` →
+        the last finite price seen for ``asset`` (cached across calls)
+        → the position's ``avg_cost``. If none is positive and finite,
+        the position contributes zero to equity for this bar.
+        Cash-only positions (``qty == 0``) are skipped.
         """
         # Refresh the last-known price cache from this bar's quotes.
         for asset, raw in prices.items():
@@ -181,9 +263,18 @@ class Portfolio:
     def snapshot(self) -> Portfolio:
         """Freeze live state into an analytics-mode copy.
 
-        Builds ``returns`` from the equity curve (if there is one) and
-        ``weights`` from the recorded weights history, then detaches live
-        state so the returned instance behaves immutably for analytics.
+        Builds ``returns`` from the equity curve and ``weights`` from
+        the recorded weights history, then detaches live state so the
+        returned instance behaves immutably for analytics. Used by
+        :class:`~fundcloud.sim.Simulator` to produce the
+        :class:`~fundcloud.sim.SimResult.portfolio` field.
+
+        Returns
+        -------
+        Portfolio
+            Analytics-mode copy with ``returns`` / ``weights`` populated
+            and live state detached. Calling :meth:`apply` on the result
+            won't affect the original.
         """
         equity = pd.Series(
             {ts: val for ts, val in self._live.equity_history},

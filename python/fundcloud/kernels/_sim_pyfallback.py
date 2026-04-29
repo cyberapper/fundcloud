@@ -32,7 +32,7 @@ SLIP_HALF_SPREAD = 1
 
 # Execution-model tags.
 EXEC_NEXT_BAR_OPEN = 0
-EXEC_SAME_BAR_CLOSE = 1
+EXEC_NEXT_BAR_CLOSE = 1
 
 # Order-side tags.
 SIDE_BUY = 0
@@ -92,9 +92,11 @@ def _exec_prices_at(
 
 def _fill_idx_for(signal_idx: int, n_bars: int, exec_kind: int) -> int:
     """Return the bar index at which an order submitted at ``signal_idx``
-    fills, or -1 if the order cannot fill (e.g., NextBarOpen on the last bar)."""
-    if exec_kind == EXEC_SAME_BAR_CLOSE:
-        return signal_idx
+    fills, or -1 if the order cannot fill (last bar under any forward-only
+    model). Both built-in execution models fill on bar ``signal_idx + 1``;
+    the price column they pull from differs (open vs close).
+    """
+    del exec_kind  # both EXEC_NEXT_BAR_OPEN and EXEC_NEXT_BAR_CLOSE fill at t+1
     nxt = signal_idx + 1
     return nxt if nxt < n_bars else -1
 

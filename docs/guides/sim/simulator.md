@@ -36,10 +36,14 @@ Every entry point returns a `SimResult` with:
 
 ## Execution models
 
-- **`NextBarOpen`** (default) — orders fire at the open of bar `t+1`.
-  Avoids look-ahead.
-- **`SameBarClose`** — orders fire at the close of bar `t`. Convenient but
-  introduces a subtle bias.
+- **`NextBarOpen`** (default) — orders fire at the **open** of bar `t+1`.
+- **`NextBarClose`** — orders fire at the **close** of bar `t+1`. Same
+  fill bar as `NextBarOpen`; just uses the close price instead of the
+  open. Useful for end-of-day desks or when modelling a full bar of
+  participation between signal and execution.
+
+Both are strictly look-ahead-free — the fill bar is always strictly
+later than the signal bar.
 
 ## Cost + slippage
 

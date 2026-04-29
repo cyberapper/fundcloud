@@ -45,7 +45,7 @@ Rust dispatch is **gated** on all three of `(costs, slippage, execution)` being 
 |---|---|
 | `costs` | `NoCost`, `FixedBps`, `PerShare` |
 | `slippage` | `NoSlippage`, `HalfSpread` |
-| `execution` | `NextBarOpen`, `SameBarClose` |
+| `execution` | `NextBarOpen`, `NextBarClose` |
 
 Any custom subclass silently falls back to the original Python `_drive` loop — the simulator stays correct, you just don't get the Rust speedup.
 
