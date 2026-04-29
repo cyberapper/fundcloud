@@ -13,10 +13,10 @@ regressions across releases.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
-
 from fundcloud.kernels import HAS_RUST
 from fundcloud.kernels import _sim as _dispatcher
 from fundcloud.sim import FixedBps, HalfSpread, NextBarOpen, Simulator
@@ -38,13 +38,13 @@ def _synthetic_bars(n_bars: int, n_assets: int) -> pd.DataFrame:
     return df
 
 
-def _time_once(fn) -> float:
+def _time_once(fn: Callable[[], object]) -> float:
     t0 = time.perf_counter()
     fn()
     return time.perf_counter() - t0
 
 
-def _run_under_backend(fn, *, rust: bool) -> float:
+def _run_under_backend(fn: Callable[[], object], *, rust: bool) -> float:
     orig = _dispatcher._have_rust_sim
     _dispatcher._have_rust_sim = lambda: rust
     try:
@@ -82,7 +82,7 @@ def main() -> int:
         return 1
     print("size (bars x assets) | path          | wall (s) | speedup")
     print("-" * 64)
-    for (nb, na) in [(500, 5), (2000, 10), (5000, 20), (10000, 30)]:
+    for nb, na in [(500, 5), (2000, 10), (5000, 20), (10000, 30)]:
         bars = _synthetic_bars(nb, na)
         call = _run_weights_case(bars)
         t_py = _run_under_backend(call, rust=False)

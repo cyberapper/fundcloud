@@ -1,6 +1,6 @@
 """Execution models — when (and at what price) an order fills.
 
-In v0.1 two models ship: :class:`NextBarOpen` (the default, avoids look-ahead)
+Two models ship: :class:`NextBarOpen` (the default, avoids look-ahead)
 and :class:`SameBarClose` (convenient for quick experiments, but introduces a
 subtle bias because the signal and fill share the same bar).
 """

@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 from fundcloud import metrics as _metrics
+from fundcloud.metrics.core import ReturnMethod
 
 __all__ = ["Portfolio", "Position"]
 
@@ -446,6 +447,69 @@ class Portfolio:
         )
         return pd.concat([bench_yearly, strategy], axis=1)
 
+    # --------------------------------------------------------------- from-NAV
+
+    @classmethod
+    def from_nav(
+        cls,
+        nav: pd.Series | pd.DataFrame,
+        *,
+        distributions: pd.Series | None = None,
+        capital_flows: pd.Series | None = None,
+        method: ReturnMethod = "total_return",
+        trades: pd.DataFrame | None = None,
+        positions: pd.DataFrame | None = None,
+        benchmark: pd.Series | None = None,
+        name: str | None = None,
+    ) -> Portfolio:
+        """Analytics-mode Portfolio built from a NAV series.
+
+        Return computation is delegated to
+        :func:`fundcloud.metrics.returns_from_nav` — see there for the
+        four-method menu. The default (``total_return`` on per-share
+        NAV with distributions added back) matches how public funds
+        report performance: injections and withdrawals are
+        NAV-per-share-invariant, and only ``DISTRIBUTION`` flows need
+        a per-share add-back.
+
+        Parameters
+        ----------
+        nav
+            NAV timeseries. A :class:`pd.Series` is used directly; a
+            :class:`pd.DataFrame` with a ``nav`` column (preferred) or
+            a single-column frame is coerced to a Series.
+        distributions, capital_flows, method
+            Forwarded to :func:`returns_from_nav`. ``distributions``
+            (per-share, aligned to ``nav``'s index) drives the
+            ``total_return`` path; ``capital_flows`` (signed net
+            inflow) drives ``modified_dietz`` / ``daily_twr``.
+        trades, positions
+            Stashed on the returned Portfolio as ``_source_trades`` /
+            ``_source_positions`` for downstream introspection
+            (attribution reports, reconciliation). Not used for
+            return computation.
+        benchmark, name
+            Forwarded to :meth:`__init__`.
+
+        Returns
+        -------
+        Portfolio
+            Analytics-mode portfolio with ``returns`` populated.
+        """
+        nav_s = _coerce_nav_series(nav)
+        returns = _metrics.returns_from_nav(
+            nav_s,
+            distributions=distributions,
+            capital_flows=capital_flows,
+            method=method,
+        )
+        if name:
+            returns = returns.rename(name)
+        pf = cls(returns=returns, benchmark=benchmark, name=name)
+        pf._source_trades = trades  # type: ignore[attr-defined]
+        pf._source_positions = positions  # type: ignore[attr-defined]
+        return pf
+
     # --------------------------------------------------------------- skfolio
 
     @classmethod
@@ -507,6 +571,25 @@ def _coerce_returns(x: pd.Series | pd.DataFrame) -> pd.Series:
         )
         raise ValueError(msg)
     return x
+
+
+def _coerce_nav_series(x: pd.Series | pd.DataFrame) -> pd.Series:
+    """Accept a NAV Series directly, or a DataFrame with a ``nav`` column."""
+    if isinstance(x, pd.Series):
+        return x
+    if isinstance(x, pd.DataFrame):
+        if "nav" in x.columns:
+            return x["nav"]
+        if x.shape[1] == 1:
+            return x.iloc[:, 0]
+        msg = (
+            "Portfolio.from_nav(nav=) accepts a Series or a DataFrame with "
+            "a 'nav' column (or a single column); got a DataFrame with "
+            f"columns {list(x.columns)!r}."
+        )
+        raise ValueError(msg)
+    msg = f"Portfolio.from_nav(nav=) expected Series or DataFrame; got {type(x).__name__}"
+    raise TypeError(msg)
 
 
 def _coerce_weights(x: pd.Series | pd.DataFrame) -> pd.DataFrame:

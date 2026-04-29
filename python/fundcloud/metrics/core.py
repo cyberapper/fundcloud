@@ -10,7 +10,7 @@ with skfolio / quantstats where those two agree.
 
 from __future__ import annotations
 
-from typing import overload
+from typing import Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,7 @@ import pandas as pd
 from fundcloud._config import get_config
 
 __all__ = [
+    "ReturnMethod",
     "adjusted_sortino",
     "avg_loss",
     "avg_return",
@@ -42,6 +43,7 @@ __all__ = [
     "payoff_ratio",
     "probabilistic_sharpe_ratio",
     "profit_factor",
+    "returns_from_nav",
     "returns_stats",
     "risk_of_ruin",
     "sharpe",
@@ -58,6 +60,8 @@ __all__ = [
     "win_rate",
     "worst",
 ]
+
+ReturnMethod = Literal["total_return", "modified_dietz", "daily_twr", "none"]
 
 
 # ---------------------------------------------------------------------------
@@ -768,3 +772,121 @@ def smart_sortino(
     penalty = pd.Series({c: _autocorr_penalty(df[c]) for c in df.columns}, dtype=float)
     out = base * penalty
     return _collapse(out, returns)
+
+
+# ---------------------------------------------------------------------------
+# NAV-derived returns (capital-flow-aware)
+
+
+def returns_from_nav(
+    nav: pd.Series,
+    *,
+    distributions: pd.Series | None = None,
+    capital_flows: pd.Series | None = None,
+    method: ReturnMethod = "total_return",
+) -> pd.Series:
+    """Period returns from a NAV curve, optionally adjusted for capital events.
+
+    Parameters
+    ----------
+    nav
+        NAV timeseries. For ``total_return`` the typical input is NAV per
+        share; for ``modified_dietz`` / ``daily_twr`` it is total AUM.
+        Must be a :class:`pd.Series` indexed by date.
+    distributions
+        Per-share distribution amounts, indexed the same way as ``nav``.
+        Only used when ``method='total_return'``. Missing dates are
+        treated as zero. If omitted entirely, ``total_return`` collapses
+        to plain ``pct_change``.
+    capital_flows
+        Signed net inflow on each period: positive for ``INJECTION``,
+        negative for ``WITHDRAWAL`` / ``DISTRIBUTION`` (from the fund's
+        perspective). Required when ``method`` is ``modified_dietz`` or
+        ``daily_twr``; ignored otherwise. Missing dates become zero.
+    method
+        Return-computation convention:
+
+        - ``total_return`` (default): ``(nav_t + distrib_t − nav_{t-1})
+          / nav_{t-1}`` — correct for per-share NAV, adds distributions
+          back like a dividend. Injections and withdrawals don't appear
+          because they are NAV-per-share-invariant.
+        - ``modified_dietz``: ``(nav_t − nav_{t-1} − flow_t) /
+          (nav_{t-1} + 0.5·flow_t)`` — GIPS-compatible TWR for AUM with
+          period-level flows.
+        - ``daily_twr``: ``(nav_t − nav_{t-1} − flow_t) / nav_{t-1}`` —
+          pure geometric-chaining TWR for AUM; assumes flow at start of
+          period.
+        - ``none``: ``(nav_t − nav_{t-1}) / nav_{t-1}`` — plain
+          ``pct_change``.
+
+    Returns
+    -------
+    pd.Series
+        Returns indexed from the second NAV date onward (the first
+        period has no prior NAV), named ``'returns'``.
+
+    Raises
+    ------
+    TypeError
+        If ``nav``, ``distributions``, or ``capital_flows`` is not a
+        :class:`pd.Series`.
+    ValueError
+        If ``method`` is unknown, or if ``capital_flows`` is required
+        (``modified_dietz``, ``daily_twr``) but not provided.
+    """
+    if not isinstance(nav, pd.Series):
+        msg = f"`nav` must be a pandas Series; got {type(nav).__name__}"
+        raise TypeError(msg)
+    if distributions is not None and not isinstance(distributions, pd.Series):
+        msg = (
+            "`distributions` must be a pandas Series when provided; "
+            f"got {type(distributions).__name__}"
+        )
+        raise TypeError(msg)
+    if capital_flows is not None and not isinstance(capital_flows, pd.Series):
+        msg = (
+            "`capital_flows` must be a pandas Series when provided; "
+            f"got {type(capital_flows).__name__}"
+        )
+        raise TypeError(msg)
+
+    nav_s = nav.sort_index().astype(float)
+    if len(nav_s) < 2:
+        return pd.Series(dtype=float, name="returns")
+
+    prev = nav_s.shift(1)
+    delta = nav_s - prev
+
+    if method == "none":
+        r = delta / prev
+    elif method == "total_return":
+        if distributions is not None:
+            d = distributions.astype(float).reindex(nav_s.index).fillna(0.0)
+        else:
+            d = pd.Series(0.0, index=nav_s.index)
+        r = (delta + d) / prev
+    elif method in ("modified_dietz", "daily_twr"):
+        if capital_flows is None:
+            msg = (
+                f"method={method!r} requires `capital_flows=`. "
+                f"Use method='none' or method='total_return' when no flows are available."
+            )
+            raise ValueError(msg)
+        f = capital_flows.astype(float).reindex(nav_s.index).fillna(0.0)
+        if method == "daily_twr":
+            r = (delta - f) / prev
+        else:  # modified_dietz
+            denom = prev + 0.5 * f
+            r = (delta - f) / denom
+    else:
+        msg = (
+            f"unknown method {method!r}; expected one of "
+            f"'total_return', 'modified_dietz', 'daily_twr', 'none'"
+        )
+        raise ValueError(msg)
+
+    # Drop the first period (NaN from shift) and name the series.
+    r = r.iloc[1:].rename("returns")
+    # Replace any inf from divide-by-zero (NAV=0 or Mod-Dietz denom=0) with NaN.
+    r = r.replace([np.inf, -np.inf], np.nan)
+    return r
