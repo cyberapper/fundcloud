@@ -13,7 +13,7 @@
 
 ![Fundcloud library overview](docs/assets/fundcloud_lib.png)
 
-Fundcloud is a beginner-friendly, headless-for-advanced **portfolio research framework**. One install replaces the usual stack of `quantstats + pyportfolioopt + skfolio + vectorbt + xlsxwriter`, with a coherent `.fc` pandas surface for beginners and a full `sklearn`-compatible estimator API for advanced users. Matrix-heavy math lives in a Rust core via PyO3 and ships as a single abi3 wheel per platform.
+Fundcloud is a beginner-friendly, headless-for-advanced **portfolio research framework**. One install covers returns and risk analytics, drawdown analysis, portfolio optimisation, vectorised backtesting, technical indicators, purged cross-validation, multi-source market data loading, exploratory analysis, and HTML/PDF/Excel tear sheets — through a coherent `.fc` pandas surface for beginners and a full `sklearn`-compatible estimator API for advanced users. Matrix-heavy math lives in a Rust core via PyO3 and ships as a single abi3 wheel per platform.
 
 ## Install
 
