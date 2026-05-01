@@ -44,7 +44,13 @@ concurrency:
 jobs:
 
   # ── 1. Build-only — runs for PRs + non-tag pushes ──────────
+  # Skipped on tag pushes (the just-prior main-push build already gated the
+  # SHA, and `mike deploy` rebuilds internally) and on the release-please bot
+  # PR (version-bump-only diff doesn't affect docs).
   build:
+    if: >-
+      (github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/v'))
+      && (github.event_name != 'pull_request' || github.head_ref != 'release-please--branches--main')
     runs-on: ubuntu-latest
     env:
       REF_NAME: ${{ github.ref_name }}
@@ -70,7 +76,6 @@ jobs:
 
   # ── 2. Deploy — only on tags or manual dispatch ────────────
   deploy:
-    needs: build
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     # `mike deploy --push` updates the `gh-pages` branch via git, which needs
