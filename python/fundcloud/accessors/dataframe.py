@@ -647,6 +647,201 @@ class DataFrameAccessor:
         )
         raise TypeError(msg)
 
+    # ========================================================== patterns
+    def detect_pattern(self, pattern: Any, **params: Any) -> pd.DataFrame:
+        """Run a registered pattern detector on this Bars frame.
+
+        Returns a wide signal panel — one column per asset — matching
+        the indicator's :attr:`signal_mode` (``BREAKOUT`` by default).
+
+        Examples
+        --------
+        >>> bars.fc.detect_pattern("head_and_shoulders").shape  # doctest: +SKIP
+        >>> bars.fc.detect_pattern(Pattern.DOUBLE_BOTTOM, min_quality=70)  # doctest: +SKIP
+        """
+        require_bars_frame(self._obj, operation="detect_pattern")
+        indicator = _resolve_pattern_indicator(pattern, params)
+        return indicator.fit_transform(self._obj)
+
+    def pattern_events(self, pattern: Any, **params: Any) -> pd.DataFrame:
+        """Rich event log for the named pattern: timestamps, pivots, target,
+        stop, quality, variant.
+
+        See :data:`fundcloud.features.patterns.EVENTS_COLUMNS` for the
+        canonical column order.
+        """
+        require_bars_frame(self._obj, operation="pattern_events")
+        indicator = _resolve_pattern_indicator(pattern, params)
+        return indicator.events(self._obj)
+
+    def evaluate_pattern(
+        self,
+        pattern: Any,
+        *,
+        horizons: tuple[int, ...] = (5, 10, 20, 60),
+        atr_window: int = 14,
+        baseline: bool = True,
+        trade_direction: str = "natural",
+        condition: Any = None,
+        **params: Any,
+    ) -> pd.DataFrame:
+        """Headline feature-quality panel for the pattern.
+
+        Delegates to :func:`fundcloud.metrics.feature_quality.evaluate`
+        after running the indicator. Use ``trade_direction='inverse'``
+        to test fading the pattern. Pass ``condition`` (a
+        :class:`PatternCondition`) to grade R-multiples against the
+        condition's target / stop instead of the 1×ATR fallback.
+        """
+        require_bars_frame(self._obj, operation="evaluate_pattern")
+        from fundcloud.metrics import feature_quality as fq
+
+        indicator = _resolve_pattern_indicator(pattern, params)
+        events = indicator.events(self._obj)
+        return fq.evaluate(
+            events,
+            self._obj,
+            horizons=horizons,
+            atr_window=atr_window,
+            baseline=baseline,
+            trade_direction=trade_direction,
+            condition=condition,
+        )
+
+    def list_patterns(self) -> list[Any]:
+        """Registered pattern enum values, sorted by stable name."""
+        from fundcloud.features.patterns import Pattern
+
+        return sorted(Pattern, key=lambda p: p.value)
+
+    def plot_pattern_event(
+        self,
+        event: Any,
+        *,
+        padding: int = 20,
+        show_levels: bool = True,
+        horizon: int | None = 20,
+        theme: str | None = None,
+    ) -> Any:
+        """Render a single detected pattern as an annotated candlestick chart.
+
+        ``event`` is a row from the events table (``pd.Series`` from
+        ``events.iloc[i]`` or a dict). Pivots are connected into the
+        formation shape; trend lines and entry / target / stop levels
+        overlaid; the formation window is shaded; ``horizon`` (default
+        20) marks ``breakout_ts + horizon`` so the metric grading
+        window is visible.
+        """
+        require_bars_frame(self._obj, operation="plot_pattern_event")
+        from fundcloud.plots.patterns import plot_pattern_event
+
+        return plot_pattern_event(
+            event,
+            self._obj,
+            padding=padding,
+            show_levels=show_levels,
+            horizon=horizon,
+            theme=theme,
+        )
+
+    def plot_patterns(
+        self,
+        pattern: Any,
+        *,
+        asset: str,
+        max_events: int | None = None,
+        horizon: int | None = None,
+        show_horizon_for_top: int = 10,
+        theme: str | None = None,
+        **params: Any,
+    ) -> Any:
+        """Render every detection of ``pattern`` on ``asset`` on one
+        candlestick chart, with formation shapes drawn (pivots
+        connected by a coloured polyline). Useful for spotting
+        clustering and regime shifts.
+        """
+        require_bars_frame(self._obj, operation="plot_patterns")
+        from fundcloud.plots.patterns import plot_patterns_overview
+
+        indicator = _resolve_pattern_indicator(pattern, params)
+        events = indicator.events(self._obj)
+        return plot_patterns_overview(
+            events,
+            self._obj,
+            asset,
+            max_events=max_events,
+            horizon=horizon,
+            show_horizon_for_top=show_horizon_for_top,
+            theme=theme,
+        )
+
+    def plot_asset_patterns(
+        self,
+        asset: str,
+        *,
+        patterns: Any = None,
+        min_quality: float = 50.0,
+        horizon: int | None = None,
+        show_horizon_for_top: int = 10,
+        theme: str | None = None,
+    ) -> Any:
+        """Single chart for ``asset`` with every pattern's detections drawn,
+        legend-toggled per pattern.
+
+        Click any pattern in the legend to hide / show its formations.
+        Each detection is drawn as a coloured polyline through its pivots
+        so the formation shape is identifiable at a glance. Horizon
+        shading is *off* by default — passing ``horizon=20`` enables it
+        for the most-recent ``show_horizon_for_top`` events only, so
+        the chart doesn't end up barcoded with hundreds of overlapping
+        bands.
+        """
+        require_bars_frame(self._obj, operation="plot_asset_patterns")
+        from fundcloud.plots.patterns import plot_asset_patterns
+
+        return plot_asset_patterns(
+            self._obj,
+            asset,
+            patterns=patterns,
+            min_quality=min_quality,
+            horizon=horizon,
+            show_horizon_for_top=show_horizon_for_top,
+            theme=theme,
+        )
+
+    def run_pattern(
+        self,
+        pattern: Any,
+        *,
+        condition: Any = None,
+        size: float = 0.1,
+        inverse: bool = False,
+        **params: Any,
+    ) -> SimResult:
+        """Backtest the named pattern via :class:`PatternStrategy`.
+
+        Examples
+        --------
+        >>> bars.fc.run_pattern(Pattern.DOUBLE_BOTTOM,                  # doctest: +SKIP
+        ...                     condition=PatternCondition(...))
+
+        Trade fade-the-pattern on a bearish detector::
+
+        >>> bars.fc.run_pattern("double_top", inverse=True)             # doctest: +SKIP
+        """
+        require_bars_frame(self._obj, operation="run_pattern")
+        from fundcloud.sim import Simulator
+        from fundcloud.strategies import PatternStrategy
+
+        indicator = _resolve_pattern_indicator(pattern, params)
+        strategy = PatternStrategy(
+            indicator,
+            condition=condition,
+            size=size,
+            inverse=inverse,
+        )
+        return Simulator(self._obj).run_strategy(strategy)
+
     # ========================================================== plots
     def plot_cumulative(self, **kw: Any) -> Any:
         """Plotly cumulative-returns figure (delegates to :func:`fundcloud.plots.cumulative`)."""
@@ -731,3 +926,28 @@ class DataFrameAccessor:
         if not isinstance(result, pd.DataFrame):
             raise TypeError(f"Expected DataFrame, got {type(result).__name__}")
         return result
+
+
+def _resolve_pattern_indicator(pattern: Any, params: Mapping[str, Any]) -> Any:
+    """Map a Pattern enum / stable string name to a constructed indicator.
+
+    Accepts either ``Pattern.HEAD_AND_SHOULDERS`` or the stable
+    snake_case string ``"head_and_shoulders"``. Looks up the registered
+    indicator class and instantiates it with ``**params``. Raises
+    ``ValueError`` with a helpful message for unknown patterns.
+    """
+    from fundcloud.features.indicators.base import _REGISTRY
+    from fundcloud.features.patterns import Pattern
+
+    name = pattern.value if isinstance(pattern, Pattern) else str(pattern)
+    try:
+        Pattern(name)
+    except ValueError as e:
+        valid = ", ".join(p.value for p in Pattern)
+        msg = f"unknown pattern: {pattern!r}; valid: {valid}"
+        raise ValueError(msg) from e
+    if name not in _REGISTRY:
+        msg = f"pattern {name!r} is not registered with @register_indicator"
+        raise LookupError(msg)
+    cls = _REGISTRY[name]
+    return cls(**params)

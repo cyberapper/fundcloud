@@ -1,0 +1,47 @@
+"""Inverse Head and Shoulders chart-pattern indicator.
+
+Bullish reversal: a trough (head) flanked by two higher troughs (shoulders)
+of similar depth, sitting below a neckline drawn through the two
+intervening highs. The breakout above the neckline projects a measured
+move target equal to the neckline-to-head distance above the neckline.
+
+The Rust detector enforces:
+
+* Sequence ``L-H-L-H-L``.
+* Head strictly below both shoulders.
+* Shoulders within 10% of each other (default).
+* Head prominence ≥ 3% below the average shoulder.
+* Formation ≥ 8 bars.
+* Prior trend slope < 0 (downtrend before reversal).
+
+See :mod:`fundcloud.features.patterns._base` for the shared input/output
+contract.
+"""
+
+from __future__ import annotations
+
+from fundcloud.features.indicators.base import register_indicator
+from fundcloud.features.patterns._base import PatternIndicator
+from fundcloud.features.patterns._condition import PatternCondition
+from fundcloud.features.patterns._enums import (
+    EntryRule,
+    ExitRule,
+    Pattern,
+    StopMethod,
+    TargetMethod,
+)
+
+__all__ = ["InverseHeadAndShoulders"]
+
+
+@register_indicator(Pattern.INVERSE_HEAD_AND_SHOULDERS.value)
+class InverseHeadAndShoulders(PatternIndicator):
+    """Bullish "Inverse Head and Shoulders" reversal."""
+
+    pattern_name = "inverse_head_and_shoulders"
+    condition = PatternCondition(
+        entry_rule=EntryRule.ON_BREAKOUT,
+        exit_rule=ExitRule.TARGET_OR_STOP,
+        target_method=TargetMethod.MEASURED_MOVE,
+        stop_method=StopMethod.BELOW_PIVOT,
+    )

@@ -187,6 +187,8 @@ nav:
           - Simulator: guides/sim/simulator.md
           - Bracket orders (stop-loss + take-profit): guides/sim/bracket-orders.md
           - Simulator performance (Rust kernel): guides/sim/performance.md
+      - Chart Patterns:
+          - Pattern detection workflow: guides/patterns/pattern-detection.md
       - Portfolio Optimisation:
           - Portfolio optimisation: guides/portfolio/optimization.md
           - sklearn & skfolio interop: guides/interop/sklearn.md
@@ -219,3 +221,4 @@ nav:
       - Errors: reference/errors.md
       - Plots: reference/plots.md
       - Kernels: reference/kernels.md
+      - Chart Patterns: reference/patterns.md
