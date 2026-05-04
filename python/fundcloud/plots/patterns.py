@@ -601,6 +601,9 @@ def plot_asset_patterns(
     if ohlc.empty:
         msg = f"no bars for asset {asset!r}"
         raise ValueError(msg)
+    # Slice down to the requested asset once so each detector scans a
+    # single-asset frame instead of the full universe.
+    asset_bars = bars.loc[:, pd.IndexSlice[:, [asset]]]
 
     fig = go.Figure()
     _add_candlestick(fig, ohlc, asset)
@@ -615,8 +618,11 @@ def plot_asset_patterns(
         if pattern.value not in _REGISTRY:
             continue
         Cls = _REGISTRY[pattern.value]
-        events = Cls(min_quality=min_quality).events(bars)
-        events = events[events["asset"] == asset].sort_values("breakout_ts", ascending=False)
+        events = (
+            Cls(min_quality=min_quality)
+            .events(asset_bars)
+            .sort_values("breakout_ts", ascending=False)
+        )
         if events.empty:
             continue
         per_pattern_events.append((pattern, events))

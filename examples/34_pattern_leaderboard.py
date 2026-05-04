@@ -116,7 +116,21 @@ def _build_leaderboard(bars: pd.DataFrame) -> pd.DataFrame:
                 row = _evaluate_one(events, bars, pattern, asset, direction)
                 if row is not None:
                     rows.append(row)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "asset",
+            "pattern",
+            "direction",
+            "n",
+            "hit",
+            "base",
+            "edge",
+            "expectancy",
+            "edge_ratio",
+            "ic",
+        ],
+    )
 
 
 def _print_per_asset(lb: pd.DataFrame, top_n: int = 5) -> None:

@@ -82,7 +82,11 @@ pub fn validate_boundaries(
     end_idx: usize,
     tolerance: f64,
 ) -> bool {
-    let last = end_idx.min(highs.len().saturating_sub(1));
+    let n = highs.len().min(lows.len());
+    if n == 0 || start_idx >= n {
+        return false;
+    }
+    let last = end_idx.min(n - 1);
     for i in start_idx..=last {
         let upper_price = upper.price_at(i);
         let lower_price = lower.price_at(i);

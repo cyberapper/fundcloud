@@ -172,37 +172,107 @@ def test_apply_condition_empty_events_returns_empty() -> None:
     assert list(out.columns) == list(EVENTS_COLUMNS)
 
 
+def _double_top_event(
+    asset: str,
+    breakout_ts: pd.Timestamp,
+    formation_start: pd.Timestamp,
+    *,
+    entry: float,
+    pivot_highs: tuple[float, float],
+    pivot_low: float,
+) -> dict:
+    """Construct a synthetic Double Top event row with explicit pivots."""
+    return {
+        "pattern": Pattern.DOUBLE_TOP,
+        "asset": asset,
+        "direction": Direction.BEARISH,
+        "formation_start": formation_start,
+        "formation_end": breakout_ts,
+        "breakout_ts": breakout_ts,
+        "entry_price": entry,
+        "breakout_price": entry,
+        "target_price": float("nan"),
+        "stop_price": float("nan"),
+        "quality": 75.0,
+        "variant": "STRICT_ADAM_ADAM",
+        "pivots": [
+            {"ts": formation_start, "price": pivot_highs[0], "kind": "HIGH"},
+            {"ts": breakout_ts, "price": pivot_low, "kind": "LOW"},
+            {"ts": breakout_ts, "price": pivot_highs[1], "kind": "HIGH"},
+        ],
+        "meta": {},
+    }
+
+
 def test_pattern_strategy_runs_end_to_end_with_synthetic_events() -> None:
     """PatternStrategy.init + decide should run without error and produce
-    a SimResult. We don't assert on returns — just that the lifecycle
-    completes and at least one trade was placed.
+    a SimResult with at least one trade placed.
     """
     from fundcloud.features.patterns import DoubleBottom
     from fundcloud.sim import Simulator
     from fundcloud.strategies import PatternStrategy
 
-    # Build a longer panel so the detector has room to fire.
     bars = _bars(n=600, asset="ZZZ")
-    strat = PatternStrategy(DoubleBottom(min_quality=0.0), size=0.1)
+    # Stub the indicator so the strategy is fed a deterministic event
+    # rather than relying on the random walk to produce one.
+    fs = bars.index[100]
+    ts = bars.index[200]
+    stub_events = pd.DataFrame(
+        [
+            _double_bottom_event(
+                "ZZZ",
+                ts,
+                fs,
+                entry=float(bars[("close", "ZZZ")].iloc[200]),
+                pivot_lows=(95.0, 95.0),
+                pivot_high=100.0,
+            )
+        ],
+        columns=EVENTS_COLUMNS,
+    )
+    indicator = DoubleBottom(min_quality=0.0)
+    indicator.events = lambda _bars: stub_events  # type: ignore[method-assign]
+
+    strat = PatternStrategy(indicator, size=0.1)
     result = Simulator(bars).run_strategy(strat)
-    # Smoke: equity curve is the bar index length, no NaN in final value.
+
     assert len(result.equity_curve) == len(bars)
     assert np.isfinite(result.equity_curve.iloc[-1])
+    assert len(result.trades) >= 1
 
 
 def test_pattern_strategy_inverse_flips_bearish_to_long() -> None:
-    """With ``inverse=True``, a bearish-only events panel produces non-empty
-    cached entries (since each gets flipped to long)."""
+    """With ``inverse=True``, a bearish events panel produces long entries
+    (each event's sign flips from -1 to +1)."""
     from fundcloud.features.patterns import DoubleTop
     from fundcloud.strategies import PatternStrategy
 
     bars = _bars(n=600, asset="WWW")
-    strat = PatternStrategy(DoubleTop(min_quality=0.0), inverse=True, size=0.1)
+    fs = bars.index[100]
+    ts = bars.index[200]
+    stub_events = pd.DataFrame(
+        [
+            _double_top_event(
+                "WWW",
+                ts,
+                fs,
+                entry=float(bars[("close", "WWW")].iloc[200]),
+                pivot_highs=(105.0, 105.0),
+                pivot_low=100.0,
+            )
+        ],
+        columns=EVENTS_COLUMNS,
+    )
+    indicator = DoubleTop(min_quality=0.0)
+    indicator.events = lambda _bars: stub_events  # type: ignore[method-assign]
+
+    strat = PatternStrategy(indicator, inverse=True, size=0.1)
     strat.init(bars, _NullPortfolio())
-    # Inverse flipping converts bearish events to long entries → cached.
-    if strat._events_by_asset:
-        for recs in strat._events_by_asset.values():
-            assert all(r["sign"] == 1 for r in recs)
+
+    assert strat._events_by_asset, "inverse flip should retain bearish events as longs"
+    for recs in strat._events_by_asset.values():
+        assert recs, "expected at least one cached entry"
+        assert all(r["sign"] == 1 for r in recs)
 
 
 class _NullPortfolio:

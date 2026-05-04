@@ -91,9 +91,14 @@ class PatternStrategy(BaseStrategy):
     # --------------------------------------------------------------- lifecycle
 
     def init(self, bars: pd.DataFrame, portfolio: Portfolio) -> None:
+        # Reset per-run state up front so reusing a strategy instance
+        # across simulations doesn't leak setups or open markers from
+        # the previous run — including when ``events`` comes back empty.
+        self._events_by_asset = {}
+        self._open = {}
+        self._bar_index = bars.index
         events = self.indicator.events(bars)
         if events.empty:
-            self._bar_index = bars.index
             return
         events = apply_condition(events, self.condition, bars)
         for asset, group in events.groupby("asset"):
@@ -119,7 +124,6 @@ class PatternStrategy(BaseStrategy):
                 })
             if recs:
                 self._events_by_asset[str(asset)] = recs
-        self._bar_index = bars.index
 
     def decide(self, ctx: Context) -> list[Order]:
         orders: list[Order] = []

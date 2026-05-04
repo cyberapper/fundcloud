@@ -143,6 +143,15 @@ class PatternIndicator(IndicatorSpec):
             raise NotImplementedError(msg)
         ts_ns = _index_to_ns(index)
         params = _ohlcv_arrays(fields, expected_len=len(index))
+        finite_mask = np.logical_and.reduce([
+            np.isfinite(params[name]) for name in ("open", "high", "low", "close", "volume")
+        ])
+        if not finite_mask.any():
+            return pd.DataFrame(columns=EVENTS_COLUMNS)
+        if not finite_mask.all():
+            index = index[finite_mask]
+            ts_ns = ts_ns[finite_mask]
+            params = {name: arr[finite_mask] for name, arr in params.items()}
         raw = _core.scan_pattern(
             self.pattern_name,
             ts_ns,

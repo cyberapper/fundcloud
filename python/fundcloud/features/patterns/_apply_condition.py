@@ -86,6 +86,30 @@ def _direction_sign(direction: Direction | str) -> int:
     return 0
 
 
+def _pivot_prices(pivots: list[dict[str, Any]], kind: str) -> list[float]:
+    """Extract finite numeric prices for pivots of the given ``kind``.
+
+    Tolerant of malformed entries: missing / non-numeric / non-finite
+    ``price`` values are skipped rather than raised, so a single bad
+    pivot can't abort the whole apply pass.
+    """
+    out: list[float] = []
+    for p in pivots:
+        if p.get("kind") != kind:
+            continue
+        v = p.get("price")
+        if v is None:
+            continue
+        try:
+            price = float(v)
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(price):
+            continue
+        out.append(price)
+    return out
+
+
 def _pattern_height(
     pivots: list[dict[str, Any]],
     entry: float,
@@ -107,12 +131,12 @@ def _pattern_height(
     if not pivots or sign == 0:
         return fallback
     if sign > 0:
-        lows = [float(p["price"]) for p in pivots if p.get("kind") == "LOW"]
+        lows = _pivot_prices(pivots, "LOW")
         if not lows:
             return fallback
         height = entry - min(lows)
     else:
-        highs = [float(p["price"]) for p in pivots if p.get("kind") == "HIGH"]
+        highs = _pivot_prices(pivots, "HIGH")
         if not highs:
             return fallback
         height = max(highs) - entry
@@ -159,9 +183,9 @@ def _resolve_stop(
     """
     if method is StopMethod.BELOW_PIVOT:
         if sign > 0:
-            lows = [float(p["price"]) for p in pivots if p.get("kind") == "LOW"]
+            lows = _pivot_prices(pivots, "LOW")
             return min(lows) if lows else entry - atr_multiple * atr
-        highs = [float(p["price"]) for p in pivots if p.get("kind") == "HIGH"]
+        highs = _pivot_prices(pivots, "HIGH")
         return max(highs) if highs else entry + atr_multiple * atr
     if method is StopMethod.ATR_MULTIPLE:
         return entry - sign * atr_multiple * atr
@@ -249,8 +273,14 @@ def apply_condition(
                 condition.atr_window,
             )
         atr = float(atr_cache[asset][pos])
-        if not np.isfinite(atr) or atr <= 0:
-            atr = 0.0  # later clamps to skip ATR-relative methods
+        atr_valid = np.isfinite(atr) and atr > 0
+        if not atr_valid and (
+            condition.target_method is TargetMethod.FIXED_ATR
+            or condition.stop_method is StopMethod.ATR_MULTIPLE
+        ):
+            targets.append(float("nan"))
+            stops.append(float("nan"))
+            continue
 
         entry_raw = ev.get("breakout_price")
         if entry_raw is None or pd.isna(entry_raw):
@@ -262,8 +292,9 @@ def apply_condition(
         entry = float(entry_raw)
 
         pivots = ev.get("pivots") or []
-        height = _pattern_height(pivots, entry, sign, fallback=max(atr, 0.0))
-        if height <= 0:
+        fallback_height = atr if atr_valid else float("nan")
+        height = _pattern_height(pivots, entry, sign, fallback=fallback_height)
+        if not np.isfinite(height) or height <= 0:
             targets.append(float("nan"))
             stops.append(float("nan"))
             continue

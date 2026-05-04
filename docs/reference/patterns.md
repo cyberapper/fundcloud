@@ -33,7 +33,7 @@ thin Python subclass of `PatternIndicator` registered via
 
 ## Architecture at a glance
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │ Python: fundcloud.features.patterns                             │
 │   PatternIndicator(IndicatorSpec)        ← sklearn fit/transform │
@@ -65,7 +65,7 @@ thin Python subclass of `PatternIndicator` registered via
 
 ## Data flow — bars in, detections out
 
-```
+```text
 1. User: bars (pd.DataFrame, MultiIndex columns (field, asset),
                               DatetimeIndex)
    │
@@ -107,7 +107,7 @@ walks in sequence.
 A bar at index `i` qualifies as a **swing high at order N** when its
 price is `>=` every neighbour within `N` bars on each side:
 
-```
+```text
 x[i] >= x[i-1], x[i-2], ..., x[i-N]
 x[i] >= x[i+1], x[i+2], ..., x[i+N]
 ```
@@ -156,7 +156,7 @@ Per the math above, **the smallest order in `orders` determines the
 pivot count**. Adding larger orders to the tuple does not add or remove
 pivots — they are a strict subset. Concretely:
 
-```
+```text
 pivot_orders=(3,)            → N pivots
 pivot_orders=(3, 5)          → N pivots (identical bars)
 pivot_orders=(3, 5, 8)       → N pivots (identical bars)
@@ -200,7 +200,7 @@ detector to construct necklines, channels, and triangle sides.
 
 For pivots with `(index_i, price_i)`:
 
-```
+```text
 x_mean = mean(index_i)
 y_mean = mean(price_i)
 S_xx   = sum((x_i - x_mean)^2)
@@ -244,7 +244,7 @@ pattern name).
 
 ### Composition
 
-```
+```text
 quality = 30% * symmetry
         + 25% * volume
         + 25% * trendline_r2
@@ -273,7 +273,7 @@ roughly 0.7 starts to look "off"; tight formations score above 90.
 
 Declining volume during the formation is a confirmation signal.
 
-```
+```text
 ratio = mean(volumes[mid:]) / mean(volumes[:mid])
 where mid = len(volumes) // 2
 
@@ -294,7 +294,7 @@ If no trend lines (e.g., a pivot-only detection), returns `50.0`.
 
 Combines duration and trend-line touch count.
 
-```
+```text
 duration_score:
   bar_count < 5         → 0
   5 <= bar_count < 10   → linear ramp 0 → 50
@@ -660,7 +660,7 @@ The shape `(T, 5 × n_assets)` for `T` bars and `n_assets` assets.
 
 ### Output: per-bar signal panel
 
-```
+```python
 signals = indicator.fit_transform(bars)
 ```
 
@@ -683,7 +683,7 @@ consumes, so backtesting is a direct plug-in.
 
 ### Output: events table
 
-```
+```python
 events = indicator.events(bars)
 ```
 

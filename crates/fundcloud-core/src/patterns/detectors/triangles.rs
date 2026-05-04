@@ -70,16 +70,18 @@ fn deduplicate(mut patterns: Vec<Pattern>) -> Vec<Pattern> {
     let mut kept: Vec<Pattern> = Vec::with_capacity(patterns.len());
     for pat in patterns {
         let (a_start, a_end) = pat.formation;
-        let len = a_end.saturating_sub(a_start);
+        let a_len = a_end.saturating_sub(a_start);
         let overlaps = kept.iter().any(|existing| {
             let (b_start, b_end) = existing.formation;
+            let b_len = b_end.saturating_sub(b_start);
             let overlap_start = a_start.max(b_start);
             let overlap_end = a_end.min(b_end);
-            if overlap_end <= overlap_start || len == 0 {
+            let shorter_len = a_len.min(b_len);
+            if overlap_end <= overlap_start || shorter_len == 0 {
                 return false;
             }
             let overlap_len = overlap_end - overlap_start;
-            (overlap_len as f64) / (len as f64) > 0.5
+            (overlap_len as f64) / (shorter_len as f64) > 0.5
         });
         if !overlaps {
             kept.push(pat);

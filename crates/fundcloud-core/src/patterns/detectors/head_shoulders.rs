@@ -376,11 +376,12 @@ mod tests {
             close: &p.close,
             volume: &p.volume,
         };
-        // Right shoulder 30% above left → pct_diff ≈ 0.26 > 0.10 tolerance.
+        // Right shoulder 30% above left, while the head stays highest
+        // → pct_diff ≈ 0.26 > 0.10 tolerance.
         let pivots = vec![
             pivot(10, 100.0, PivotKind::High),
             pivot(15, 92.0, PivotKind::Low),
-            pivot(20, 130.0, PivotKind::High),
+            pivot(20, 140.0, PivotKind::High),
             pivot(25, 92.0, PivotKind::Low),
             pivot(30, 130.0, PivotKind::High),
         ];

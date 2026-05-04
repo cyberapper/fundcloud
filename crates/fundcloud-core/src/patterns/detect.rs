@@ -37,6 +37,7 @@ pub trait PatternDetector: Send + Sync {
 /// Mirrors `prior_trend_slope` in
 /// `pattern_service.detection.patterns.base`.
 pub fn prior_trend_slope(closes: &[f64], formation_start: usize, window: usize) -> f64 {
+    let formation_start = formation_start.min(closes.len());
     let lo = formation_start.saturating_sub(window);
     let n = formation_start - lo;
     if n < 3 {

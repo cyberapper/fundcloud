@@ -547,6 +547,9 @@ def baseline_hit_rate(
       asset" at horizon ``h``.
     * Returns ``np.nan`` if the events table has no usable rows.
     """
+    if horizon <= 0:
+        msg = "horizon must be > 0"
+        raise ValueError(msg)
     if events.empty:
         return float("nan")
     if not isinstance(bars.columns, pd.MultiIndex):
@@ -645,6 +648,9 @@ def evaluate(
         msg = "horizons must be non-empty"
         raise ValueError(msg)
     horizons_sorted = tuple(sorted(set(int(h) for h in horizons)))
+    if any(h <= 0 for h in horizons_sorted):
+        msg = "horizons must contain only positive integers"
+        raise ValueError(msg)
     max_horizon = horizons_sorted[-1]
 
     columns = [
@@ -746,6 +752,9 @@ def quality_buckets(
     if trade_direction not in _TRADE_DIRECTIONS:
         msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
         raise ValueError(msg)
+    if horizon <= 0:
+        msg = "horizon must be > 0"
+        raise ValueError(msg)
     if n_buckets < 2:
         msg = "n_buckets must be >= 2"
         raise ValueError(msg)
@@ -785,20 +794,24 @@ def quality_buckets(
     qualities = qualities[finite]
 
     try:
-        bucket_labels = pd.qcut(
-            qualities,
-            q=n_buckets,
-            labels=[f"Q{i + 1}" for i in range(n_buckets)],
-            duplicates="drop",
-        )
+        bucket_labels = pd.qcut(qualities, q=n_buckets, duplicates="drop")
     except ValueError:
         return empty
 
+    # When ``duplicates="drop"`` collapses tied edges, qcut yields fewer
+    # categories than requested. Re-label the surviving categories (sorted
+    # by Interval, lowest quality first) Q1..Qk so callers always get a
+    # densely-numbered axis.
+    bucket_cat = pd.Categorical(bucket_labels)
+    ordered_cats = list(bucket_cat.categories)
+    n_actual = len(ordered_cats)
+    label_map = {cat: f"Q{i + 1}" for i, cat in enumerate(ordered_cats)}
+    bucket_labels = np.asarray(pd.Series(bucket_cat).map(label_map))
+    actual_index = pd.Index([f"Q{i + 1}" for i in range(n_actual)], name="bucket")
+
     rows: list[dict[str, Any]] = []
-    for label in bucket_index:
+    for label in actual_index:
         mask = bucket_labels == label
-        if not isinstance(mask, np.ndarray):
-            mask = np.asarray(mask)
         bucket_paths = [p for p, m in zip(keep_finite, mask, strict=True) if m]
         if not bucket_paths:
             rows.append({col: np.nan for col in columns} | {"n_events": 0})
@@ -815,7 +828,7 @@ def quality_buckets(
             "mae_atr": avg_mae_atr(bucket_paths, horizon),
         })
 
-    return pd.DataFrame(rows, index=bucket_index)[columns]
+    return pd.DataFrame(rows, index=actual_index)[columns]
 
 
 def per_asset(
@@ -839,6 +852,9 @@ def per_asset(
     """
     if trade_direction not in _TRADE_DIRECTIONS:
         msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
+        raise ValueError(msg)
+    if horizon <= 0:
+        msg = "horizon must be > 0"
         raise ValueError(msg)
 
     columns = [
@@ -903,6 +919,9 @@ def time_stability(
     """
     if trade_direction not in _TRADE_DIRECTIONS:
         msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
+        raise ValueError(msg)
+    if horizon <= 0:
+        msg = "horizon must be > 0"
         raise ValueError(msg)
     if n_folds < 2:
         msg = "n_folds must be >= 2"

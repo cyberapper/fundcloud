@@ -18,7 +18,12 @@ output schemas — see the
 ```python
 import fundcloud  # registers the .fc accessor
 import pandas as pd
-from fundcloud.features.patterns import Pattern, PatternCondition
+from fundcloud.features.patterns import (
+    Pattern,
+    PatternCondition,
+    StopMethod,
+    TargetMethod,
+)
 from fundcloud.metrics import feature_quality as fq
 
 bars = pd.read_parquet("ohlcv.parquet")  # MultiIndex (field, asset) columns

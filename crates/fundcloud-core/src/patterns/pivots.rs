@@ -125,8 +125,9 @@ pub fn multi_level_pivots(
     ts_ns: &[i64],
     orders: &[usize],
 ) -> Vec<Pivot> {
-    debug_assert_eq!(highs.len(), lows.len(), "highs/lows length mismatch");
-    debug_assert_eq!(highs.len(), ts_ns.len(), "highs/ts length mismatch");
+    if highs.len() != lows.len() || highs.len() != ts_ns.len() {
+        return Vec::new();
+    }
     if highs.is_empty() {
         return Vec::new();
     }
@@ -155,8 +156,14 @@ pub fn multi_level_pivots(
         for existing in deduped.iter_mut() {
             if existing.kind == p.kind && (existing.index as isize - p.index as isize).abs() <= 2 {
                 let replace = match p.kind {
-                    PivotKind::High => p.price > existing.price,
-                    PivotKind::Low => p.price < existing.price,
+                    PivotKind::High => {
+                        p.price > existing.price
+                            || (p.price == existing.price && p.order > existing.order)
+                    }
+                    PivotKind::Low => {
+                        p.price < existing.price
+                            || (p.price == existing.price && p.order > existing.order)
+                    }
                 };
                 if replace {
                     *existing = p;
