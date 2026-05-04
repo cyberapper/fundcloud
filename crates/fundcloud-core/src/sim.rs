@@ -9,7 +9,7 @@
 //! Bracket orders
 //! --------------
 //! All three entry points now accept `high` and `low` panels. Per-bar,
-//! before pending fills are drained, [`check_intrabar_exits`] tests every
+//! *after* pending fills drain, [`check_intrabar_exits`] tests every
 //! open position carrying a non-zero [`LiveBook::sl_level`] /
 //! [`LiveBook::tp_level`] / [`LiveBook::tsl_pct`] against the bar's
 //! range. A breach synthesises a forced exit at the stop price (or the
@@ -346,9 +346,11 @@ fn execute_one(
 /// and [`fundcloud.sim.simulator.Simulator._check_intrabar_exits`]
 /// exactly, including the gap-vs-ratchet ordering for trailing stops
 /// and the arbitration rule (stops beat take-profit; between fixed SL
-/// and trailing SL the *tighter fill* wins). Called at the top of each
-/// bar in every `run_*` entry point — before pending fills drain — so
-/// bracket exits beat same-bar discretionary fills.
+/// and trailing SL the *tighter fill* wins). Called once per bar in
+/// every `run_*` entry point *after* pending fills drain, so a
+/// position opened at the bar's open is visible to that bar's bracket
+/// check — a same-bar fill-bar SL/TP/TSL fires when the bar's range
+/// pierces.
 ///
 /// Trailing-stop semantics — two-step ratchet within a single bar:
 ///
@@ -808,8 +810,11 @@ pub fn run_weights(
     let mut pending: Vec<Pending> = Vec::new();
 
     for (i, row_opt) in rebalance_row_at.iter().enumerate() {
-        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
+        // Drain pending fills BEFORE the same-bar bracket check so a
+        // position opened at this bar's open is visible to that check —
+        // matches `Simulator._drive` so all three paths agree.
         drain_pending(&mut pending, i, &open, &close, &mut book, &mut out, &cfg);
+        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
 
         if let Some(r) = row_opt {
             let wrow = target_weights.row(*r);
@@ -893,8 +898,9 @@ pub fn run_orders(
     let mut pending: Vec<Pending> = Vec::new();
 
     for (i, orders_at_bar) in by_bar.iter().enumerate() {
-        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
+        // Drain BEFORE the bracket check (see run_weights for rationale).
         drain_pending(&mut pending, i, &open, &close, &mut book, &mut out, &cfg);
+        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
 
         for &k in orders_at_bar {
             let mut qty = order_qty[k];
@@ -986,8 +992,11 @@ pub fn run_signals(
     let mut pending: Vec<Pending> = Vec::new();
 
     for i in 0..n_bars {
-        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
+        // Drain BEFORE the bracket check (signals path doesn't attach
+        // brackets so the check is a no-op here, but kept consistent
+        // with run_weights / run_orders for parity).
         drain_pending(&mut pending, i, &open, &close, &mut book, &mut out, &cfg);
+        check_intrabar_exits(i, &open, &high, &low, &mut book, &mut out, &cfg);
 
         let close_row = close.row(i);
         // Entries.

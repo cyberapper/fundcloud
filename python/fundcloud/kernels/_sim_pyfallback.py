@@ -275,9 +275,10 @@ def _check_intrabar_exits(
     Mirrors :meth:`fundcloud.sim.simulator.Simulator._check_intrabar_exits`
     exactly, including the gap-vs-ratchet ordering for trailing stops
     and the arbitration rule (stops beat take-profit; between fixed SL
-    and trailing SL the *tighter fill* wins). Called at the top of each
-    bar in every ``run_*_loop``, before pending fills are drained, so
-    bracket exits beat same-bar discretionary fills.
+    and trailing SL the *tighter fill* wins). Called once per bar in
+    every ``run_*_loop`` *after* pending fills drain, so a position
+    opened at the bar's open is visible to that bar's bracket check —
+    a same-bar fill-bar SL/TP/TSL fires when the bar's range pierces.
 
     Trailing-stop semantics — two-step ratchet within a single bar:
 
@@ -600,22 +601,10 @@ def run_weights_loop(
     pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 0. Intra-bar bracket check on positions opened by previous bars.
-        _check_intrabar_exits(
-            i,
-            open_panel[i],
-            high_panel[i],
-            low_panel[i],
-            book,
-            out,
-            cfg.cost_kind,
-            cfg.cost_param1,
-            cfg.cost_param2,
-            cfg.slip_kind,
-            cfg.slip_param1,
-        )
-
-        # 1. Drain pending fills scheduled for this bar.
+        # 0. Drain pending fills scheduled for this bar. Positions opened
+        #    here become visible to the same-bar bracket check below,
+        #    matching ``Simulator._drive``'s ordering — so a fill at bar
+        #    ``i``'s open whose own range pierces the SL fires that bar.
         remaining: list[
             tuple[int, int, int, float, float, int, float, int, float, float, float]
         ] = []
@@ -660,6 +649,23 @@ def run_weights_loop(
                 _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check — runs after pending fills so freshly-
+        #    opened positions can fire same-bar SL/TP/TSL when the bar's
+        #    range pierces the level.
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Produce new orders only on user-specified rebalance bars.
         bar_weights = rebalance_at.get(i)
@@ -757,22 +763,8 @@ def run_orders_loop(
     pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 0. Intra-bar bracket check.
-        _check_intrabar_exits(
-            i,
-            open_panel[i],
-            high_panel[i],
-            low_panel[i],
-            book,
-            out,
-            cfg.cost_kind,
-            cfg.cost_param1,
-            cfg.cost_param2,
-            cfg.slip_kind,
-            cfg.slip_param1,
-        )
-
-        # 1. Drain pending.
+        # 0. Drain pending fills scheduled for this bar (see run_weights_loop
+        #    for the bar-ordering rationale).
         remaining: list[
             tuple[int, int, int, float, float, int, float, int, float, float, float]
         ] = []
@@ -817,6 +809,22 @@ def run_orders_loop(
                 _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check — runs after pending fills so a
+        #    same-bar fill-bar SL/TP/TSL can fire.
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Submit new orders from the explicit log.
         fill_idx = _fill_idx_for(i, n_bars, cfg.exec_kind)
@@ -928,22 +936,10 @@ def run_signals_loop(
     pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 0. Intra-bar bracket check (no-op for signals path).
-        _check_intrabar_exits(
-            i,
-            open_panel[i],
-            high_panel[i],
-            low_panel[i],
-            book,
-            out,
-            cfg.cost_kind,
-            cfg.cost_param1,
-            cfg.cost_param2,
-            cfg.slip_kind,
-            cfg.slip_param1,
-        )
-
-        # 1. Drain pending.
+        # 0. Drain pending fills scheduled for this bar (see run_weights_loop
+        #    for the bar-ordering rationale; signals path doesn't attach
+        #    brackets so the same-bar exit check below is a no-op here, but
+        #    keeping the order matches the other entry points).
         remaining: list[
             tuple[int, int, int, float, float, int, float, int, float, float, float]
         ] = []
@@ -988,6 +984,21 @@ def run_signals_loop(
                 _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check (no-op for signals path).
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Emit entry / exit orders for this bar.
         fill_idx = _fill_idx_for(i, n_bars, cfg.exec_kind)

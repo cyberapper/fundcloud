@@ -387,6 +387,92 @@ def test_parity_run_orders_brackets_stress() -> None:
     _assert_simresult_equal(r_rust, r_py)
 
 
+def _same_bar_sl_bars() -> pd.DataFrame:
+    """OHLC sequence engineered so the bar an order *fills* on has its
+    own low pierce a 10 % stop-loss anchored at that bar's open.
+
+    Bar 0 is the order timestamp; bar 1 is the fill bar (NextBarOpen)
+    with open=100, low=85 -> SL=90 pierced. Subsequent bars stay quiet
+    so the only candidate exit is the fill bar itself.
+    """
+    rows = [
+        (100.0, 102.0, 99.0, 100.0),  # 0: order ts
+        (100.0, 101.0, 85.0, 95.0),  # 1: fill @ open=100; low=85 pierces SL=90
+        (95.0, 96.0, 94.0, 95.0),
+        (95.0, 96.0, 94.0, 95.0),
+    ]
+    n = len(rows)
+    idx = pd.date_range("2024-01-02", periods=n, freq="D")
+    cols = pd.MultiIndex.from_tuples([
+        ("open", "BTC"),
+        ("high", "BTC"),
+        ("low", "BTC"),
+        ("close", "BTC"),
+        ("volume", "BTC"),
+    ])
+    return pd.DataFrame(
+        {
+            ("open", "BTC"): [r[0] for r in rows],
+            ("high", "BTC"): [r[1] for r in rows],
+            ("low", "BTC"): [r[2] for r in rows],
+            ("close", "BTC"): [r[3] for r in rows],
+            ("volume", "BTC"): [1.0] * n,
+        },
+        index=idx,
+        columns=cols,
+    )
+
+
+class _CustomNoCost:
+    """Duck-typed CostModel that bypasses the fast-path tag dispatch.
+
+    ``_model_tags`` returns ``None`` whenever any model isn't an exact
+    built-in instance, so passing this routes ``run_orders`` through
+    the slow ``Simulator._drive`` path.
+    """
+
+    def fee(self, *, price: float, qty: float) -> float:
+        return 0.0
+
+
+def test_parity_run_orders_same_bar_sl_fires_in_all_three_paths() -> None:
+    """Same-bar fill-bar stop-loss fires in fast Rust, fast Python
+    fallback, and slow ``Simulator._drive``. Regression for the
+    bar-ordering invariant: ``drain_pending`` runs before
+    ``check_intrabar_exits`` so a position opened at bar ``i`` is
+    visible to that bar's bracket check.
+    """
+    bars = _same_bar_sl_bars()
+    orders = pd.DataFrame([
+        {
+            "ts": bars.index[0],
+            "asset": "BTC",
+            "side": "buy",
+            "qty": 10.0,
+            "sl_stop": 0.10,
+        },
+    ])
+    fast_kwargs = dict(
+        cash=100_000.0, costs=NoCost(), slippage=NoSlippage(), execution=NextBarOpen()
+    )
+    slow_kwargs = dict(
+        cash=100_000.0, costs=_CustomNoCost(), slippage=NoSlippage(), execution=NextBarOpen()
+    )
+    r_rust = _with_backend(bars, ("run_orders", orders), rust=True, **fast_kwargs)
+    r_py = _with_backend(bars, ("run_orders", orders), rust=False, **fast_kwargs)
+    r_slow = Simulator(bars, **slow_kwargs).run_orders(orders)  # type: ignore[arg-type]
+
+    _assert_simresult_equal(r_rust, r_py)
+    _assert_simresult_equal(r_rust, r_slow)
+    # All three must record exactly one stop-loss fire on the fill bar.
+    for label, result in (("rust", r_rust), ("fallback", r_py), ("drive", r_slow)):
+        sl_rows = result.trades[result.trades["reason"] == "stop_loss"]
+        assert len(sl_rows) == 1, f"{label}: expected 1 SL fire, got {len(sl_rows)}"
+        assert sl_rows.iloc[0]["ts"] == bars.index[1], (
+            f"{label}: SL must fire on the fill bar (bar 1), got {sl_rows.iloc[0]['ts']}"
+        )
+
+
 def test_parity_run_signals_unchanged_without_brackets() -> None:
     """Regression: run_signals (no bracket API) still parity-matches."""
     bars = _synthetic_bars(n_bars=80, n_assets=2, seed=7)
