@@ -72,7 +72,12 @@ jobs:
       - name: uv sync
         run: uv sync --group dev --python "$PY_VERSION"
       - name: Run tests
-        run: uv run pytest -ra -m "not network"
+        # Exclude `docker`-marked tests — they spin up ephemeral
+        # service containers and only run on Linux in the dedicated
+        # `docker-tests` job below. Including them on Windows / macOS
+        # runners (where Docker isn't available with the right socket
+        # mount) makes them error out at collection time.
+        run: uv run pytest -ra -m "not network and not docker"
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v6

@@ -111,12 +111,15 @@ class _OneShotEntry(BaseStrategy):
 
 
 def _run(bars: pd.DataFrame, strat: BaseStrategy, **kwargs: object) -> SimResult:
+    cash = kwargs.pop("cash", 100_000.0)
+    costs = kwargs.pop("costs", NoCost())
+    slippage = kwargs.pop("slippage", NoSlippage())
+    execution = kwargs.pop("execution", NextBarOpen())
+    if kwargs:
+        # Surface typos like ``slippge=`` instead of swallowing them silently.
+        raise TypeError(f"_run got unexpected keyword arguments: {sorted(kwargs)}")
     return Simulator(
-        bars,
-        cash=kwargs.pop("cash", 100_000.0),
-        costs=kwargs.pop("costs", NoCost()),
-        slippage=kwargs.pop("slippage", NoSlippage()),
-        execution=kwargs.pop("execution", NextBarOpen()),
+        bars, cash=cash, costs=costs, slippage=slippage, execution=execution
     ).run_strategy(strat)
 
 

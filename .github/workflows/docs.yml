@@ -98,6 +98,16 @@ jobs:
       - name: Install (dev group)
         run: uv sync --group dev
 
+      - name: Strict build gate
+        # Re-run `mkdocs build --strict` here so workflow_dispatch and
+        # tag pushes can't bypass strict validation. The build job is
+        # skipped on tag pushes (the just-prior main-push build already
+        # gated the SHA), and `needs: [build]` would propagate that
+        # skip and block the deploy. Running strict again is the
+        # cheapest way to guarantee both deploy paths fail loudly on a
+        # broken nav / dead snippet.
+        run: uv run mkdocs build --strict --clean
+
       - name: Configure git for mike
         run: |
           git config user.name  "fundcloud-docs-bot"

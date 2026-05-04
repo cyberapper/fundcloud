@@ -259,12 +259,13 @@ def test_execute_resolves_qty_from_notional(panel: pd.DataFrame) -> None:
     assert fill.qty > 0
 
 
-def test_execute_skips_negative_qty(panel: pd.DataFrame) -> None:
-    """`Order.qty` rejects 0 in __post_init__, but negative values flow
-    through to `_execute` where the `<= 0` guard returns None."""
-    sim = Simulator(panel, costs=_CustomCost(), execution=_CustomExecution(), cash=100_000)
-    order = Order(ts=panel.index[3], asset="A", side="buy", qty=-1.0)
-    assert sim._execute(order, fill_idx=3) is None
+def test_order_rejects_negative_qty_at_construction(panel: pd.DataFrame) -> None:
+    """``Order.qty`` is unsigned — direction comes from ``side``. Negative
+    values are rejected at construction time so they can't silently flow
+    into ``_execute`` and flip the trade's sign."""
+    del panel  # only here for the parametrised fixture symmetry
+    with pytest.raises(ValueError, match="qty must be positive"):
+        Order(ts=pd.Timestamp("2024-01-04"), asset="A", side="buy", qty=-1.0)
 
 
 # --------------------------------------------------------------------- pending queue

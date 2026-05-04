@@ -18,8 +18,25 @@ def test_order_requires_qty_or_notional() -> None:
 
 
 def test_order_rejects_zero_qty() -> None:
-    with pytest.raises(ValueError, match="non-zero"):
+    with pytest.raises(ValueError, match="must be positive"):
         Order(ts=_ts(), asset="A", side="buy", qty=0.0)
+
+
+def test_order_rejects_negative_qty() -> None:
+    """Direction comes from `side` — a negative qty would silently flip
+    the trade's sign at fill time, so the constructor must reject it."""
+    with pytest.raises(ValueError, match="qty must be positive"):
+        Order(ts=_ts(), asset="A", side="buy", qty=-10.0)
+
+
+def test_order_rejects_negative_notional() -> None:
+    with pytest.raises(ValueError, match="notional must be positive"):
+        Order(ts=_ts(), asset="A", side="buy", notional=-1000.0)
+
+
+def test_order_rejects_zero_notional() -> None:
+    with pytest.raises(ValueError, match="notional must be positive"):
+        Order(ts=_ts(), asset="A", side="buy", notional=0.0)
 
 
 def test_order_limit_requires_limit_price() -> None:

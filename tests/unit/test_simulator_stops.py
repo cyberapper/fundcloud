@@ -28,6 +28,7 @@ from fundcloud.sim import (
     Order,
     SimResult,
     Simulator,
+    Trade,
 )
 from fundcloud.strategies import BaseStrategy, Context
 
@@ -98,12 +99,15 @@ class _OneShotEntry(BaseStrategy):
 
 
 def _run(bars: pd.DataFrame, strat: BaseStrategy, **kwargs: object) -> SimResult:
+    cash = kwargs.pop("cash", 100_000.0)
+    costs = kwargs.pop("costs", NoCost())
+    slippage = kwargs.pop("slippage", NoSlippage())
+    execution = kwargs.pop("execution", NextBarOpen())
+    if kwargs:
+        # Surface typos like ``slippge=`` instead of swallowing them silently.
+        raise TypeError(f"_run got unexpected keyword arguments: {sorted(kwargs)}")
     return Simulator(
-        bars,
-        cash=kwargs.pop("cash", 100_000.0),
-        costs=kwargs.pop("costs", NoCost()),
-        slippage=kwargs.pop("slippage", NoSlippage()),
-        execution=kwargs.pop("execution", NextBarOpen()),
+        bars, cash=cash, costs=costs, slippage=slippage, execution=execution
     ).run_strategy(strat)
 
 
@@ -408,7 +412,15 @@ def test_iron_law_no_stop_means_no_trade_reason_column_diversity() -> None:
 
 
 def test_sl_check_handles_nan_high_low() -> None:
-    """A bar with NaN high/low (mixed-frequency panel) doesn't crash the stop check."""
+    """A bar with NaN high/low must skip the stop check rather than crash.
+
+    The Simulator's ``_resolve_bars`` forward-fills price columns at
+    construction time, so a "natural" NaN bar gets papered over before
+    the stop check ever sees it. To exercise the ``np.isfinite`` guard
+    inside ``_check_intrabar_exits`` directly, we construct the Simulator
+    normally, then *re-introduce* NaNs into the resolved bars frame and
+    call the helper by hand on the NaN bar.
+    """
     asset = "BTC"
     idx = pd.date_range("2024-01-02", periods=4, freq="1D")
     cols = pd.MultiIndex.from_tuples([
@@ -420,19 +432,36 @@ def test_sl_check_handles_nan_high_low() -> None:
     ])
     df = pd.DataFrame(
         {
-            ("open", asset): [100, 100, np.nan, 95],
-            ("high", asset): [102, 101, np.nan, 98],
-            ("low", asset): [99, 99, np.nan, 92],
-            ("close", asset): [100, 100, np.nan, 96],
+            ("open", asset): [100.0, 100.0, 100.0, 95.0],
+            ("high", asset): [102.0, 101.0, 102.0, 98.0],
+            ("low", asset): [99.0, 99.0, 99.0, 92.0],
+            ("close", asset): [100.0, 100.0, 100.0, 96.0],
             ("volume", asset): [1.0, 1.0, 0.0, 1.0],
         },
         index=idx,
         columns=cols,
     )
+    # Smoke-test: full strategy run still works (forward-fill keeps things sane).
     strat = _OneShotEntry(asset=asset, side="buy", qty=10.0, sl_stop=0.10)
-    # Should run without raising. The NaN bar is forward-filled by the
-    # simulator's price ffill, but high/low are NOT among the ffilled
-    # fields if the test bypasses that — the stop check just skips bars
-    # where any of open/high/low is non-finite.
-    result = _run(df, strat)
-    assert result is not None
+    assert _run(df, strat) is not None
+
+    # Direct exercise of the NaN-skip branch — bypass forward-fill by
+    # constructing the Simulator, then patching the bars frame to put
+    # NaN back into bar 2 and calling the per-bar exit check by hand
+    # with a position that carries an SL.
+    sim = Simulator(df, cash=100_000.0, costs=NoCost(), slippage=NoSlippage())
+    nan_ts = sim.bars.index[2]
+    for field in ("open", "high", "low", "close"):
+        sim.bars.loc[nan_ts, (field, asset)] = np.nan
+
+    pf = sim._new_portfolio()
+    entry_order = Order(ts=idx[0], asset=asset, side="buy", qty=10.0, sl_stop=0.10)
+    pf.apply(Trade(order=entry_order, ts=idx[0], asset=asset, qty=10.0, price=100.0, fee=0.0))
+    assert pf.position(asset).sl_level == pytest.approx(90.0)
+
+    trades_rows: list[dict[str, object]] = []
+    # Should be a no-op (NaN bar) — no fire, no crash.
+    sim._check_intrabar_exits(2, idx[2], pf, trades_rows)
+    assert trades_rows == []
+    assert pf.position(asset).qty == pytest.approx(10.0)
+    assert pf.position(asset).sl_level == pytest.approx(90.0)

@@ -151,8 +151,13 @@ class Order:
             raise ValueError("Order needs qty or notional")
         if self.kind == "limit" and self.limit_price is None:
             raise ValueError("limit order requires limit_price")
-        if self.qty is not None and self.qty == 0:
-            raise ValueError("Order qty must be non-zero")
+        # ``qty`` and ``notional`` are unsigned magnitudes — direction
+        # comes from :attr:`side`. A negative value here would silently
+        # flip the trade's sign at fill time, so reject it at construction.
+        if self.qty is not None and self.qty <= 0:
+            raise ValueError(f"Order qty must be positive; got {self.qty!r}")
+        if self.notional is not None and self.notional <= 0:
+            raise ValueError(f"Order notional must be positive; got {self.notional!r}")
         if self.sl_stop is not None and not (0.0 < self.sl_stop < 1.0):
             raise ValueError(f"sl_stop must be a fraction in (0, 1); got {self.sl_stop!r}")
         if self.tp_stop is not None and self.tp_stop <= 0.0:

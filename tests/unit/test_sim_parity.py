@@ -84,6 +84,11 @@ def _assert_simresult_equal(a, b, *, atol: float = 1e-10) -> None:
         np.testing.assert_allclose(
             a.trades["fee"].to_numpy(), b.trades["fee"].to_numpy(), atol=atol, rtol=0
         )
+        # `reason` is a string column ("signal" / "stop_loss" / etc.) — guard
+        # against silent regressions where a fill flips its reason tag.
+        assert list(a.trades["reason"]) == list(b.trades["reason"]), (
+            "trade reason sequence differs between Rust and fallback"
+        )
     # Orders (row count only — some rounding in limit/notional representation
     # is expected, but the trade outputs above are the functional invariant).
     assert len(a.orders) == len(b.orders)
@@ -92,18 +97,28 @@ def _assert_simresult_equal(a, b, *, atol: float = 1e-10) -> None:
 def _with_backend(bars, strategy_args, *, rust: bool, **sim_kwargs):
     """Temporarily toggle the Rust backend when running a Simulator call.
 
-    Wraps ``fundcloud.kernels._sim._have_rust_sim`` to force either path.
+    Wraps the dispatcher's three capability probes (``_have_rust_sim``,
+    ``_rust_supports_brackets``, ``_rust_supports_tsl_brackets``) so the
+    requested backend is actually exercised. Without patching all three,
+    a bracket-bearing test would otherwise quietly fall through to the
+    Python fallback even when ``rust=True`` was requested.
     """
     from fundcloud.kernels import _sim as _dispatcher
 
-    orig = _dispatcher._have_rust_sim
+    orig_have = _dispatcher._have_rust_sim
+    orig_brackets = _dispatcher._rust_supports_brackets
+    orig_tsl = _dispatcher._rust_supports_tsl_brackets
     _dispatcher._have_rust_sim = lambda: rust
+    _dispatcher._rust_supports_brackets = lambda: rust
+    _dispatcher._rust_supports_tsl_brackets = lambda: rust
     try:
         sim = Simulator(bars, **sim_kwargs)
         fn_name, *args = strategy_args
         return getattr(sim, fn_name)(*args)
     finally:
-        _dispatcher._have_rust_sim = orig
+        _dispatcher._have_rust_sim = orig_have
+        _dispatcher._rust_supports_brackets = orig_brackets
+        _dispatcher._rust_supports_tsl_brackets = orig_tsl
 
 
 # ------------------------------------------------------------------ weights

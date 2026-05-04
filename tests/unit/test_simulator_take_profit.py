@@ -140,12 +140,15 @@ class _OpenShortViaSell(BaseStrategy):
 
 
 def _run(bars: pd.DataFrame, strat: BaseStrategy, **kwargs: object) -> SimResult:
+    cash = kwargs.pop("cash", 100_000.0)
+    costs = kwargs.pop("costs", NoCost())
+    slippage = kwargs.pop("slippage", NoSlippage())
+    execution = kwargs.pop("execution", NextBarOpen())
+    if kwargs:
+        # Surface typos like ``slippge=`` instead of swallowing them silently.
+        raise TypeError(f"_run got unexpected keyword arguments: {sorted(kwargs)}")
     return Simulator(
-        bars,
-        cash=kwargs.pop("cash", 100_000.0),
-        costs=kwargs.pop("costs", NoCost()),
-        slippage=kwargs.pop("slippage", NoSlippage()),
-        execution=kwargs.pop("execution", NextBarOpen()),
+        bars, cash=cash, costs=costs, slippage=slippage, execution=execution
     ).run_strategy(strat)
 
 
@@ -609,4 +612,9 @@ def test_strategy_sees_flat_position_on_bar_after_tp_fire() -> None:
     _run(bars, strat)
     # bar 0: flat (about to enter), bar 1: still flat (entry queued for fill at 1's
     # open), bar 2: long (entry filled), bar 3: flat (TP exited).
+    # Validate the FULL timeline — not just the final bar — so the test fails
+    # if the position never opened (which would also satisfy "final qty == 0").
+    assert any(q > 0 for q in seen_qty[:-1]), (
+        f"expected at least one bar with a long position before TP fire; got {seen_qty}"
+    )
     assert seen_qty[-1] == pytest.approx(0.0)
