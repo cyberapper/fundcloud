@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from fundcloud.sim import Simulator
+from fundcloud.sim import NoCost, Simulator
 from fundcloud.strategies import DCA
 
 
@@ -20,6 +20,30 @@ def panel() -> pd.DataFrame:
         ("low", "A"): close_a - 1,
         ("close", "A"): close_a,
         ("volume", "A"): 1_000_000.0,
+    }
+    df = pd.DataFrame(cols, index=idx)
+    df.columns = pd.MultiIndex.from_tuples(df.columns)
+    return df
+
+
+@pytest.fixture
+def two_asset_panel() -> pd.DataFrame:
+    """Two-asset OHLCV panel with stable round-number prices so dollar-to-
+    qty arithmetic is easy to assert on (A trades around 100, B around 50).
+    """
+    idx = pd.DatetimeIndex(pd.date_range("2024-01-01", periods=30, freq="B").values)
+    n = len(idx)
+    cols = {
+        ("open", "A"): np.full(n, 100.0),
+        ("high", "A"): np.full(n, 100.5),
+        ("low", "A"): np.full(n, 99.5),
+        ("close", "A"): np.full(n, 100.0),
+        ("volume", "A"): np.full(n, 1_000_000.0),
+        ("open", "B"): np.full(n, 50.0),
+        ("high", "B"): np.full(n, 50.5),
+        ("low", "B"): np.full(n, 49.5),
+        ("close", "B"): np.full(n, 50.0),
+        ("volume", "B"): np.full(n, 1_000_000.0),
     }
     df = pd.DataFrame(cols, index=idx)
     df.columns = pd.MultiIndex.from_tuples(df.columns)
@@ -106,6 +130,92 @@ def test_dca_accepts_negative_weights_for_short_selling() -> None:
     # Should construct without raising.
     DCA(amount=1000, weights={"A": -0.5, "B": 1.5}, horizon="weekly")
     DCA(amount=1000, weights={"A": 1.5, "B": -0.5}, horizon="weekly")
+
+
+# ------------------------------------------------------- long-short execution
+
+
+def test_dca_long_short_scalar_weights_emit_both_legs(two_asset_panel: pd.DataFrame) -> None:
+    """``weights={"A": 1.5, "B": -0.5}`` with ``amount=$1000`` per fire
+    must emit both a $1500 buy on A *and* a $500 short on B — not
+    silently drop the negative leg as the pre-fix code did.
+    """
+    sim = Simulator(two_asset_panel, cash=100_000, costs=NoCost())
+    result = sim.run_strategy(DCA(amount=1_000, weights={"A": 1.5, "B": -0.5}, horizon="daily"))
+    # Every fire emits two trades; first fire we can read directly.
+    first_a = result.trades[result.trades["asset"] == "A"].iloc[0]
+    first_b = result.trades[result.trades["asset"] == "B"].iloc[0]
+    # Long A: positive qty, ~ $1500 / $100 = 15 shares.
+    assert first_a["qty"] > 0
+    assert first_a["qty"] == pytest.approx(15.0, rel=0.01)
+    # Short B: negative qty, ~ $500 / $50 = 10 shares (sold).
+    assert first_b["qty"] < 0
+    assert abs(first_b["qty"]) == pytest.approx(10.0, rel=0.01)
+
+
+def test_dca_long_short_per_asset_amount_mapping(two_asset_panel: pd.DataFrame) -> None:
+    """Per-asset ``amount`` mapping with a negative entry: a short on
+    that asset, in dollar terms equal to ``abs(amount[asset])``.
+    """
+    sim = Simulator(two_asset_panel, cash=100_000, costs=NoCost())
+    result = sim.run_strategy(
+        DCA(amount={"A": 100.0, "B": -50.0}, horizon="daily"),
+    )
+    first_a = result.trades[result.trades["asset"] == "A"].iloc[0]
+    first_b = result.trades[result.trades["asset"] == "B"].iloc[0]
+    # Long $100 / $100 = 1 share.
+    assert first_a["qty"] > 0
+    assert first_a["qty"] == pytest.approx(1.0, rel=0.01)
+    # Short $50 / $50 = 1 share sold.
+    assert first_b["qty"] < 0
+    assert abs(first_b["qty"]) == pytest.approx(1.0, rel=0.01)
+
+
+def test_dca_long_short_short_proceeds_fund_larger_long(
+    two_asset_panel: pd.DataFrame,
+) -> None:
+    """Short proceeds must be available to fund the long leg in the
+    same fire — process shorts first. Otherwise a long leg requesting
+    more than starting cash would be clipped, leaving the user with
+    less long exposure than the weights specified.
+
+    Setup: starting cash $1000, fire wants long A $1500, short B $500.
+    Net deposit = $1000 (matches cash). With short-first ordering the
+    long should get the full 15 shares; with long-first it gets clipped
+    to 10 shares.
+    """
+    sim = Simulator(two_asset_panel, cash=1_000, costs=NoCost())
+    result = sim.run_strategy(
+        DCA(amount=1_000, weights={"A": 1.5, "B": -0.5}, horizon="daily"),
+    )
+    first_a = result.trades[result.trades["asset"] == "A"].iloc[0]
+    assert first_a["qty"] == pytest.approx(15.0, rel=0.01)
+
+
+def test_dca_sell_on_end_covers_shorts(two_asset_panel: pd.DataFrame) -> None:
+    """``sell_on_end=True`` flattens *every* open position at the end —
+    including shorts (buy-to-cover). The pre-fix ``_close_all`` only
+    sold longs, so shorts were left open after the run finished.
+    """
+    sim = Simulator(two_asset_panel, cash=100_000, costs=NoCost())
+    end_ts = two_asset_panel.index[2]
+    result = sim.run_strategy(
+        DCA(
+            amount=1_000,
+            weights={"A": 1.5, "B": -0.5},
+            horizon="daily",
+            end=end_ts,
+            sell_on_end=True,
+        ),
+    )
+    # The closeout fire must produce a positive-qty trade on B (buy-to-cover).
+    # Pre-fix `_close_all` only emitted sells on long positions, leaving the
+    # short on B open after the run finished.
+    b_buys = result.trades[(result.trades["asset"] == "B") & (result.trades["qty"] > 0)]
+    assert len(b_buys) >= 1, "expected a buy-to-cover trade on B"
+    # Net traded quantity on B sums to zero — opens cancel covers.
+    net_b = float(result.trades[result.trades["asset"] == "B"]["qty"].sum())
+    assert net_b == pytest.approx(0.0, abs=1e-9)
 
 
 def test_dca_scalar_amount_defaults_to_equal_weights() -> None:

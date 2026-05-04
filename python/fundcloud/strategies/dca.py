@@ -54,7 +54,11 @@ class DCA(BaseStrategy):
         Optional. When omitted with a scalar ``amount`` / ``amount_pct``,
         DCA spreads the deposit equally across every asset in the
         ``bars`` frame at :meth:`init`. Provide an explicit mapping
-        (fractions summing to 1) to weight the split unevenly.
+        (fractions summing to 1) to weight the split unevenly. Negative
+        weights are allowed and produce short-sells: e.g.
+        ``weights={"A": 1.5, "B": -0.5}`` says long A by 1.5x the
+        deposit and short B by 0.5x — the short proceeds fund the
+        oversized long, and net deployed cash equals the deposit.
     start, end
         Optional window inside which DCA fires.
     sell_on_end
@@ -203,32 +207,44 @@ class DCA(BaseStrategy):
         else:
             deposits = self._amounts
 
-        # Clip total deployment to live cash so DCA never borrows. Decrement
-        # a running counter as we allocate per asset — multi-asset fires share
-        # remaining cash in iteration order rather than letting the first leg
-        # consume everything. The next-bar fill price differs slightly from
-        # the close price used here, so cash may dip marginally negative for
-        # a single bar from fees / slippage; this avoids the unbounded
-        # leverage that occurs without the clip.
+        # Split legs by sign: negative dollar deposits are short-sells; the
+        # proceeds add to live cash and can fund larger long legs in the
+        # same fire. Process shorts first so a long-short setup like
+        # ``weights={"A": 1.5, "B": -0.5}`` with a $1000 deposit gets the
+        # full $1500 long on A (funded by $1000 starting cash + $500
+        # from the B short) rather than clipping the long to cash on hand.
+        short_legs = [(a, -float(d)) for a, d in deposits.items() if float(d) < 0]
+        long_legs = [(a, float(d)) for a, d in deposits.items() if float(d) > 0]
+
         cash_left = float(ctx.portfolio.cash)
         orders: list[Order] = []
-        for asset, dollars in deposits.items():
+
+        # 1. Shorts first — proceeds add to the cash counter.
+        for asset, dollars in short_legs:
+            if asset not in prices or prices[asset] <= 0:
+                continue
+            qty = dollars / prices[asset]
+            if qty <= 0:
+                continue
+            orders.append(Order(ts=ctx.ts, asset=asset, side="sell", qty=qty))
+            cash_left += dollars
+
+        # 2. Longs — clipped to live cash so DCA never deploys more *net*
+        # cash than is available. Multi-leg longs share remaining cash in
+        # iteration order. The next-bar fill price differs slightly from
+        # the close price used here, so cash may dip marginally negative
+        # for a single bar from fees / slippage; this avoids the unbounded
+        # leverage that occurs without the clip.
+        for asset, dollars in long_legs:
             if cash_left <= 0:
                 break
             if asset not in prices or prices[asset] <= 0:
                 continue
-            funded = min(float(dollars), cash_left)
+            funded = min(dollars, cash_left)
             qty = funded / prices[asset]
             if qty <= 0:
                 continue
-            orders.append(
-                Order(
-                    ts=ctx.ts,
-                    asset=asset,
-                    side="buy",
-                    qty=qty,
-                )
-            )
+            orders.append(Order(ts=ctx.ts, asset=asset, side="buy", qty=qty))
             cash_left -= funded
         return orders
 
@@ -238,10 +254,10 @@ class DCA(BaseStrategy):
 
 def _validate_weights_sum_to_one(weights: Mapping[str, float]) -> None:
     # Reject NaN / Inf per-weight before summing — those would otherwise
-    # poison the total (NaN sum ≠ 1) with a confusing message, and
+    # poison the total (NaN sum != 1) with a confusing message, and
     # propagate into ``Order.qty`` downstream. Negative weights are
-    # **allowed** (they represent short positions in a long-short setup),
-    # so we don't bound the per-weight value — only the net sum matters.
+    # **allowed**: they emit short-sells in :meth:`DCA.decide` (proceeds
+    # add to cash and fund the long legs); only the net sum is bounded.
     bad = {k: v for k, v in weights.items() if not math.isfinite(float(v))}
     if bad:
         msg = f"DCA weights must be finite numbers, got {bad}"
@@ -268,10 +284,12 @@ def _validate_amount_pct_values(amount_pct: float | Mapping[str, float]) -> None
 
 
 def _close_all(ctx: Context) -> list[Order]:
-    """Produce sell orders for every currently open position."""
+    """Flatten every open position — sell longs, buy-to-cover shorts."""
     orders: list[Order] = []
     # pylint: disable=protected-access
     for asset, pos in ctx.portfolio._live.positions.items():
         if pos.qty > 0:
             orders.append(Order(ts=ctx.ts, asset=asset, side="sell", qty=pos.qty))
+        elif pos.qty < 0:
+            orders.append(Order(ts=ctx.ts, asset=asset, side="buy", qty=abs(pos.qty)))
     return orders
