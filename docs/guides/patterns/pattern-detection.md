@@ -107,6 +107,8 @@ reversal.
 ### 4. Backtest — turn it into a strategy
 
 ```python
+from fundcloud.features.patterns import StopMethod, TargetMethod
+
 condition = PatternCondition(
     target_method=TargetMethod.MEASURED_MOVE,
     stop_method=StopMethod.BELOW_PIVOT,
@@ -136,6 +138,68 @@ Three sizing knobs that move performance in our experience:
 - **`size`** — fraction-of-equity per trade. `0.1` is a reasonable
   starting point; the tradeable strategy needs concurrent positions to
   smooth out single-trade variance.
+
+## Visualize what was detected
+
+Numbers tell you whether a feature has edge; charts tell you whether
+the detector is finding the *thing you have in your head*. Three views,
+one accessor each.
+
+### Single detection — the textbook M / W view
+
+```python
+events = bars.fc.pattern_events(Pattern.DOUBLE_TOP, min_quality=70)
+fig = bars.fc.plot_pattern_event(events.iloc[0])  # padding=20, horizon=20
+fig.write_html("double_top_detail.html")
+```
+
+Renders one event with: the formation shape (pivots connected by a
+polyline), the neckline / target / stop levels, the formation window
+shaded, and a vertical marker at `breakout_ts + horizon`. This is the
+view that matches the textbook double-top picture — single M with the
+breakdown line drawn in.
+
+### Every detection of one pattern on one asset
+
+```python
+events = bars.fc.pattern_events(Pattern.HEAD_AND_SHOULDERS)
+events = events[events["asset"] == "SPY"]
+fig = bars.fc.plot_patterns(Pattern.HEAD_AND_SHOULDERS, asset="SPY")
+```
+
+One asset, one pattern, every detection drawn with its formation shape.
+Use this to spot clustering ("how many H&Ss has this name printed in
+the last year?") and regime shifts.
+
+### Everything on one ticker
+
+```python
+fig = bars.fc.plot_asset_patterns("AAPL", min_quality=50)
+fig.write_html("aapl_all_patterns.html")
+```
+
+Single candlestick chart, every pattern overlaid in its own colour,
+legend toggle per pattern. The "what's been happening on AAPL?" view.
+
+A note on what you'll see: the default `pivot_orders=(3, 5, 8)` runs
+detection at **three pivot scales** simultaneously, and the sliding
+3-pivot windows over the merged pivot list can produce overlapping
+detections that share endpoints. On a busy ticker, the polylines stitch
+together into a zigzag rather than discrete Ms / Ws — that's expected.
+To see clean individual formations, use `plot_pattern_event` (above) or
+narrow the scope:
+
+```python
+# Single pattern, one scale, high-quality only — clean Ms / Ws
+fig = bars.fc.plot_asset_patterns(
+    "AAPL", patterns=[Pattern.DOUBLE_TOP], min_quality=80,
+)
+```
+
+For a runnable end-to-end gallery (top-quality detection per pattern,
+per-asset overviews, all-patterns charts for QQQ + SPY + Mag7) see
+[`examples/35_pattern_visualization.py`](https://github.com/cyberapper/fundcloud/blob/main/examples/35_pattern_visualization.py).
+HTML files land in `examples/out/charts/` and open in any browser.
 
 ## Inverse-direction trading: fading the pattern
 
@@ -218,3 +282,28 @@ the asymmetric side.
 For full metric definitions, edge cases, and the design tradeoffs
 behind each one, see the
 [Chart Patterns reference](../../reference/patterns.md).
+
+## Run the examples
+
+Five runnable scripts mirror this guide end-to-end. Run them in order
+the first time — example 32 caches the OHLCV parquet that 33 / 34 / 35
+read from.
+
+| Script | What it produces |
+|---|---|
+| `examples/31_head_and_shoulders_detection.py` | API tour on synthetic SPY data — `fit_transform`, events table, `SignalMode` swap, `PatternCondition.override`, `min_quality`, `FeaturePipeline` composition |
+| `examples/32_pattern_scan_real_data.py` | Downloads QQQ + SPY + Mag7 daily history via `yfinance`, caches `examples/out/pattern_scan_bars.parquet` |
+| `examples/33_pattern_strategy_backtest.py` | `evaluate_pattern`, `trade_direction='inverse'`, `quality_buckets`, `apply_condition`, full `run_pattern` backtest |
+| `examples/34_pattern_leaderboard.py` | Cross-asset × pattern × direction leaderboard with a "tradeable" filter |
+| `examples/35_pattern_visualization.py` | HTML chart gallery in `examples/out/charts/` (per-pattern, per-asset, all-patterns) |
+
+```bash
+uv run python examples/31_head_and_shoulders_detection.py
+uv run python examples/32_pattern_scan_real_data.py    # generates the parquet
+uv run python examples/33_pattern_strategy_backtest.py
+uv run python examples/34_pattern_leaderboard.py
+uv run python examples/35_pattern_visualization.py
+```
+
+`32` accepts `--refresh`, `--min-quality`, `--tickers`, `--start` flags
+if you want to override the cached universe.
