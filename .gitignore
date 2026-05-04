@@ -12,6 +12,8 @@ wheels/
 .venv/
 venv/
 .env
+# Variants like `.temp.env`, `.local.env` etc. — keep all dotted env files out.
+.*.env
 .python-version
 
 # Rust
@@ -53,3 +55,7 @@ tests/integration/out/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Local strategy / scratch development (not committed)
+local/*
+!local/.gitkeep

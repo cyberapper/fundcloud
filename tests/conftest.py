@@ -42,6 +42,52 @@ def returns_panel(seed: int) -> pd.DataFrame:
 
 
 @pytest.fixture
+def synthetic_ib_full_year_csv() -> str:
+    """Synthetic IB Flex Query export covering ~one trading year.
+
+    Replaces the previously-skipped real-anonymised export. The shape is
+    chosen to satisfy the same correctness invariants the original sample
+    locked in:
+
+    * **>=262 daily NAV rows**, USD base, ``Cash`` and ``Total`` *differ*
+      on the late rows (so a parser that read ``Cash`` instead of
+      ``Total`` would yield a wildly different last AUM).
+    * **Exactly two HKD deposits** with realistic FXRateToBase values:
+      HKD 50,000 @ 0.12889 -> USD ~6,445 and HKD 184,000 @ 0.12739 ->
+      USD ~23,440.
+    * **One dividend row** that the parser must filter out of the
+      capital-flows view but keep in the cash-tx ledger.
+
+    The account ID and amounts are synthetic placeholders — no broker
+    data is committed (per project convention: never put real account
+    data in committed artifacts).
+    """
+    account = "U_TEST_FULLYEAR"
+    start = pd.Timestamp("2024-01-02")
+    biz_days = pd.bdate_range(start, periods=265)
+
+    # NAV: starts at 1,000, ramps so late rows have Total ~33,000 with
+    # Cash deliberately negative (proves the parser reads Total, not Cash).
+    nav_rows = ['"ClientAccountID","CurrencyPrimary","ReportDate","Cash","Total"']
+    n = len(biz_days)
+    for i, ts in enumerate(biz_days):
+        progress = i / (n - 1)
+        total = 1_000.0 + progress * 32_000.0  # 1,000 -> 33,000
+        # Cash starts equal to Total, swings negative late (margin loan)
+        cash = total - progress * 50_000.0  # late rows: ~ -17k
+        nav_rows.append(f'"{account}","USD","{ts.strftime("%Y%m%d")}","{cash:.2f}","{total:.2f}"')
+
+    # Cash transactions: two HKD deposits + one dividend (filtered out).
+    cash_rows = [
+        '"ClientAccountID","CurrencyPrimary","FXRateToBase","Date/Time","Amount","Type"',
+        f'"{account}","HKD","0.12889","20240115","50000","Deposits/Withdrawals"',
+        f'"{account}","HKD","0.12739","20240611","184000","Deposits/Withdrawals"',
+        f'"{account}","USD","1.0","20240701","12.50","Dividends"',
+    ]
+    return "\n".join(nav_rows) + "\n\n" + "\n".join(cash_rows) + "\n"
+
+
+@pytest.fixture
 def ohlcv_panel(seed: int) -> pd.DataFrame:
     """Tiny two-asset OHLCV frame, MultiIndex on the columns."""
     rng = np.random.default_rng(seed)

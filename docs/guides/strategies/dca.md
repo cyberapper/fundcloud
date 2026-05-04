@@ -3,16 +3,49 @@
 A `BaseStrategy` is Fundcloud's abstraction for anything that decides, on a bar-by-bar basis, what positions you should be holding. It produces either weights, signals, or explicit orders — the simulator will accept any of the three. Two presets ship in core:
 
 - `Hold` — set a target allocation once, optionally rebalance when drift crosses a tolerance band.
-- `DCA` — buy a fixed cash amount across a target mix on a daily, weekly, or monthly cadence, optionally within a window and optionally selling out on exit.
+- `DCA` — buy a fixed cash amount (or a fraction of current equity) across a target mix on a daily, weekly, or monthly cadence, optionally within a window and optionally selling out on exit.
 
 Both are useful baselines on their own (DCA is a surprisingly hard strategy to beat on a risk-adjusted basis over long horizons) and serve as the reference implementations you subclass when you need something bespoke. The last section shows exactly that.
+
+## Backtest configuration cheat sheet
+
+Both strategies are typically run via the `pd.DataFrame.fc.run_hold` /
+`run_dca` accessors, which forward keyword arguments to `Simulator`.
+Every backtest sees the same set of friction / execution knobs — these
+are the defaults you're agreeing to when you call `run_hold()` /
+`run_dca()` without overriding them:
+
+| Keyword     | Default                                | What it controls                                          |
+|-------------|----------------------------------------|-----------------------------------------------------------|
+| `cash`      | `1_000_000.0`                          | Starting cash balance — the basis for the entire backtest. |
+| `costs`     | `FixedBps(5)`                          | 5 bps fee on every fill, applied symmetrically buy/sell.   |
+| `slippage`  | `NoSlippage()`                         | Fills hit the reference price exactly. Swap in `HalfSpread(bps)` for a more realistic execution.  |
+| `execution` | `NextBarOpen()`                        | Orders queued on bar `t` fill at the open of bar `t+1`. Swap in `NextBarClose()` to fill at the close of bar `t+1` instead — same fill bar, close price. Both options are look-ahead-free. |
+
+```python
+from fundcloud.sim import FixedBps, HalfSpread, NextBarClose
+
+bars.fc.run_hold(                       # override every default
+    {"SPY": 0.6, "AGG": 0.4},
+    cash=100_000,
+    costs=FixedBps(10),                 # 10 bps instead of 5
+    slippage=HalfSpread(2.0),           # 1 bp half-spread
+    execution=NextBarClose(),           # fill at next bar's close
+)
+```
+
+See [`reference/strategies.md`](../../reference/strategies.md) for the
+full per-class API.
 
 ## `Hold` — buy once, optionally rebalance
 
 ```python
 from fundcloud.strategies import Hold, RebalanceSpec
 
-# One-shot buy & hold.
+# Equal-weight default: spread evenly across every asset in the bars frame.
+Hold()
+
+# One-shot buy & hold with explicit weights.
 Hold(weights={"AAPL": 0.6, "MSFT": 0.4})
 
 # Same thing but rebalance monthly when drift > 5 %.
@@ -24,7 +57,9 @@ Hold(
 
 Weights can be a dict, a `pd.Series`, or a callable that receives the
 full `Bars` frame at `init` time and returns a dict — handy for weights
-computed from a skfolio optimiser warm-up window.
+computed from a skfolio optimiser warm-up window. When omitted entirely,
+`Hold` falls back to equal weights across every asset in the bars
+frame.
 
 ## `DCA` — dollar-cost averaging
 
@@ -47,6 +82,35 @@ DCA(
     sell_on_end=True,
 )
 ```
+
+### Sizing by percentage of equity (`amount_pct`)
+
+`amount_pct` is the equity-relative twin of `amount`: instead of fixing
+the deposit in dollars, you commit a fraction of the **current**
+portfolio equity at each fire. The simulator recomputes the dollar size
+from `Portfolio.equity_curve` on every cadence trigger, so the deposit
+scales naturally as the portfolio grows or shrinks.
+
+```python
+from fundcloud.strategies import DCA
+
+# Deploy 1 % of equity every month, equal-split across whatever
+# assets are in the bars frame.
+DCA(amount_pct=0.01, horizon="monthly")
+
+# Per-asset percentages — handy when contribution rules differ per leg.
+DCA(amount_pct={"SPY": 0.012, "AGG": 0.008}, horizon="monthly")
+```
+
+`amount` and `amount_pct` are **mutually exclusive** — exactly one must
+be supplied. On the very first fire (before any mark-to-market), DCA
+falls back to starting cash so the first deposit is well-defined even
+when `equity_curve` is still empty.
+
+Each fire is also clipped to currently-available cash — DCA never
+borrows. Once cash is exhausted, subsequent fires emit no orders, so a
+long-running `amount_pct` strategy on a rising asset cannot accumulate
+implicit leverage.
 
 ## Horizon semantics
 

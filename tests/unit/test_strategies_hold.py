@@ -71,3 +71,25 @@ def test_hold_portfolio_has_nonzero_equity(panel: pd.DataFrame) -> None:
     # Equity curve should end near starting capital × (close_end / close_fill)
     final_equity = result.equity_curve.iloc[-1]
     assert 20_000 < final_equity < 80_000
+
+
+def test_hold_equal_weights_when_weights_omitted(panel: pd.DataFrame) -> None:
+    """``Hold()`` with no weights spreads evenly across every bars-frame asset."""
+    sim = Simulator(panel, cash=100_000)
+    result = sim.run_strategy(Hold())
+    # Two assets in the panel → two initial buys, ~50/50 split.
+    assert len(result.trades) == 2
+    notionals = (result.trades["qty"] * result.trades["price"]).abs()
+    a_notional = notionals[result.trades["asset"] == "A"].sum()
+    b_notional = notionals[result.trades["asset"] == "B"].sum()
+    # Allow modest skew from cost / slippage rounding; should be within 5 %.
+    assert abs(a_notional - b_notional) / max(a_notional, b_notional) < 0.05
+
+
+def test_hold_raises_on_empty_bars() -> None:
+    """Hold() needs at least one asset in the bars frame."""
+    from fundcloud.portfolio import Portfolio
+
+    empty = pd.DataFrame(index=pd.DatetimeIndex([]))
+    with pytest.raises(ValueError, match="at least one asset"):
+        Hold().init(empty, Portfolio(cash=10_000.0))

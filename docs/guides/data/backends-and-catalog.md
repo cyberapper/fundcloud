@@ -76,9 +76,22 @@ have keys for:
 | Provider | Class | Install | Auth |
 |---|---|---|---|
 | Yahoo Finance | `YF` | `uv add 'fundcloud[data-yf]'` | none |
-| FinancialModelingPrep | `FMP` | `uv add 'fundcloud[data-fmp]'` | `FMP_API_KEY` env var |
-| Alpha Vantage | `AV` | `uv add 'fundcloud[data-av]'` | `ALPHAVANTAGE_API_KEY` env var |
+| FinancialModelingPrep | `FMP` | `uv add 'fundcloud[data-fmp]'` | `FMP_API_KEY` env var (or `api_key=`) |
+| Alpha Vantage | `AV` | `uv add 'fundcloud[data-av]'` | `ALPHAVANTAGE_API_KEY` env var (or `api_key=`) |
 | Binance | `Binance` | `uv add 'fundcloud[data-bn]'` | none |
+| ClickHouse table | `ClickHouse` | `uv add 'fundcloud[data-clickhouse]'` | `host=` (required, explicit) |
+
+`FMP` / `AV` / `FundCloud` accept `api_key=` explicitly *or* fall back
+to the named env var. The ClickHouse backend is stricter — pass
+`host=` (and any other connection params) explicitly so the credential
+source is always traceable from the call site.
+
+Reading from a Clickhouse table — including tables with composite asset
+identifiers (HK / JP markets), multiple timeframes in one wide layout,
+and arbitrary ML feature columns alongside OHLCV — has its own page:
+[Reading from ClickHouse](clickhouse.md). It plugs into the same
+`Backend` protocol, so everything below — `sync_to`, the `Catalog`,
+write modes — works the same way.
 
 ### Adjusted vs raw equity prices
 

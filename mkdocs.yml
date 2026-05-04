@@ -185,12 +185,14 @@ nav:
       - Strategies & Simulation:
           - DCA & Hold strategies: guides/strategies/dca.md
           - Simulator: guides/sim/simulator.md
+          - Bracket orders (stop-loss + take-profit): guides/sim/bracket-orders.md
           - Simulator performance (Rust kernel): guides/sim/performance.md
       - Portfolio Optimisation:
           - Portfolio optimisation: guides/portfolio/optimization.md
           - sklearn & skfolio interop: guides/interop/sklearn.md
       - Data:
           - Pulling and caching market data: guides/data/backends-and-catalog.md
+          - Reading from ClickHouse: guides/data/clickhouse.md
       - Accounts:
           - Analysing a FundCloud fund: guides/accounts/fundcloud.md
           - Analysing an Interactive Brokers account: guides/accounts/ib.md

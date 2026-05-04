@@ -515,3 +515,108 @@ def test_population_composition_skips_weightless_portfolios() -> None:
     a = Portfolio(returns=pd.Series([0.01, 0.02], name="A"), name="A")  # no weights
     pop = Population([a])
     assert pop.composition().empty
+
+
+# --------------------------------------------------------------------- bracket-order bookkeeping
+
+
+@dataclass
+class _BracketTrade:
+    """``_Trade`` extension carrying an ``order`` so brackets are wired up."""
+
+    ts: pd.Timestamp
+    asset: str
+    qty: float
+    price: float
+    order: object
+    fee: float = 0.0
+
+
+def _bracket_order(
+    *, side: str, qty: float, sl_stop: float | None = None, tp_stop: float | None = None
+):
+    from fundcloud.sim import Order
+
+    return Order(
+        ts=pd.Timestamp("2024-01-02"),
+        asset="X",
+        side=side,
+        qty=qty,
+        sl_stop=sl_stop,
+        tp_stop=tp_stop,
+    )
+
+
+def test_apply_sets_tp_level_on_long_entry() -> None:
+    """tp_stop on a buy → tp_level = price * (1 + tp_stop)."""
+    p = Portfolio(cash=10_000)
+    o = _bracket_order(side="buy", qty=100.0, tp_stop=0.20)
+    p.apply(_BracketTrade(ts=pd.Timestamp("2024-01-02"), asset="X", qty=100.0, price=50.0, order=o))
+    pos = p.position("X")
+    assert pos.tp_level == pytest.approx(60.0)
+    assert pos.sl_level is None
+
+
+def test_apply_sets_tp_level_on_short_entry() -> None:
+    """tp_stop on a sell-from-flat → tp_level = price * (1 - tp_stop)."""
+    p = Portfolio(cash=10_000)
+    o = _bracket_order(side="sell", qty=100.0, tp_stop=0.20)
+    p.apply(
+        _BracketTrade(ts=pd.Timestamp("2024-01-02"), asset="X", qty=-100.0, price=50.0, order=o)
+    )
+    pos = p.position("X")
+    assert pos.tp_level == pytest.approx(40.0)
+
+
+def test_apply_clears_tp_level_on_close() -> None:
+    """qty → 0 clears tp_level even if the closing trade carries no tp_stop."""
+    p = Portfolio(cash=10_000)
+    o_open = _bracket_order(side="buy", qty=100.0, tp_stop=0.20)
+    p.apply(
+        _BracketTrade(ts=pd.Timestamp("2024-01-02"), asset="X", qty=100.0, price=50.0, order=o_open)
+    )
+    o_close = _bracket_order(side="sell", qty=100.0)
+    p.apply(
+        _BracketTrade(
+            ts=pd.Timestamp("2024-01-03"), asset="X", qty=-100.0, price=55.0, order=o_close
+        )
+    )
+    pos = p.position("X")
+    assert pos.qty == pytest.approx(0.0)
+    assert pos.tp_level is None
+    assert pos.sl_level is None
+
+
+def test_apply_preserves_tp_level_on_partial_close() -> None:
+    """Selling part of a long without a fresh tp_stop leaves the level alone."""
+    p = Portfolio(cash=10_000)
+    o_open = _bracket_order(side="buy", qty=100.0, tp_stop=0.20)
+    p.apply(
+        _BracketTrade(ts=pd.Timestamp("2024-01-02"), asset="X", qty=100.0, price=50.0, order=o_open)
+    )
+    o_part_close = _bracket_order(side="sell", qty=40.0)
+    p.apply(
+        _BracketTrade(
+            ts=pd.Timestamp("2024-01-03"), asset="X", qty=-40.0, price=55.0, order=o_part_close
+        )
+    )
+    pos = p.position("X")
+    assert pos.qty == pytest.approx(60.0)
+    assert pos.tp_level == pytest.approx(60.0)  # unchanged from open
+
+
+def test_apply_recomputes_tp_level_on_accumulation() -> None:
+    """A second buy with tp_stop set re-anchors the TP to the new fill price."""
+    p = Portfolio(cash=10_000)
+    o1 = _bracket_order(side="buy", qty=100.0, tp_stop=0.20)
+    o2 = _bracket_order(side="buy", qty=100.0, tp_stop=0.20)
+    p.apply(
+        _BracketTrade(ts=pd.Timestamp("2024-01-02"), asset="X", qty=100.0, price=50.0, order=o1)
+    )
+    pos = p.position("X")
+    assert pos.tp_level == pytest.approx(60.0)
+    p.apply(
+        _BracketTrade(ts=pd.Timestamp("2024-01-03"), asset="X", qty=100.0, price=60.0, order=o2)
+    )
+    pos = p.position("X")
+    assert pos.tp_level == pytest.approx(72.0)  # 60 * 1.2 — anchored to latest fill

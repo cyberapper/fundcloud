@@ -10,16 +10,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from fundcloud.sim.costs import CostModel, FixedBps, NoCost, PerShare
-from fundcloud.sim.execution import ExecutionModel, NextBarOpen, SameBarClose
+from fundcloud.sim.execution import ExecutionModel, NextBarClose, NextBarOpen
 from fundcloud.sim.orders import Order, OrderKind, OrderSide
 from fundcloud.sim.slippage import HalfSpread, NoSlippage, SlippageModel
-from fundcloud.sim.trades import Trade
+from fundcloud.sim.trades import Trade, TradeReason
 
 __all__ = [
     "CostModel",
     "ExecutionModel",
     "FixedBps",
     "HalfSpread",
+    "NextBarClose",
     "NextBarOpen",
     "NoCost",
     "NoSlippage",
@@ -27,11 +28,11 @@ __all__ = [
     "OrderKind",
     "OrderSide",
     "PerShare",
-    "SameBarClose",
     "SimResult",
     "Simulator",
     "SlippageModel",
     "Trade",
+    "TradeReason",
 ]
 
 

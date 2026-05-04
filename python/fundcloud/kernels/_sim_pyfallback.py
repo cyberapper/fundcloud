@@ -12,6 +12,20 @@ The loops emit flat struct-of-arrays output that
 :func:`fundcloud.sim.simulator._rehydrate_sim_result` turns into a
 :class:`~fundcloud.sim.SimResult` with pandas frames and a
 :class:`~fundcloud.portfolio.Portfolio` snapshot.
+
+Bracket orders
+--------------
+Both entry points accept ``high_panel`` and ``low_panel`` so the
+per-bar intra-bar exit check (:func:`_check_intrabar_exits`) can fire
+stop-loss / take-profit forced exits when the bar's range pierces a
+position's recorded level. ``run_orders_loop`` additionally accepts
+``order_sl_stop`` / ``order_tp_stop`` arrays — non-zero entries
+attach a stop fraction to that submission; the resulting absolute
+level is computed at fill time and stored on
+:class:`_LiveBook` so subsequent bars can check it.
+
+The Rust kernel mirrors this layout 1:1; see
+``crates/fundcloud-core/src/sim.rs`` for the parity reference.
 """
 
 from __future__ import annotations
@@ -32,7 +46,7 @@ SLIP_HALF_SPREAD = 1
 
 # Execution-model tags.
 EXEC_NEXT_BAR_OPEN = 0
-EXEC_SAME_BAR_CLOSE = 1
+EXEC_NEXT_BAR_CLOSE = 1
 
 # Order-side tags.
 SIDE_BUY = 0
@@ -41,6 +55,14 @@ SIDE_SELL = 1
 # Order-kind tags.
 KIND_MARKET = 0
 KIND_LIMIT = 1
+
+# Trade-reason tags. Mirrors :data:`fundcloud.sim.TradeReason` and the
+# ``REASON_*`` constants in the Rust kernel. Translated to Python strings
+# at the dispatch boundary.
+REASON_SIGNAL = 0
+REASON_STOP_LOSS = 1
+REASON_TAKE_PROFIT = 2
+REASON_TRAILING_STOP = 3
 
 
 @dataclass(slots=True, frozen=True)
@@ -92,21 +114,38 @@ def _exec_prices_at(
 
 def _fill_idx_for(signal_idx: int, n_bars: int, exec_kind: int) -> int:
     """Return the bar index at which an order submitted at ``signal_idx``
-    fills, or -1 if the order cannot fill (e.g., NextBarOpen on the last bar)."""
-    if exec_kind == EXEC_SAME_BAR_CLOSE:
-        return signal_idx
+    fills, or -1 if the order cannot fill (last bar under any forward-only
+    model). Both built-in execution models fill on bar ``signal_idx + 1``;
+    the price column they pull from differs (open vs close).
+    """
+    del exec_kind  # both EXEC_NEXT_BAR_OPEN and EXEC_NEXT_BAR_CLOSE fill at t+1
     nxt = signal_idx + 1
     return nxt if nxt < n_bars else -1
 
 
 @dataclass(slots=True)
 class _LiveBook:
-    """Mutable live state carried across bars."""
+    """Mutable live state carried across bars.
+
+    ``sl_level`` and ``tp_level`` are absolute prices; ``tsl_pct`` is a
+    fraction in ``(0, 1)`` and ``tsl_anchor`` is the running high-water
+    mark (long: ratchets up; short: ratchets down). All four use
+    ``0.0`` as the wire-format sentinel for "no stop" — matches the
+    Rust kernel layout. Fixed SL/TP re-anchor to the latest fill on
+    accumulating entries; the trailing stop is initialised on the
+    *first* entry that carries ``tsl_stop`` and held thereafter, so its
+    high-water mark tracks from the original entry. Cleared whenever
+    the position closes.
+    """
 
     cash: float
     qty: np.ndarray  # (n_assets,) float64
     avg_cost: np.ndarray  # (n_assets,) float64 — volume-weighted average cost
     last_price: np.ndarray  # (n_assets,) float64 — last seen finite price
+    sl_level: np.ndarray  # (n_assets,) float64 — 0.0 = no stop-loss
+    tp_level: np.ndarray  # (n_assets,) float64 — 0.0 = no take-profit
+    tsl_pct: np.ndarray  # (n_assets,) float64 — 0.0 = no trailing stop
+    tsl_anchor: np.ndarray  # (n_assets,) float64 — high-water-mark price
 
 
 def _new_book(cash: float, n_assets: int) -> _LiveBook:
@@ -115,6 +154,10 @@ def _new_book(cash: float, n_assets: int) -> _LiveBook:
         qty=np.zeros(n_assets, dtype=float),
         avg_cost=np.zeros(n_assets, dtype=float),
         last_price=np.zeros(n_assets, dtype=float),
+        sl_level=np.zeros(n_assets, dtype=float),
+        tp_level=np.zeros(n_assets, dtype=float),
+        tsl_pct=np.zeros(n_assets, dtype=float),
+        tsl_anchor=np.zeros(n_assets, dtype=float),
     )
 
 
@@ -132,6 +175,9 @@ def _execute_one(
     cost_p2: float,
     slip_kind: int,
     slip_p1: float,
+    sl_stop: float = 0.0,
+    tp_stop: float = 0.0,
+    tsl_stop: float = 0.0,
 ) -> tuple[bool, float, float, float, float]:
     """Try to execute a single order against the given price row.
 
@@ -139,6 +185,16 @@ def _execute_one(
     packed as a 5-tuple because Python dataclass allocation per order
     would dominate the loop. ``filled`` is False when the fill can't
     happen (price NaN / zero, limit violated, zero qty).
+
+    When ``sl_stop``, ``tp_stop`` and/or ``tsl_stop`` are non-zero, the
+    bracket state is written into the corresponding ``book.*`` arrays
+    after the fill — matching :meth:`fundcloud.portfolio.Portfolio.apply`.
+    Fixed SL/TP levels are anchored to *this fill's price* (latest-fill
+    convention) on every accumulating entry; the trailing stop is
+    initialised on the *first* entry that carries ``tsl_stop`` and
+    held thereafter, with the anchor ratcheted bar-by-bar by
+    :func:`_check_intrabar_exits`. Position closes (qty → 0) clear
+    all four bracket arrays.
     """
     ref = float(prices_row[asset_idx])
     if not np.isfinite(ref) or ref <= 0:
@@ -165,6 +221,7 @@ def _execute_one(
     prev_qty = book.qty[asset_idx]
     prev_cost = book.avg_cost[asset_idx]
     new_qty = prev_qty + signed
+    is_add = prev_qty == 0 or (prev_qty > 0) == (signed > 0)
     # Volume-weighted avg cost update — matches Portfolio.apply logic.
     if signed > 0 and new_qty > 0:
         book.avg_cost[asset_idx] = (prev_qty * prev_cost + signed * fill_price) / new_qty
@@ -173,7 +230,197 @@ def _execute_one(
     book.qty[asset_idx] = new_qty
     book.cash -= signed * fill_price + fee
     book.last_price[asset_idx] = fill_price
+
+    # Bracket-level bookkeeping. Mirrors Portfolio.apply.
+    if new_qty == 0:
+        book.sl_level[asset_idx] = 0.0
+        book.tp_level[asset_idx] = 0.0
+        book.tsl_pct[asset_idx] = 0.0
+        book.tsl_anchor[asset_idx] = 0.0
+    elif is_add and fill_price > 0:
+        if sl_stop > 0:
+            book.sl_level[asset_idx] = (
+                fill_price * (1.0 - sl_stop) if new_qty > 0 else fill_price * (1.0 + sl_stop)
+            )
+        if tp_stop > 0:
+            book.tp_level[asset_idx] = (
+                fill_price * (1.0 + tp_stop) if new_qty > 0 else fill_price * (1.0 - tp_stop)
+            )
+        if tsl_stop > 0 and book.tsl_pct[asset_idx] == 0.0:
+            # First entry that carries ``tsl_stop`` — initialise the
+            # trail. Subsequent accumulating entries leave the anchor
+            # in place so the high-water mark keeps ratcheting from the
+            # original entry's price. Mirrors Portfolio.apply.
+            book.tsl_pct[asset_idx] = tsl_stop
+            book.tsl_anchor[asset_idx] = fill_price
+
     return True, signed, fill_price, fee, slip_bps
+
+
+def _check_intrabar_exits(
+    bar_idx: int,
+    open_row: np.ndarray,
+    high_row: np.ndarray,
+    low_row: np.ndarray,
+    book: _LiveBook,
+    out: dict[str, Any],
+    cost_kind: int,
+    cost_p1: float,
+    cost_p2: float,
+    slip_kind: int,
+    slip_p1: float,
+) -> None:
+    """Synthesise intra-bar SL / TP / trailing-stop exits.
+
+    Mirrors :meth:`fundcloud.sim.simulator.Simulator._check_intrabar_exits`
+    exactly, including the gap-vs-ratchet ordering for trailing stops
+    and the arbitration rule (stops beat take-profit; between fixed SL
+    and trailing SL the *tighter fill* wins). Called once per bar in
+    every ``run_*_loop`` *after* pending fills drain, so a position
+    opened at the bar's open is visible to that bar's bracket check —
+    a same-bar fill-bar SL/TP/TSL fires when the bar's range pierces.
+
+    Trailing-stop semantics — two-step ratchet within a single bar:
+
+    1. **Pre-trigger ratchet** — anchor moves to ``bar.open`` if
+       favourable (long: ``max(anchor, bar.open)``; short:
+       ``min(anchor, bar.open)``). Most bars are a no-op; only gap-up
+       (long) or gap-down (short) bars move the anchor here.
+    2. **Trigger check** — compute the level from the post-open
+       anchor; gap-fire at ``bar.open`` if the open already pierced
+       it, otherwise fire at the level if the bar's unfavourable-side
+       extreme reaches it.
+    3. **Post-trigger ratchet** — if the trail didn't fire, ratchet
+       against the favourable extreme (long: ``max(anchor, bar.high)``;
+       short: ``min(anchor, bar.low)``) so subsequent bars see the new
+       high-water mark.
+
+    Splitting the ratchet across the trigger check (open-side before,
+    full-extreme after) means a single wide-range bar can't tighten
+    the level mid-bar to something the open never traded against —
+    the trigger uses the level that was in force when the bar
+    started.
+    """
+    n_assets = book.qty.shape[0]
+    for j in range(n_assets):
+        q = book.qty[j]
+        if q == 0:
+            continue
+        sl = book.sl_level[j]
+        tp = book.tp_level[j]
+        tsl_pct = book.tsl_pct[j]
+        if sl == 0.0 and tp == 0.0 and tsl_pct == 0.0:
+            continue
+        bar_open = float(open_row[j])
+        bar_high = float(high_row[j])
+        bar_low = float(low_row[j])
+        if not (np.isfinite(bar_open) and np.isfinite(bar_high) and np.isfinite(bar_low)):
+            continue
+
+        is_long = q > 0
+
+        # Compute the fill price each potential exit would land at this
+        # bar (or 0.0 = "no fire"). This separates "did it fire?" from
+        # "where did it fill?" so the gap rule can be applied correctly
+        # per source — particularly important for the trail, whose level
+        # changes mid-bar via ratchet.
+
+        # Fixed stop-loss
+        sl_fires_at = 0.0
+        if sl > 0:
+            if is_long and bar_low <= sl:
+                sl_fires_at = min(bar_open, sl) if bar_open <= sl else sl
+            elif (not is_long) and bar_high >= sl:
+                sl_fires_at = max(bar_open, sl) if bar_open >= sl else sl
+
+        # Trailing stop — two-step ratchet matching
+        # `Simulator._check_intrabar_exits`:
+        #   1. Before trigger check: ratchet anchor to bar.open.
+        #   2. Trigger check uses that level.
+        #   3. After trigger: ratchet to bar.high (long) / bar.low
+        #      (short) for the next bar's check.
+        tsl_fires_at = 0.0
+        if tsl_pct > 0 and book.tsl_anchor[j] > 0:
+            # Step 1 — ratchet to bar.open before trigger check.
+            if (is_long and bar_open > book.tsl_anchor[j]) or (
+                (not is_long) and bar_open < book.tsl_anchor[j]
+            ):
+                book.tsl_anchor[j] = bar_open
+            anchor = book.tsl_anchor[j]
+            level = anchor * (1.0 - tsl_pct) if is_long else anchor * (1.0 + tsl_pct)
+            # Step 2 — trigger check.
+            if is_long:
+                if bar_open <= level:
+                    tsl_fires_at = bar_open
+                elif bar_low <= level:
+                    tsl_fires_at = level
+            else:
+                if bar_open >= level:
+                    tsl_fires_at = bar_open
+                elif bar_high >= level:
+                    tsl_fires_at = level
+            # Step 3 — post-trigger ratchet for next bar
+            # (skip when the trail fired; the position is closing).
+            if tsl_fires_at == 0.0:
+                if is_long and bar_high > book.tsl_anchor[j]:
+                    book.tsl_anchor[j] = bar_high
+                elif not is_long and bar_low < book.tsl_anchor[j]:
+                    book.tsl_anchor[j] = bar_low
+
+        # Take-profit
+        tp_fires_at = 0.0
+        if tp > 0:
+            if is_long and bar_high >= tp:
+                tp_fires_at = max(bar_open, tp) if bar_open >= tp else tp
+            elif (not is_long) and bar_low <= tp:
+                tp_fires_at = min(bar_open, tp) if bar_open <= tp else tp
+
+        # Arbitrate. Stops beat take-profit. Between fixed SL and TSL
+        # pick the tighter fill (higher price for long → less loss;
+        # lower price for short → less loss).
+        if sl_fires_at > 0 and tsl_fires_at > 0:
+            if is_long:
+                if tsl_fires_at >= sl_fires_at:
+                    ref_price = tsl_fires_at
+                    reason = REASON_TRAILING_STOP
+                else:
+                    ref_price = sl_fires_at
+                    reason = REASON_STOP_LOSS
+            else:
+                if tsl_fires_at <= sl_fires_at:
+                    ref_price = tsl_fires_at
+                    reason = REASON_TRAILING_STOP
+                else:
+                    ref_price = sl_fires_at
+                    reason = REASON_STOP_LOSS
+        elif sl_fires_at > 0:
+            ref_price = sl_fires_at
+            reason = REASON_STOP_LOSS
+        elif tsl_fires_at > 0:
+            ref_price = tsl_fires_at
+            reason = REASON_TRAILING_STOP
+        elif tp_fires_at > 0:
+            ref_price = tp_fires_at
+            reason = REASON_TAKE_PROFIT
+        else:
+            continue
+
+        exit_side = SIDE_SELL if is_long else SIDE_BUY
+        qty_abs = abs(q)
+        fill_price, slip = _apply_slippage(ref_price, exit_side, slip_kind, slip_p1)
+        signed = qty_abs if exit_side == SIDE_BUY else -qty_abs
+        fee = _fee(fill_price, signed, cost_kind, cost_p1, cost_p2)
+        # Apply to book directly — bypasses _execute_one because the fill
+        # always goes through (no notional / limit gating for stop fills).
+        book.cash -= signed * fill_price + fee
+        book.qty[j] = 0.0
+        book.last_price[j] = fill_price
+        book.avg_cost[j] = 0.0
+        book.sl_level[j] = 0.0
+        book.tp_level[j] = 0.0
+        book.tsl_pct[j] = 0.0
+        book.tsl_anchor[j] = 0.0
+        _record_trade(out, bar_idx, j, signed, fill_price, fee, slip, reason)
 
 
 def _mark_to_market(book: _LiveBook, close_row: np.ndarray) -> tuple[float, np.ndarray]:
@@ -264,6 +511,7 @@ def _empty_output(n_bars: int) -> dict[str, Any]:
         "trade_price": [],
         "trade_fee": [],
         "trade_slip_bps": [],
+        "trade_reason": [],  # int codes; translated by the dispatcher
         "order_bar": [],
         "order_asset": [],
         "order_side": [],
@@ -283,6 +531,7 @@ def _record_trade(
     price: float,
     fee: float,
     slip_bps: float,
+    reason: int = REASON_SIGNAL,
 ) -> None:
     out["trade_bar"].append(bar)
     out["trade_asset"].append(asset)
@@ -290,6 +539,7 @@ def _record_trade(
     out["trade_price"].append(price)
     out["trade_fee"].append(fee)
     out["trade_slip_bps"].append(slip_bps)
+    out["trade_reason"].append(reason)
 
 
 def _record_order(
@@ -320,12 +570,20 @@ def _record_order(
 def run_weights_loop(
     open_panel: np.ndarray,
     close_panel: np.ndarray,
+    high_panel: np.ndarray,
+    low_panel: np.ndarray,
     target_weights: np.ndarray,  # (n_target_rows, n_assets); NaN where asset absent
     target_bar_indices: np.ndarray,  # (n_target_rows,) int — bar index per weights row
     cfg: SimCfg,
     tolerance: float = 0.0,
 ) -> dict[str, Any]:
-    """Deterministic weights-path backtest. No Python callbacks."""
+    """Deterministic weights-path backtest. No Python callbacks.
+
+    ``high_panel`` / ``low_panel`` exist for parity with the bracket-order
+    path but are only consulted by :func:`_check_intrabar_exits` — and the
+    weights path can't attach brackets, so the check is a no-op for any
+    position opened by this loop.
+    """
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
     out = _empty_output(n_bars)
@@ -338,14 +596,32 @@ def run_weights_loop(
     for r in range(target_bar_indices.size):
         rebalance_at[int(target_bar_indices[r])] = target_weights[r]
 
-    # Pending orders: list[(fill_idx, asset, side, qty, notional, kind, limit_price, order_idx)].
-    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
+    # Pending orders: list[(fill_idx, asset, side, qty, notional, kind, limit_price,
+    #                       order_idx, sl_stop, tp_stop, tsl_stop)].
+    pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 1. Drain pending fills scheduled for this bar.
-        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
+        # 0. Drain pending fills scheduled for this bar. Positions opened
+        #    here become visible to the same-bar bracket check below,
+        #    matching ``Simulator._drive``'s ordering — so a fill at bar
+        #    ``i``'s open whose own range pierces the SL fires that bar.
+        remaining: list[
+            tuple[int, int, int, float, float, int, float, int, float, float, float]
+        ] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
+            (
+                fill_idx,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
+                order_idx,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
+            ) = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -364,12 +640,32 @@ def run_weights_loop(
                 cfg.cost_param2,
                 cfg.slip_kind,
                 cfg.slip_param1,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok
-                _record_trade(out, i, asset, signed, price, fee, slip)
+                _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check — runs after pending fills so freshly-
+        #    opened positions can fire same-bar SL/TP/TSL when the bar's
+        #    range pierces the level.
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Produce new orders only on user-specified rebalance bars.
         bar_weights = rebalance_at.get(i)
@@ -402,7 +698,7 @@ def run_weights_loop(
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok
-                        _record_trade(out, i, asset, signed, price, fee, slip)
+                        _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                         out["order_filled"][-1] = True
                 else:
                     pending.append((
@@ -414,6 +710,9 @@ def run_weights_loop(
                         KIND_MARKET,
                         0.0,
                         len(out["order_filled"]) - 1,
+                        0.0,
+                        0.0,
+                        0.0,
                     ))
 
         # 3. Mark-to-market.
@@ -437,6 +736,8 @@ def run_weights_loop(
 def run_orders_loop(
     open_panel: np.ndarray,
     close_panel: np.ndarray,
+    high_panel: np.ndarray,
+    low_panel: np.ndarray,
     order_bar: np.ndarray,  # (n_orders,) int
     order_asset: np.ndarray,  # (n_orders,) int
     order_side: np.ndarray,  # (n_orders,) int
@@ -444,9 +745,12 @@ def run_orders_loop(
     order_notional: np.ndarray,  # (n_orders,) float (NaN for qty mode)
     order_kind: np.ndarray,  # (n_orders,) int
     order_limit_price: np.ndarray,  # (n_orders,) float (NaN for market)
+    order_sl_stop: np.ndarray,  # (n_orders,) float (0.0 = no SL)
+    order_tp_stop: np.ndarray,  # (n_orders,) float (0.0 = no TP)
+    order_tsl_stop: np.ndarray,  # (n_orders,) float (0.0 = no trailing SL)
     cfg: SimCfg,
 ) -> dict[str, Any]:
-    """Deterministic orders-path backtest."""
+    """Deterministic orders-path backtest with bracket-order support."""
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
     out = _empty_output(n_bars)
@@ -456,13 +760,28 @@ def run_orders_loop(
     for k in range(order_bar.shape[0]):
         by_bar.setdefault(int(order_bar[k]), []).append(k)
 
-    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
+    pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 1. Drain pending.
-        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
+        # 0. Drain pending fills scheduled for this bar (see run_weights_loop
+        #    for the bar-ordering rationale).
+        remaining: list[
+            tuple[int, int, int, float, float, int, float, int, float, float, float]
+        ] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
+            (
+                fill_idx,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
+                order_idx,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
+            ) = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -481,12 +800,31 @@ def run_orders_loop(
                 cfg.cost_param2,
                 cfg.slip_kind,
                 cfg.slip_param1,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok
-                _record_trade(out, i, asset, signed, price, fee, slip)
+                _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check — runs after pending fills so a
+        #    same-bar fill-bar SL/TP/TSL can fire.
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Submit new orders from the explicit log.
         fill_idx = _fill_idx_for(i, n_bars, cfg.exec_kind)
@@ -501,6 +839,15 @@ def run_orders_loop(
             limit_px = float(order_limit_price[k])
             if not np.isfinite(limit_px):
                 limit_px = 0.0
+            sl_stop = float(order_sl_stop[k]) if order_sl_stop.size else 0.0
+            if not np.isfinite(sl_stop) or sl_stop < 0:
+                sl_stop = 0.0
+            tp_stop = float(order_tp_stop[k]) if order_tp_stop.size else 0.0
+            if not np.isfinite(tp_stop) or tp_stop < 0:
+                tp_stop = 0.0
+            tsl_stop = float(order_tsl_stop[k]) if order_tsl_stop.size else 0.0
+            if not np.isfinite(tsl_stop) or tsl_stop < 0:
+                tsl_stop = 0.0
             side = int(order_side[k])
             asset = int(order_asset[k])
             if fill_idx < 0:
@@ -523,10 +870,13 @@ def run_orders_loop(
                     cfg.cost_param2,
                     cfg.slip_kind,
                     cfg.slip_param1,
+                    sl_stop,
+                    tp_stop,
+                    tsl_stop,
                 )
                 if ok[0]:
                     _, signed, price, fee, slip = ok
-                    _record_trade(out, i, asset, signed, price, fee, slip)
+                    _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                     out["order_filled"][-1] = True
             else:
                 pending.append((
@@ -538,6 +888,9 @@ def run_orders_loop(
                     kind,
                     limit_px,
                     len(out["order_filled"]) - 1,
+                    sl_stop,
+                    tp_stop,
+                    tsl_stop,
                 ))
 
         # 3. Mark-to-market.
@@ -561,24 +914,49 @@ def run_orders_loop(
 def run_signals_loop(
     open_panel: np.ndarray,
     close_panel: np.ndarray,
+    high_panel: np.ndarray,
+    low_panel: np.ndarray,
     entries: np.ndarray,  # (n_bars, n_assets) bool
     exits: np.ndarray,  # (n_bars, n_assets) bool
     size: float,
     cfg: SimCfg,
 ) -> dict[str, Any]:
     """Deterministic signals-path backtest: boolean ``entries`` buy a
-    ``size`` fraction of current cash; ``exits`` close the position."""
+    ``size`` fraction of current cash; ``exits`` close the position.
+
+    Like :func:`run_weights_loop`, the high/low panels are accepted for
+    bracket-check parity but the signals path doesn't attach brackets to
+    the orders it synthesises — so :func:`_check_intrabar_exits` is a
+    no-op when driven from this entry point.
+    """
     n_bars, n_assets = close_panel.shape
     book = _new_book(cfg.cash, n_assets)
     out = _empty_output(n_bars)
 
-    pending: list[tuple[int, int, int, float, float, int, float, int]] = []
+    pending: list[tuple[int, int, int, float, float, int, float, int, float, float, float]] = []
 
     for i in range(n_bars):
-        # 1. Drain pending.
-        remaining: list[tuple[int, int, int, float, float, int, float, int]] = []
+        # 0. Drain pending fills scheduled for this bar (see run_weights_loop
+        #    for the bar-ordering rationale; signals path doesn't attach
+        #    brackets so the same-bar exit check below is a no-op here, but
+        #    keeping the order matches the other entry points).
+        remaining: list[
+            tuple[int, int, int, float, float, int, float, int, float, float, float]
+        ] = []
         for entry in pending:
-            fill_idx, asset, side, qty, notional, kind, limit_px, order_idx = entry
+            (
+                fill_idx,
+                asset,
+                side,
+                qty,
+                notional,
+                kind,
+                limit_px,
+                order_idx,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
+            ) = entry
             if fill_idx != i:
                 remaining.append(entry)
                 continue
@@ -597,12 +975,30 @@ def run_signals_loop(
                 cfg.cost_param2,
                 cfg.slip_kind,
                 cfg.slip_param1,
+                sl_stop,
+                tp_stop,
+                tsl_stop,
             )
             if ok[0]:
                 _, signed, price, fee, slip = ok
-                _record_trade(out, i, asset, signed, price, fee, slip)
+                _record_trade(out, i, asset, signed, price, fee, slip, REASON_SIGNAL)
                 out["order_filled"][order_idx] = True
         pending = remaining
+
+        # 1. Intra-bar bracket check (no-op for signals path).
+        _check_intrabar_exits(
+            i,
+            open_panel[i],
+            high_panel[i],
+            low_panel[i],
+            book,
+            out,
+            cfg.cost_kind,
+            cfg.cost_param1,
+            cfg.cost_param2,
+            cfg.slip_kind,
+            cfg.slip_param1,
+        )
 
         # 2. Emit entry / exit orders for this bar.
         fill_idx = _fill_idx_for(i, n_bars, cfg.exec_kind)
@@ -639,7 +1035,7 @@ def run_signals_loop(
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok
-                        _record_trade(out, i, j, signed, price, fee, slip)
+                        _record_trade(out, i, j, signed, price, fee, slip, REASON_SIGNAL)
                         out["order_filled"][-1] = True
                 else:
                     pending.append((
@@ -651,6 +1047,9 @@ def run_signals_loop(
                         KIND_MARKET,
                         0.0,
                         len(out["order_filled"]) - 1,
+                        0.0,
+                        0.0,
+                        0.0,
                     ))
         # Exits: flatten any held position.
         for j in range(n_assets):
@@ -679,7 +1078,7 @@ def run_signals_loop(
                     )
                     if ok[0]:
                         _, signed, price, fee, slip = ok
-                        _record_trade(out, i, j, signed, price, fee, slip)
+                        _record_trade(out, i, j, signed, price, fee, slip, REASON_SIGNAL)
                         out["order_filled"][-1] = True
                 else:
                     pending.append((
@@ -691,6 +1090,9 @@ def run_signals_loop(
                         KIND_MARKET,
                         0.0,
                         len(out["order_filled"]) - 1,
+                        0.0,
+                        0.0,
+                        0.0,
                     ))
 
         # 3. Mark-to-market.

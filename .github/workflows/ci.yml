@@ -35,6 +35,10 @@ jobs:
         run: cargo clippy --workspace -- -D warnings
 
   rust-tests:
+    # Skip the 3-OS Rust matrix on the release-please bot PR — it only
+    # mutates version strings + CHANGELOG.md, so the heavy matrix is
+    # wasted work. `lint` still runs as a sanity check on the diff.
+    if: github.event_name != 'pull_request' || github.head_ref != 'release-please--branches--main'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -48,6 +52,8 @@ jobs:
         run: cargo test --workspace --no-fail-fast
 
   python-tests:
+    # See rust-tests above — same rationale.
+    if: github.event_name != 'pull_request' || github.head_ref != 'release-please--branches--main'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -66,21 +72,45 @@ jobs:
       - name: uv sync
         run: uv sync --group dev --python "$PY_VERSION"
       - name: Run tests
-        run: uv run pytest -ra -m "not network"
+        # Exclude `docker`-marked tests — they spin up ephemeral
+        # service containers and only run on Linux in the dedicated
+        # `docker-tests` job below. Including them on Windows / macOS
+        # runners (where Docker isn't available with the right socket
+        # mount) makes them error out at collection time.
+        run: uv run pytest -ra -m "not network and not docker"
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v6
         with:
           files: coverage.xml
+          flags: unit
+          fail_ci_if_error: false
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  docs-build:
+  docker-tests:
+    # Docker is preinstalled on the GH-hosted ubuntu runner; the
+    # docker-marked tests spin up ephemeral service containers
+    # (ClickHouse and friends) via testcontainers.
+    # Skip on release-please bot PRs (version-bump-only diff).
+    if: github.event_name != 'pull_request' || github.head_ref != 'release-please--branches--main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
-      - name: Install docs deps
+        with:
+          enable-cache: true
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: uv sync
         run: uv sync --group dev
-      - name: Build docs
-        run: uv run mkdocs build --strict
+      - name: Run docker-marked tests
+        run: uv run pytest -ra -m docker
+      - name: Upload coverage
+        uses: codecov/codecov-action@v6
+        with:
+          files: coverage.xml
+          flags: docker
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

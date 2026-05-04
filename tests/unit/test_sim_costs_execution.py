@@ -8,11 +8,11 @@ import pytest
 from fundcloud.sim import (
     FixedBps,
     HalfSpread,
+    NextBarClose,
     NextBarOpen,
     NoCost,
     NoSlippage,
     PerShare,
-    SameBarClose,
 )
 
 # -------------------------------------------------------------------- costs
@@ -26,6 +26,28 @@ def test_fixed_bps_scales_with_notional() -> None:
     model = FixedBps(bps=10.0)
     assert model.fee(price=100, qty=10) == pytest.approx(1.0)  # 1000 notional * 10 bps
     assert model.fee(price=100, qty=-20) == pytest.approx(2.0)  # signed qty OK
+
+
+@pytest.mark.parametrize("bad", [-1.0, -0.0001])
+def test_fixed_bps_rejects_negative_bps(bad: float) -> None:
+    with pytest.raises(ValueError, match="bps"):
+        FixedBps(bps=bad)
+
+
+def test_fixed_bps_rejects_negative_minimum() -> None:
+    with pytest.raises(ValueError, match="minimum"):
+        FixedBps(bps=5.0, minimum=-1.0)
+
+
+@pytest.mark.parametrize("bad", [-0.005, -1.0])
+def test_per_share_rejects_negative_rate(bad: float) -> None:
+    with pytest.raises(ValueError, match="rate"):
+        PerShare(rate=bad)
+
+
+def test_per_share_rejects_negative_minimum() -> None:
+    with pytest.raises(ValueError, match="minimum"):
+        PerShare(rate=0.005, minimum=-0.5)
 
 
 def test_fixed_bps_minimum() -> None:
@@ -91,8 +113,11 @@ def test_next_bar_open_references_next_bar_open(ohlcv: pd.DataFrame) -> None:
     assert price == pytest.approx(100.5)
 
 
-def test_same_bar_close_references_current_close(ohlcv: pd.DataFrame) -> None:
-    ex = SameBarClose()
-    assert ex.fill_at(signal_index=2, bars_index_size=5) == 2
-    price = ex.reference_price(bars=ohlcv, fill_index=0, asset="A")
-    assert price == pytest.approx(100.5)
+def test_next_bar_close_references_next_bar_close(ohlcv: pd.DataFrame) -> None:
+    """``NextBarClose`` fills at the close of bar ``signal_index + 1`` — no look-ahead."""
+    ex = NextBarClose()
+    assert ex.fill_at(signal_index=2, bars_index_size=5) == 3
+    assert ex.fill_at(signal_index=4, bars_index_size=5) is None
+    # bar 1's close is 101.5 in the fixture
+    price = ex.reference_price(bars=ohlcv, fill_index=1, asset="A")
+    assert price == pytest.approx(101.5)

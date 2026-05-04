@@ -496,6 +496,23 @@ def test_dataframe_run_dca(bars_panel: pd.DataFrame) -> None:
     assert result is not None
 
 
+def test_dataframe_run_hold_no_weights(bars_panel: pd.DataFrame) -> None:
+    """``run_hold()`` with no weights defaults to equal split across assets."""
+    result = bars_panel.fc.run_hold(cash=100_000)
+    assert result is not None
+    # bars_panel has at least two assets — both should be traded. A trade
+    # *count* check would also pass if one asset traded twice, so assert
+    # the actual asset coverage instead.
+    assert {"A", "B"}.issubset(set(result.trades["asset"]))
+
+
+def test_dataframe_run_dca_amount_pct(bars_panel: pd.DataFrame) -> None:
+    """``run_dca`` accepts ``amount_pct`` instead of ``amount``."""
+    result = bars_panel.fc.run_dca(amount_pct=0.01, horizon="weekly", cash=100_000)
+    assert result is not None
+    assert len(result.trades) >= 1
+
+
 def test_dataframe_simulate_dispatches_strategy(bars_panel: pd.DataFrame) -> None:
     from fundcloud.strategies import Hold
 

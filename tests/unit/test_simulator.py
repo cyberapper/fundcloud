@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 from fundcloud.sim import (
     FixedBps,
+    NextBarClose,
     NoCost,
-    SameBarClose,
     SimResult,
     Simulator,
 )
@@ -55,11 +55,17 @@ def test_run_strategy_next_bar_open_default(panel: pd.DataFrame) -> None:
     assert first_trade_ts == panel.index[1]
 
 
-def test_run_strategy_same_bar_close(panel: pd.DataFrame) -> None:
-    sim = Simulator(panel, cash=100_000, execution=SameBarClose(), costs=NoCost())
+def test_run_strategy_next_bar_close(panel: pd.DataFrame) -> None:
+    """``NextBarClose`` fills on the bar after the signal — same fill bar as
+    ``NextBarOpen`` but at the bar's close price (no look-ahead).
+    """
+    sim = Simulator(panel, cash=100_000, execution=NextBarClose(), costs=NoCost())
     result = sim.run_strategy(Hold(weights={"A": 1.0}))
     first_trade_ts = result.trades["ts"].iloc[0]
-    assert first_trade_ts == panel.index[0]
+    first_trade_px = result.trades["price"].iloc[0]
+    assert first_trade_ts == panel.index[1]
+    # NextBarClose uses bar 1's close; NextBarOpen would have used bar 1's open.
+    assert first_trade_px == pytest.approx(panel[("close", "A")].iloc[1])
 
 
 # -------------------------------------------------------------------- run_weights
@@ -90,6 +96,70 @@ def test_run_orders_rejects_missing_columns(panel: pd.DataFrame) -> None:
     bad = pd.DataFrame([{"ts": panel.index[0], "asset": "A"}])
     with pytest.raises(KeyError, match="missing"):
         Simulator(panel).run_orders(bad)
+
+
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [
+        ("sl_stop", 1.5),
+        ("sl_stop", -0.1),
+        ("tsl_stop", 1.5),
+        ("tp_stop", float("inf")),
+    ],
+)
+def test_run_orders_fast_path_validates_bracket_fractions(
+    panel: pd.DataFrame, field: str, bad: float
+) -> None:
+    """Both fast and slow paths must agree on bracket-fraction validity.
+    The slow path goes through ``Order(...)`` and rejects out-of-range
+    values; the fast path used to silently forward them to the kernel.
+    """
+    row = {
+        "ts": panel.index[2],
+        "asset": "A",
+        "side": "buy",
+        "qty": 100.0,
+        field: bad,
+    }
+    explicit = pd.DataFrame([row])
+    with pytest.raises(ValueError):
+        Simulator(panel, cash=100_000).run_orders(explicit)
+
+
+class _CustomNoCost:
+    """Duck-typed cost model — bypasses ``_model_tags`` so ``run_orders``
+    routes through the slow ``_drive`` path. Used to assert the slow
+    path forwards the same DataFrame columns that the fast path uses."""
+
+    def fee(self, *, price: float, qty: float) -> float:
+        return 0.0
+
+
+def test_run_orders_slow_path_forwards_notional(panel: pd.DataFrame) -> None:
+    """The slow path used to drop ``notional``/``kind``/``limit_price``
+    from each row, building ``Order(qty=...)`` only. That made the same
+    input frame produce different fill semantics depending on whether
+    a custom cost/slip/exec model disabled the fast-path dispatcher.
+    Pass a notional-only order through the slow path and verify it
+    actually trades.
+    """
+    notional = 1_000.0
+    explicit = pd.DataFrame([
+        {
+            "ts": panel.index[2],
+            "asset": "A",
+            "side": "buy",
+            "qty": float("nan"),  # NaN -> the slow path used to coerce to 0
+            "notional": notional,
+        },
+    ])
+    sim = Simulator(panel, cash=100_000, costs=_CustomNoCost())  # type: ignore[arg-type]
+    result = sim.run_orders(explicit)
+    assert len(result.trades) == 1
+    # Notional / fill_price ≈ qty traded.
+    fill_price = float(result.trades.iloc[0]["price"])
+    traded_notional = abs(float(result.trades.iloc[0]["qty"])) * fill_price
+    assert traded_notional == pytest.approx(notional, rel=0.05)
 
 
 # -------------------------------------------------------------------- run_signals

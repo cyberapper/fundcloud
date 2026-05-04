@@ -119,9 +119,33 @@ def sharpe(
 ) -> float | pd.Series:
     """Annualised Sharpe ratio.
 
-    Uses the **sample** standard deviation (``ddof=1``). Returns are assumed
-    to be simple per-period returns; for log returns the formula is the same
-    numerator and denominator.
+    Uses the **sample** standard deviation (``ddof=1``). Returns are
+    assumed to be simple per-period returns; for log returns the
+    formula is the same numerator and denominator.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` for a single strategy or
+        ``DataFrame`` (one column per strategy) for a panel.
+    risk_free
+        Annualised risk-free rate to subtract from returns. ``None``
+        falls back to :func:`fundcloud.get_config().risk_free_rate`.
+    periods_per_year
+        Annualisation factor. ``None`` falls back to
+        :func:`fundcloud.get_config().periods_per_year` (252 by default).
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar when ``returns`` is a Series; Series indexed by column
+        name when ``returns`` is a DataFrame.
+
+    See Also
+    --------
+    smart_sharpe : Sharpe scaled by an autocorrelation penalty.
+    sortino : Downside-only analogue.
+    probabilistic_sharpe_ratio : Probability the true Sharpe exceeds a target.
 
     Examples
     --------
@@ -172,8 +196,32 @@ def sortino(
 ) -> float | pd.Series:
     """Annualised Sortino ratio.
 
-    Downside deviation uses only periods with returns strictly below
-    ``target`` and divides by the sample count (``ddof=0``).
+    Like Sharpe but penalises only the downside: the denominator is
+    the root-mean-square of *negative* deviations from ``target``,
+    divided by the full sample count (``ddof=0``).
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` (single strategy) or
+        ``DataFrame`` (panel of strategies as columns).
+    target
+        Minimum acceptable return per period. Returns at or above
+        ``target`` contribute zero to the downside deviation. Default
+        ``0.0``.
+    periods_per_year
+        Annualisation factor. ``None`` falls back to the global config.
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar for a Series input, Series for a DataFrame input.
+
+    See Also
+    --------
+    sharpe : Symmetric counterpart.
+    adjusted_sortino : ``Sortino / sqrt(2)`` for scale-comparison with Sharpe.
+    smart_sortino : Sortino scaled by Lo's autocorrelation penalty.
     """
     df = _to_df(returns)
     ppy = _periods(periods_per_year)
@@ -198,7 +246,27 @@ def drawdown_series(returns: pd.DataFrame) -> pd.DataFrame: ...
 def drawdown_series(returns: pd.Series | pd.DataFrame) -> pd.Series | pd.DataFrame:
     """Drawdown at each timestamp: ``wealth / running_max - 1``.
 
-    Always ≤ 0.
+    Always ≤ 0. The running maximum is taken on cumulative wealth
+    (``(1 + r).cumprod()``), so the series tracks how far below the
+    most recent peak the strategy is on each bar.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` (single strategy) or
+        ``DataFrame`` (panel of strategies as columns).
+
+    Returns
+    -------
+    pd.Series or pd.DataFrame
+        Same shape as ``returns``. Values are in ``[-1, 0]``; ``0``
+        means the strategy is at a new high.
+
+    See Also
+    --------
+    max_drawdown : Scalar minimum of this series.
+    ulcer_index : RMS of drawdown magnitudes.
+    pain_index : Mean of drawdown magnitudes.
     """
     wealth = (1.0 + returns).cumprod()
     peak = wealth.cummax()
@@ -214,7 +282,27 @@ def max_drawdown(returns: pd.DataFrame) -> pd.Series: ...
 
 
 def max_drawdown(returns: pd.Series | pd.DataFrame) -> float | pd.Series:
-    """Largest peak-to-trough loss (negative number)."""
+    """Largest peak-to-trough loss over the sample (negative number).
+
+    Equivalent to ``drawdown_series(returns).min()``.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` (single strategy) or
+        ``DataFrame`` (panel of strategies as columns).
+
+    Returns
+    -------
+    float or pd.Series
+        Negative number in ``[-1, 0]``. Scalar for a Series input,
+        Series indexed by column for a DataFrame input.
+
+    See Also
+    --------
+    drawdown_series : Per-bar drawdown timeseries.
+    calmar : ``CAGR / |max_drawdown|``.
+    """
     dd = drawdown_series(_to_df(returns))
     out = dd.min()
     return _collapse(out, returns)
@@ -241,7 +329,31 @@ def calmar(
     *,
     periods_per_year: int | None = None,
 ) -> float | pd.Series:
-    """Annualised return divided by absolute max drawdown."""
+    """Calmar ratio: annualised return divided by ``|max_drawdown|``.
+
+    A drawdown-aware return-on-risk score. Often more informative than
+    Sharpe in volatile markets because it cares about the worst
+    realised loss rather than full-distribution variance.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    periods_per_year
+        Annualisation factor for the CAGR numerator. ``None`` falls
+        back to the global config.
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar for a Series input, Series for a DataFrame input.
+        ``NaN`` when the sample never drew down.
+
+    See Also
+    --------
+    sharpe : Volatility-based risk-adjusted return.
+    pain_ratio : Like Calmar but uses ``pain_index`` instead of max drawdown.
+    """
     df = _to_df(returns)
     ppy = _periods(periods_per_year)
     ann_ret = (1.0 + df).prod() ** (ppy / max(len(df), 1)) - 1.0
@@ -260,7 +372,29 @@ def ulcer_index(returns: pd.DataFrame) -> pd.Series: ...
 
 
 def ulcer_index(returns: pd.Series | pd.DataFrame) -> float | pd.Series:
-    """Ulcer Index: RMS of drawdowns, in percent."""
+    """Ulcer Index: RMS of drawdowns, in percent.
+
+    Captures both the depth and duration of drawdowns — a fast brief
+    drawdown scores lower than a shallow but persistent one. Scale is
+    percent (multiplied by 100) to match Peter Martin's original
+    convention.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+
+    Returns
+    -------
+    float or pd.Series
+        Non-negative. Scalar for a Series input, Series for a
+        DataFrame input.
+
+    See Also
+    --------
+    pain_index : Mean of drawdown magnitudes (linear, not RMS).
+    ulcer_performance_index : Martin ratio — return per unit of ulcer.
+    """
     dd_pct = drawdown_series(_to_df(returns)) * 100.0
     out = np.sqrt((dd_pct**2).mean())
     return _collapse(out, returns)
@@ -277,7 +411,33 @@ def value_at_risk(returns: pd.DataFrame, *, alpha: float = ...) -> pd.Series: ..
 def value_at_risk(returns: pd.Series | pd.DataFrame, *, alpha: float = 0.95) -> float | pd.Series:
     """Historical Value-at-Risk at confidence ``alpha``.
 
-    Returns a **loss** as a negative number (the (1-alpha) quantile of returns).
+    The empirical ``(1 - alpha)`` quantile of the returns
+    distribution. Sign convention: a **loss** is a negative number,
+    so VaR is typically negative. Higher ``alpha`` means deeper into
+    the tail.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    alpha
+        Confidence level in ``(0, 1)``. Default ``0.95`` (the 5 %
+        worst-case return). Raises ``ValueError`` outside this range.
+
+    Returns
+    -------
+    float or pd.Series
+        Negative number (or zero for non-negative-return samples).
+        Scalar for a Series input, Series for a DataFrame input.
+
+    Raises
+    ------
+    ValueError
+        If ``alpha`` is not strictly in ``(0, 1)``.
+
+    See Also
+    --------
+    cvar : Mean of returns below this quantile (Expected Shortfall).
     """
     if not 0.0 < alpha < 1.0:
         raise ValueError("alpha must be in (0, 1)")
@@ -297,8 +457,34 @@ def cvar(returns: pd.DataFrame, *, alpha: float = ...) -> pd.Series: ...
 def cvar(returns: pd.Series | pd.DataFrame, *, alpha: float = 0.95) -> float | pd.Series:
     """Conditional Value-at-Risk (Expected Shortfall) at confidence ``alpha``.
 
-    Returns a **loss** as a negative number — the mean of returns below the
-    ``(1 - alpha)`` quantile.
+    Average return in the left tail — i.e. the mean of all returns at
+    or below the ``(1 - alpha)`` quantile. More conservative than
+    :func:`value_at_risk`: where VaR asks "how bad is the tail
+    *threshold*?", CVaR asks "how bad is the *average* outcome inside
+    the tail?".
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    alpha
+        Confidence level in ``(0, 1)``. Default ``0.95``. Raises
+        ``ValueError`` outside this range.
+
+    Returns
+    -------
+    float or pd.Series
+        Negative number. Scalar for a Series input, Series for a
+        DataFrame input. ``NaN`` when no observation lies in the tail.
+
+    Raises
+    ------
+    ValueError
+        If ``alpha`` is not strictly in ``(0, 1)``.
+
+    See Also
+    --------
+    value_at_risk : Tail-quantile threshold (less conservative).
     """
     if not 0.0 < alpha < 1.0:
         raise ValueError("alpha must be in (0, 1)")
@@ -330,7 +516,29 @@ def omega(
 def omega(returns: pd.Series | pd.DataFrame, *, target: float = 0.0) -> float | pd.Series:
     """Omega ratio at ``target`` threshold.
 
-    Ratio of the expected gain above target to expected loss below.
+    Ratio of cumulative gains above ``target`` to cumulative losses
+    below it: ``sum(max(r - target, 0)) / sum(max(target - r, 0))``.
+    Captures the full distribution rather than just its first two
+    moments — values above 1 mean the upside outweighs the downside.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    target
+        Threshold separating gains from losses. Default ``0.0``.
+
+    Returns
+    -------
+    float or pd.Series
+        Non-negative. Scalar for a Series input, Series for a
+        DataFrame input. ``NaN`` if the sample has no losses below
+        ``target``.
+
+    See Also
+    --------
+    profit_factor : Same shape with ``target=0``, dollar-weighted.
+    sortino : Mean / downside-vol form of the same intuition.
     """
     df = _to_df(returns)
     diff = df - target
@@ -350,7 +558,36 @@ def returns_stats(
 ) -> pd.DataFrame:
     """Bundle of the common metrics into a single, scannable summary table.
 
-    Rows are metrics, columns are strategies.
+    Rows are metrics (``periods``, ``total_return``, ``cagr``,
+    ``ann_volatility``, ``sharpe``, ``sortino``, ``calmar``,
+    ``max_drawdown``, ``ulcer_index``, ``cvar``, ``omega``); columns
+    are strategies. Backs the :meth:`fundcloud.accessors.DataFrameAccessor.summary`
+    accessor and :meth:`Portfolio.summary`.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` (single strategy) or
+        ``DataFrame`` (panel of strategies as columns).
+    risk_free
+        Annualised risk-free rate; forwarded to :func:`sharpe`.
+        ``None`` falls back to the global config.
+    periods_per_year
+        Annualisation factor; forwarded to the annualised metrics.
+        ``None`` falls back to the global config.
+    cvar_alpha
+        Confidence level for the CVaR row. Default ``0.95``.
+
+    Returns
+    -------
+    pd.DataFrame
+        Metric-by-strategy table; always a DataFrame, even for a
+        single-strategy ``Series`` input (the column is named after the
+        Series).
+
+    See Also
+    --------
+    fundcloud.metrics.metrics : Full ~55-row analogue with optional benchmark columns.
     """
     df = _to_df(returns)
     ppy = _periods(periods_per_year)
@@ -383,9 +620,19 @@ def returns_stats(
 
 
 def total_return(returns: pd.Series | pd.DataFrame) -> float | pd.Series:
-    """Cumulative return over the sample.
+    """Cumulative compounded return over the sample.
 
-    Compounded: ``prod(1 + r) - 1``.
+    ``prod(1 + r) - 1``.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar for a Series input, Series for a DataFrame input.
     """
     df = _to_df(returns)
     out = (1.0 + df).prod() - 1.0
@@ -399,7 +646,22 @@ def cagr(
 ) -> float | pd.Series:
     """Compound annual growth rate.
 
-    ``(1 + total_return) ** (periods_per_year / n) - 1``.
+    ``(1 + total_return) ** (periods_per_year / n) - 1`` where ``n``
+    is the sample length. Annualises the realised compound return so
+    samples of different lengths can be compared on the same scale.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    periods_per_year
+        Annualisation factor. ``None`` falls back to the global config
+        (252 by default).
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar for a Series input, Series for a DataFrame input.
     """
     df = _to_df(returns)
     ppy = _periods(periods_per_year)
@@ -413,7 +675,26 @@ def volatility(
     *,
     periods_per_year: int | None = None,
 ) -> float | pd.Series:
-    """Annualised sample standard deviation of returns."""
+    """Annualised sample standard deviation of returns.
+
+    ``std(r, ddof=1) * sqrt(periods_per_year)``.
+
+    Parameters
+    ----------
+    returns
+        Per-period returns. ``Series`` or ``DataFrame``.
+    periods_per_year
+        Annualisation factor. ``None`` falls back to the global config.
+
+    Returns
+    -------
+    float or pd.Series
+        Scalar for a Series input, Series for a DataFrame input.
+
+    See Also
+    --------
+    downside_volatility : Same calculation but only for sub-target returns.
+    """
     df = _to_df(returns)
     ppy = _periods(periods_per_year)
     out = df.std(ddof=1) * np.sqrt(ppy)

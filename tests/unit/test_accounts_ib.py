@@ -347,24 +347,24 @@ def test_files_aggregate_per_section(tmp_path) -> None:
 # ---------------------------------------------------------------- regression: real sample
 
 
-def test_real_sample_full_coverage_and_both_deposits() -> None:
-    """Lock in three correctness invariants the user originally caught:
+def test_synthetic_full_year_full_coverage_and_both_deposits(
+    synthetic_ib_full_year_csv: str,
+) -> None:
+    """Lock in three correctness invariants on a synthetic full-year export:
 
     1. ``nav()`` reads the ``Total`` column, not ``Cash`` — verified on a
        date where the two columns differ significantly.
-    2. ``capital_flows()`` returns BOTH the user's HKD deposits, not
-       just the one inside an arbitrary 1-year-back window.
+    2. ``capital_flows()`` returns BOTH HKD deposits, not just the one
+       inside an arbitrary 1-year-back window.
     3. The default period covers the full CSV, not a 1-year-back slice.
+
+    The fixture lives in ``tests/conftest.py`` and replaces a previous
+    file-gated test that depended on a real anonymised broker export
+    under ``temp/``.
     """
-    from pathlib import Path
-
-    sample = Path("temp/ib_fundcloud_example.csv")
-    if not sample.exists():
-        pytest.skip("temp/ib_fundcloud_example.csv not present (intentional)")
-
     from fundcloud.accounts import IB
 
-    src = IB(sample)
+    src = IB(text=synthetic_ib_full_year_csv)
 
     # 1. Full period — every NAV row in the CSV is visible by default.
     nav = src.nav(adjust_for_flows=False)
@@ -376,21 +376,20 @@ def test_real_sample_full_coverage_and_both_deposits() -> None:
     # Both are INJECTIONs, both converted to USD-base (the NAV's currency).
     assert (flows["flow_type"] == "INJECTION").all()
     assert (flows["currency"] == "USD").all()
-    # The HKD deposits at 50,000 and 184,000 are ~6,440 and ~23,440 in USD
-    # at the exported FX rates (0.12889 and 0.12739 respectively). Loose
-    # bounds tolerate rate drift if the sample is regenerated.
+    # HKD 50,000 @ 0.12889 -> USD ~6,445; HKD 184,000 @ 0.12739 -> USD ~23,440.
+    # Loose bounds tolerate any later fixture refresh.
     sorted_amounts = flows["amount"].sort_values().tolist()
-    assert 6_000 < sorted_amounts[0] < 7_000  # HKD 50k  → USD ~6,440
-    assert 22_000 < sorted_amounts[1] < 24_000  # HKD 184k → USD ~23,440
+    assert 6_000 < sorted_amounts[0] < 7_000  # HKD 50k  -> USD ~6,445
+    assert 22_000 < sorted_amounts[1] < 24_000  # HKD 184k -> USD ~23,440
 
-    # 3. Reads `Total`, not `Cash`. On a late-year row Total ≠ Cash by a
-    # large amount — proving we picked the right column. The raw CSV's
-    # last NAV row has Cash ~ -$17k while Total ~ +$33k.
+    # 3. Reads `Total`, not `Cash`. The synthetic late-year rows have
+    # Cash deliberately negative while Total > 30k — proving the parser
+    # picks the right column.
     last_aum = float(nav["aum"].iloc[-1])
     assert last_aum > 30_000, (
-        f"AUM at end of year should be ~$33k (the real Total), got "
-        f"${last_aum:.2f} — if this is around -$17k or $0, the parser is "
-        f"reading Cash instead of Total."
+        f"AUM at end of year should be > $30k (the synthetic Total), got "
+        f"${last_aum:.2f} - if this is negative, the parser is reading "
+        f"Cash instead of Total."
     )
 
 

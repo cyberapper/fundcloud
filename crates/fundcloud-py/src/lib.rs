@@ -3,11 +3,10 @@
 //! Imports from Python as `fundcloud._core`. Surfaces the full kernel
 //! suite: rolling reductions, drawdown analytics, risk-adjusted moments,
 //! and tail-risk estimators. Every public function releases the GIL via
-//! `py.allow_threads` before handing work to the pure-Rust crate.
 
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList, PyTuple};
+use pyo3::types::{PyDict, PyList};
 
 use fundcloud_core::{
     drawdown as core_drawdown, moments as core_moments, returns as core_returns,
@@ -28,8 +27,8 @@ fn returns_from_prices<'py>(
     prices: PyReadonlyArray1<'py, f64>,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = prices.as_array();
-    let out = py.allow_threads(|| core_returns::returns_from_prices(view));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_returns::returns_from_prices(view));
+    out.into_pyarray(py)
 }
 
 // ---------------------------------------------------------------------- rolling
@@ -42,8 +41,8 @@ fn rolling_mean<'py>(
     window: usize,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = x.as_array();
-    let out = py.allow_threads(|| core_rolling::rolling_mean(view, window));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_rolling::rolling_mean(view, window));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -55,8 +54,8 @@ fn rolling_std<'py>(
     ddof: usize,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = x.as_array();
-    let out = py.allow_threads(|| core_rolling::rolling_std(view, window, ddof));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_rolling::rolling_std(view, window, ddof));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -67,8 +66,8 @@ fn rolling_mean_batch<'py>(
     window: usize,
 ) -> Bound<'py, PyArray2<f64>> {
     let view = x.as_array();
-    let out = py.allow_threads(|| core_rolling::rolling_mean_batch(view, window));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_rolling::rolling_mean_batch(view, window));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -80,8 +79,8 @@ fn rolling_std_batch<'py>(
     ddof: usize,
 ) -> Bound<'py, PyArray2<f64>> {
     let view = x.as_array();
-    let out = py.allow_threads(|| core_rolling::rolling_std_batch(view, window, ddof));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_rolling::rolling_std_batch(view, window, ddof));
+    out.into_pyarray(py)
 }
 
 // -------------------------------------------------------------------- drawdown
@@ -93,8 +92,8 @@ fn drawdown_series<'py>(
     returns: PyReadonlyArray1<'py, f64>,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_drawdown::drawdown_series(view));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_drawdown::drawdown_series(view));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -104,8 +103,8 @@ fn max_drawdown_batch<'py>(
     returns: PyReadonlyArray2<'py, f64>,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_drawdown::max_drawdown_batch(view));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_drawdown::max_drawdown_batch(view));
+    out.into_pyarray(py)
 }
 
 // --------------------------------------------------------------------- moments
@@ -119,9 +118,8 @@ fn sharpe_batch<'py>(
     periods_per_year: f64,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out =
-        py.allow_threads(|| core_moments::sharpe_batch(view, rf_per_period, periods_per_year));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_moments::sharpe_batch(view, rf_per_period, periods_per_year));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -133,8 +131,8 @@ fn sortino_batch<'py>(
     periods_per_year: f64,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_moments::sortino_batch(view, target, periods_per_year));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_moments::sortino_batch(view, target, periods_per_year));
+    out.into_pyarray(py)
 }
 
 // ------------------------------------------------------------------- tail risk
@@ -147,8 +145,8 @@ fn var_batch<'py>(
     alpha: f64,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_tail::var_batch(view, alpha));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_tail::var_batch(view, alpha));
+    out.into_pyarray(py)
 }
 
 #[pyfunction]
@@ -159,25 +157,24 @@ fn cvar_batch<'py>(
     alpha: f64,
 ) -> Bound<'py, PyArray1<f64>> {
     let view = returns.as_array();
-    let out = py.allow_threads(|| core_tail::cvar_batch(view, alpha));
-    out.into_pyarray_bound(py)
+    let out = py.detach(|| core_tail::cvar_batch(view, alpha));
+    out.into_pyarray(py)
 }
 
 // ---------------------------------------------------------------------- sim
 
 fn sim_output_to_dict<'py>(py: Python<'py>, out: core_sim::SimOutput) -> Bound<'py, PyDict> {
-    let dict = PyDict::new_bound(py);
-    dict.set_item("equity", out.equity.into_pyarray_bound(py))
+    let dict = PyDict::new(py);
+    dict.set_item("equity", out.equity.into_pyarray(py))
         .expect("set equity");
     // weights_history = list of (bar_idx, dict[asset_idx->weight])
-    let wh = PyList::empty_bound(py);
+    let wh = PyList::empty(py);
     for (bar, pairs) in &out.weights_history {
-        let inner = PyDict::new_bound(py);
+        let inner = PyDict::new(py);
         for (aj, w) in pairs {
             inner.set_item(*aj, *w).expect("set weight");
         }
-        wh.append(PyTuple::new_bound(py, [bar.into_py(py), inner.into_py(py)]))
-            .expect("append wh entry");
+        wh.append((*bar, inner)).expect("append wh entry");
     }
     dict.set_item("weights_history", wh)
         .expect("set weights_history");
@@ -193,6 +190,12 @@ fn sim_output_to_dict<'py>(py: Python<'py>, out: core_sim::SimOutput) -> Bound<'
         .expect("set trade_fee");
     dict.set_item("trade_slip_bps", out.trade_slip_bps)
         .expect("set trade_slip_bps");
+    // u8 reason codes; the Python dispatcher
+    // (``fundcloud.sim.simulator._rehydrate_sim_result``) translates them
+    // to ``"signal"`` / ``"stop_loss"`` / ``"take_profit"`` /
+    // ``"trailing_stop"`` via the shared ``REASON_*`` mapping.
+    dict.set_item("trade_reason", out.trade_reason)
+        .expect("set trade_reason");
     dict.set_item("order_bar", out.order_bar)
         .expect("set order_bar");
     dict.set_item("order_asset", out.order_asset)
@@ -215,13 +218,16 @@ fn sim_output_to_dict<'py>(py: Python<'py>, out: core_sim::SimOutput) -> Bound<'
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(
-    text_signature = "(open_panel, close_panel, target_weights, target_bar_indices, cash, \
-                      cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, tolerance, /)"
+    text_signature = "(open_panel, close_panel, high_panel, low_panel, target_weights, \
+                      target_bar_indices, cash, cost_kind, cost_p1, cost_p2, slip_kind, \
+                      slip_p1, exec_kind, tolerance, /)"
 )]
 fn sim_run_weights<'py>(
     py: Python<'py>,
     open_panel: PyReadonlyArray2<'py, f64>,
     close_panel: PyReadonlyArray2<'py, f64>,
+    high_panel: PyReadonlyArray2<'py, f64>,
+    low_panel: PyReadonlyArray2<'py, f64>,
     target_weights: PyReadonlyArray2<'py, f64>,
     target_bar_indices: PyReadonlyArray1<'py, i64>,
     cash: f64,
@@ -235,6 +241,8 @@ fn sim_run_weights<'py>(
 ) -> Bound<'py, PyDict> {
     let open_v = open_panel.as_array();
     let close_v = close_panel.as_array();
+    let high_v = high_panel.as_array();
+    let low_v = low_panel.as_array();
     let tw_v = target_weights.as_array();
     let tbi_v = target_bar_indices.as_array();
     assert_eq!(
@@ -242,6 +250,8 @@ fn sim_run_weights<'py>(
         close_v.dim(),
         "open and close panels must have the same shape"
     );
+    assert_eq!(open_v.dim(), high_v.dim(), "high panel shape mismatch");
+    assert_eq!(open_v.dim(), low_v.dim(), "low panel shape mismatch");
     assert!(
         tbi_v.len() <= tw_v.nrows(),
         "target_bar_indices length ({}) exceeds target_weights rows ({})",
@@ -257,22 +267,26 @@ fn sim_run_weights<'py>(
         slip_param1: slip_p1,
         exec_kind,
     };
-    let out =
-        py.allow_threads(|| core_sim::run_weights(open_v, close_v, tw_v, tbi_v, cfg, tolerance));
+    let out = py.detach(|| {
+        core_sim::run_weights(open_v, close_v, high_v, low_v, tw_v, tbi_v, cfg, tolerance)
+    });
     sim_output_to_dict(py, out)
 }
 
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(
-    text_signature = "(open_panel, close_panel, order_bar, order_asset, order_side, \
-                      order_qty, order_notional, order_kind, order_limit_price, \
-                      cash, cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, /)"
+    text_signature = "(open_panel, close_panel, high_panel, low_panel, order_bar, order_asset, \
+                      order_side, order_qty, order_notional, order_kind, order_limit_price, \
+                      order_sl_stop, order_tp_stop, order_tsl_stop, cash, cost_kind, cost_p1, \
+                      cost_p2, slip_kind, slip_p1, exec_kind, /)"
 )]
 fn sim_run_orders<'py>(
     py: Python<'py>,
     open_panel: PyReadonlyArray2<'py, f64>,
     close_panel: PyReadonlyArray2<'py, f64>,
+    high_panel: PyReadonlyArray2<'py, f64>,
+    low_panel: PyReadonlyArray2<'py, f64>,
     order_bar: PyReadonlyArray1<'py, i64>,
     order_asset: PyReadonlyArray1<'py, i64>,
     order_side: PyReadonlyArray1<'py, i64>,
@@ -280,6 +294,9 @@ fn sim_run_orders<'py>(
     order_notional: PyReadonlyArray1<'py, f64>,
     order_kind: PyReadonlyArray1<'py, i64>,
     order_limit_price: PyReadonlyArray1<'py, f64>,
+    order_sl_stop: PyReadonlyArray1<'py, f64>,
+    order_tp_stop: PyReadonlyArray1<'py, f64>,
+    order_tsl_stop: PyReadonlyArray1<'py, f64>,
     cash: f64,
     cost_kind: u8,
     cost_p1: f64,
@@ -299,6 +316,8 @@ fn sim_run_orders<'py>(
     };
     let op = open_panel.as_array();
     let cl = close_panel.as_array();
+    let hi = high_panel.as_array();
+    let lo = low_panel.as_array();
     let ob = order_bar.as_array();
     let oa = order_asset.as_array();
     let os = order_side.as_array();
@@ -306,25 +325,41 @@ fn sim_run_orders<'py>(
     let on = order_notional.as_array();
     let ok_ = order_kind.as_array();
     let olp = order_limit_price.as_array();
+    let osl = order_sl_stop.as_array();
+    let otp = order_tp_stop.as_array();
+    let otsl = order_tsl_stop.as_array();
     let n_orders = ob.len();
+    assert_eq!(op.dim(), hi.dim(), "high panel shape mismatch");
+    assert_eq!(op.dim(), lo.dim(), "low panel shape mismatch");
     assert_eq!(oa.len(), n_orders, "order_asset length mismatch");
     assert_eq!(os.len(), n_orders, "order_side length mismatch");
     assert_eq!(oq.len(), n_orders, "order_qty length mismatch");
     assert_eq!(on.len(), n_orders, "order_notional length mismatch");
     assert_eq!(ok_.len(), n_orders, "order_kind length mismatch");
     assert_eq!(olp.len(), n_orders, "order_limit_price length mismatch");
-    let out = py.allow_threads(|| core_sim::run_orders(op, cl, ob, oa, os, oq, on, ok_, olp, cfg));
+    assert_eq!(osl.len(), n_orders, "order_sl_stop length mismatch");
+    assert_eq!(otp.len(), n_orders, "order_tp_stop length mismatch");
+    assert_eq!(otsl.len(), n_orders, "order_tsl_stop length mismatch");
+    let out = py.detach(|| {
+        core_sim::run_orders(
+            op, cl, hi, lo, ob, oa, os, oq, on, ok_, olp, osl, otp, otsl, cfg,
+        )
+    });
     sim_output_to_dict(py, out)
 }
 
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
-#[pyo3(text_signature = "(open_panel, close_panel, entries, exits, size, \
-                      cash, cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, /)")]
+#[pyo3(
+    text_signature = "(open_panel, close_panel, high_panel, low_panel, entries, exits, \
+                      size, cash, cost_kind, cost_p1, cost_p2, slip_kind, slip_p1, exec_kind, /)"
+)]
 fn sim_run_signals<'py>(
     py: Python<'py>,
     open_panel: PyReadonlyArray2<'py, f64>,
     close_panel: PyReadonlyArray2<'py, f64>,
+    high_panel: PyReadonlyArray2<'py, f64>,
+    low_panel: PyReadonlyArray2<'py, f64>,
     entries: PyReadonlyArray2<'py, u8>,
     exits: PyReadonlyArray2<'py, u8>,
     size: f64,
@@ -347,11 +382,15 @@ fn sim_run_signals<'py>(
     };
     let op = open_panel.as_array();
     let cl = close_panel.as_array();
+    let hi = high_panel.as_array();
+    let lo = low_panel.as_array();
     let en = entries.as_array();
     let ex = exits.as_array();
     assert_eq!(en.dim(), cl.dim(), "entries shape must match close_panel");
     assert_eq!(ex.dim(), cl.dim(), "exits shape must match close_panel");
-    let out = py.allow_threads(|| core_sim::run_signals(op, cl, en, ex, size, cfg));
+    assert_eq!(hi.dim(), cl.dim(), "high panel shape mismatch");
+    assert_eq!(lo.dim(), cl.dim(), "low panel shape mismatch");
+    let out = py.detach(|| core_sim::run_signals(op, cl, hi, lo, en, ex, size, cfg));
     sim_output_to_dict(py, out)
 }
 

@@ -14,6 +14,7 @@ The `fundcloud.data` package is the single entry point for loading and persistin
         - AV
         - Binance
         - FundCloud
+        - ClickHouse
         - CSV
         - Parquet
         - DuckDB

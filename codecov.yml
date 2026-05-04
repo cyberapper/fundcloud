@@ -1,0 +1,48 @@
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...95"
+
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        if_ci_failed: error
+    patch:
+      default:
+        target: 80%
+        threshold: 2%
+        if_ci_failed: error
+
+flags:
+  unit:
+    paths:
+      - python/fundcloud/
+    carryforward: true
+  docker:
+    paths:
+      - python/fundcloud/data/clickhouse.py
+    carryforward: true
+
+ignore:
+  - "python/fundcloud/_version.py"
+  - "**/_talib_autogen.py"
+  - "python/fundcloud/kernels/_sim_pyfallback.py"
+  - "tests/"
+  - "examples/"
+  - "bench/"
+  - "crates/"
+  - "docs/"
+
+comment:
+  layout: "header, diff, flags, files, footer"
+  behavior: default
+  require_changes: true
+  require_base: false
+  require_head: true

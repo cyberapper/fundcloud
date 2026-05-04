@@ -4,7 +4,7 @@ The Simulator has two execution paths:
 
 * **Fast path** — ``_model_tags()`` recognises every model as a built-in
   concrete (``NoCost`` / ``FixedBps`` / ``PerShare`` / ``NoSlippage`` /
-  ``HalfSpread`` / ``NextBarOpen`` / ``SameBarClose``) and dispatches to
+  ``HalfSpread`` / ``NextBarOpen`` / ``NextBarClose``) and dispatches to
   the Rust / NumPy panel kernel.
 * **Slow path** — any custom subclass of ``CostModel`` /
   ``SlippageModel`` / ``ExecutionModel`` forces ``_model_tags()`` to
@@ -46,16 +46,37 @@ class _CustomSlippage:
 
 
 class _CustomExecution:
-    """Non-recognised execution model that fills at the same bar."""
+    """Non-recognised execution model — forces the slow path.
+
+    Returns ``signal_index + 1`` (next-bar fill at close), which honours
+    the no-look-ahead invariant the simulator now enforces. Used by the
+    slow-path tests to defeat the fast-path dispatcher's ``isinstance``
+    check on the built-in :class:`NextBarOpen` / :class:`NextBarClose`.
+    """
 
     def fill_at(self, *, signal_index: int, bars_index_size: int) -> int | None:
-        return signal_index
+        nxt = signal_index + 1
+        return nxt if nxt < bars_index_size else None
 
     def reference_price(self, *, bars: pd.DataFrame, fill_index: int, asset: str) -> float:
         col = ("close", asset)
         if col in bars.columns:
             return float(bars[col].iloc[fill_index])
         return float("nan")
+
+
+class _LookAheadExecution:
+    """Misimplemented model that fills on the same bar as the signal.
+
+    The simulator must reject this with :class:`ValueError` because it
+    re-introduces look-ahead bias.
+    """
+
+    def fill_at(self, *, signal_index: int, bars_index_size: int) -> int | None:
+        return signal_index
+
+    def reference_price(self, *, bars: pd.DataFrame, fill_index: int, asset: str) -> float:
+        return float(bars[("close", asset)].iloc[fill_index])
 
 
 @pytest.fixture
@@ -238,12 +259,13 @@ def test_execute_resolves_qty_from_notional(panel: pd.DataFrame) -> None:
     assert fill.qty > 0
 
 
-def test_execute_skips_negative_qty(panel: pd.DataFrame) -> None:
-    """`Order.qty` rejects 0 in __post_init__, but negative values flow
-    through to `_execute` where the `<= 0` guard returns None."""
-    sim = Simulator(panel, costs=_CustomCost(), execution=_CustomExecution(), cash=100_000)
-    order = Order(ts=panel.index[3], asset="A", side="buy", qty=-1.0)
-    assert sim._execute(order, fill_idx=3) is None
+def test_order_rejects_negative_qty_at_construction(panel: pd.DataFrame) -> None:
+    """``Order.qty`` is unsigned — direction comes from ``side``. Negative
+    values are rejected at construction time so they can't silently flow
+    into ``_execute`` and flip the trade's sign."""
+    del panel  # only here for the parametrised fixture symmetry
+    with pytest.raises(ValueError, match="qty must be"):
+        Order(ts=pd.Timestamp("2024-01-04"), asset="A", side="buy", qty=-1.0)
 
 
 # --------------------------------------------------------------------- pending queue
@@ -338,3 +360,15 @@ def test_model_tags_returns_none_for_custom_execution(panel: pd.DataFrame) -> No
     targets = pd.DataFrame({"A": 1.0}, index=panel.index[:3])
     result = sim.run_weights(targets)
     assert result is not None
+
+
+def test_drive_rejects_same_bar_custom_execution(panel: pd.DataFrame) -> None:
+    """``ExecutionModel.fill_at`` must return a bar strictly later than the
+    signal bar — same-bar fills introduce look-ahead bias, so the simulator
+    raises ``ValueError`` rather than honouring them.
+    """
+    from fundcloud.strategies import Hold
+
+    sim = Simulator(panel, execution=_LookAheadExecution(), cash=100_000)
+    with pytest.raises(ValueError, match="look-ahead bias"):
+        sim.run_strategy(Hold(weights={"A": 1.0}))
