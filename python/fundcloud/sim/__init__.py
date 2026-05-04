@@ -13,7 +13,7 @@ from fundcloud.sim.costs import CostModel, FixedBps, NoCost, PerShare
 from fundcloud.sim.execution import ExecutionModel, NextBarClose, NextBarOpen
 from fundcloud.sim.orders import Order, OrderKind, OrderSide
 from fundcloud.sim.slippage import HalfSpread, NoSlippage, SlippageModel
-from fundcloud.sim.trades import Trade
+from fundcloud.sim.trades import Trade, TradeReason
 
 __all__ = [
     "CostModel",
@@ -32,6 +32,7 @@ __all__ = [
     "Simulator",
     "SlippageModel",
     "Trade",
+    "TradeReason",
 ]
 
 

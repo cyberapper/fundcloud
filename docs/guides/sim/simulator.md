@@ -53,6 +53,17 @@ later than the signal bar.
 Both are simple protocols — supply your own class with the matching
 `fee` / `apply` method to get custom behaviour.
 
+## Bracket orders
+
+Attach a stop-loss and/or take-profit to any entry `Order` via the
+``sl_stop`` / ``tp_stop`` fractions and the simulator handles the
+intra-bar exit check on every subsequent bar — long stops trip on
+``bar.low``, take-profits on ``bar.high`` (mirrored for shorts), with
+realistic gap behaviour and the conservative SL-wins-ties default.
+Forced fills appear in the ``trades`` DataFrame tagged
+``reason="stop_loss"`` or ``"take_profit"``. Full reference + worked
+examples in [Bracket orders](bracket-orders.md).
+
 ## Worked example
 
 ```python

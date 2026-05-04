@@ -12,6 +12,8 @@ wheels/
 .venv/
 venv/
 .env
+# Variants like `.temp.env`, `.local.env` etc. — keep all dotted env files out.
+.*.env
 .python-version
 
 # Rust

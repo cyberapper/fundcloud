@@ -11,6 +11,7 @@ The `fundcloud.sim` module is the execution engine: a single `Simulator` class w
         - OrderSide
         - OrderKind
         - Trade
+        - TradeReason
         - CostModel
         - FixedBps
         - PerShare

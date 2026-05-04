@@ -24,7 +24,7 @@ from fundcloud.sim.costs import CostModel, FixedBps, NoCost, PerShare
 from fundcloud.sim.execution import ExecutionModel, NextBarClose, NextBarOpen
 from fundcloud.sim.orders import Order
 from fundcloud.sim.slippage import HalfSpread, NoSlippage, SlippageModel
-from fundcloud.sim.trades import Trade
+from fundcloud.sim.trades import Trade, TradeReason
 from fundcloud.strategies.base import BaseStrategy, Context
 
 _PerBarOrders = Callable[[Context], list[Order]]
@@ -170,7 +170,7 @@ class Simulator:
 
     def _run_weights_fast(self, target_weights: pd.DataFrame, cfg: _sim_pyfb.SimCfg) -> SimResult:
         """Deterministic weights path via the Rust / NumPy dispatcher."""
-        open_np, close_np, assets = _pack_panels(self.bars)
+        open_np, close_np, high_np, low_np, assets = _pack_panels(self.bars)
         asset_idx = {a: i for i, a in enumerate(assets)}
         # Align target-weight rows onto bars, keeping only rows whose timestamp
         # actually appears in the bars index.
@@ -198,7 +198,9 @@ class Simulator:
             slip_param1=cfg.slip_param1,
             exec_kind=cfg.exec_kind,
         )
-        sim_out = _sim_dispatcher.run_weights(open_np, close_np, weights_np, target_bar, cfg)
+        sim_out = _sim_dispatcher.run_weights(
+            open_np, close_np, high_np, low_np, weights_np, target_bar, cfg
+        )
         return _rehydrate_sim_result(sim_out, self.bars, assets, cash=self.cash)
 
     def run_signals(
@@ -211,6 +213,13 @@ class Simulator:
         """Convert boolean entry/exit panels into market orders.
 
         ``size`` is a fraction of current cash to allocate per entry.
+
+        .. note::
+           Signal panels emit market orders without attached brackets.
+           For intra-bar stop-loss / take-profit support, drive the
+           same logic through :meth:`run_strategy` with a custom
+           :class:`BaseStrategy` that emits ``Order(..., sl_stop=...,
+           tp_stop=...)``.
         """
         cfg = _model_tags(self.costs, self.slippage, self.execution)
         if cfg is not None:
@@ -249,7 +258,7 @@ class Simulator:
         cfg: _sim_pyfb.SimCfg,
     ) -> SimResult:
         """Deterministic signals path via the Rust / NumPy dispatcher."""
-        open_np, close_np, assets = _pack_panels(self.bars)
+        open_np, close_np, high_np, low_np, assets = _pack_panels(self.bars)
         n_bars = len(self.bars)
         n_assets = len(assets)
         asset_idx = {a: i for i, a in enumerate(assets)}
@@ -277,12 +286,18 @@ class Simulator:
             exec_kind=cfg.exec_kind,
         )
         sim_out = _sim_dispatcher.run_signals(
-            open_np, close_np, entries_np, exits_np, float(size), cfg
+            open_np, close_np, high_np, low_np, entries_np, exits_np, float(size), cfg
         )
         return _rehydrate_sim_result(sim_out, self.bars, assets, cash=self.cash)
 
     def run_orders(self, orders: pd.DataFrame) -> SimResult:
-        """Execute an explicit long-format orders DataFrame."""
+        """Execute an explicit long-format orders DataFrame.
+
+        Optional columns ``sl_stop`` / ``tp_stop`` attach intra-bar
+        stop-loss / take-profit fractions to each order. They are
+        honoured by the dispatcher (Python fallback today; Rust kernel
+        once parity lands).
+        """
         required = {"ts", "asset", "side", "qty"}
         missing = required - set(orders.columns)
         if missing:
@@ -294,8 +309,22 @@ class Simulator:
         by_ts: dict[pd.Timestamp, list[Order]] = {}
         for row in orders.itertuples(index=False):
             ts = pd.Timestamp(row.ts)
+            sl = getattr(row, "sl_stop", None)
+            tp = getattr(row, "tp_stop", None)
+            tsl = getattr(row, "tsl_stop", None)
+            sl = float(sl) if sl is not None and pd.notna(sl) and float(sl) > 0 else None
+            tp = float(tp) if tp is not None and pd.notna(tp) and float(tp) > 0 else None
+            tsl = float(tsl) if tsl is not None and pd.notna(tsl) and float(tsl) > 0 else None
             by_ts.setdefault(ts, []).append(
-                Order(ts=ts, asset=str(row.asset), side=str(row.side), qty=float(row.qty))
+                Order(
+                    ts=ts,
+                    asset=str(row.asset),
+                    side=str(row.side),
+                    qty=float(row.qty),
+                    sl_stop=sl,
+                    tp_stop=tp,
+                    tsl_stop=tsl,
+                )
             )
 
         def _orders_for(ctx: Context) -> list[Order]:
@@ -307,7 +336,7 @@ class Simulator:
 
     def _run_orders_fast(self, orders: pd.DataFrame, cfg: _sim_pyfb.SimCfg) -> SimResult:
         """Deterministic orders path via the Rust / NumPy dispatcher."""
-        open_np, close_np, assets = _pack_panels(self.bars)
+        open_np, close_np, high_np, low_np, assets = _pack_panels(self.bars)
         asset_idx = {a: i for i, a in enumerate(assets)}
         bar_index_map = {ts: i for i, ts in enumerate(self.bars.index)}
 
@@ -319,6 +348,9 @@ class Simulator:
         notional_list: list[float] = []
         kind_list: list[int] = []
         limit_list: list[float] = []
+        sl_list: list[float] = []
+        tp_list: list[float] = []
+        tsl_list: list[float] = []
         for row in orders.itertuples(index=False):
             ts = pd.Timestamp(row.ts)
             i = bar_index_map.get(ts)
@@ -336,6 +368,25 @@ class Simulator:
             kind = _sim_pyfb.KIND_LIMIT if kind_s == "limit" else _sim_pyfb.KIND_MARKET
             limit_price = float(getattr(row, "limit_price", 0.0) or 0.0)
             side_s = str(row.side).lower()
+            # Bracket fractions — 0.0 wire-format sentinel = "no stop".
+            sl_raw = getattr(row, "sl_stop", None)
+            sl_stop = (
+                float(sl_raw)
+                if sl_raw is not None and pd.notna(sl_raw) and float(sl_raw) > 0
+                else 0.0
+            )
+            tp_raw = getattr(row, "tp_stop", None)
+            tp_stop = (
+                float(tp_raw)
+                if tp_raw is not None and pd.notna(tp_raw) and float(tp_raw) > 0
+                else 0.0
+            )
+            tsl_raw = getattr(row, "tsl_stop", None)
+            tsl_stop = (
+                float(tsl_raw)
+                if tsl_raw is not None and pd.notna(tsl_raw) and float(tsl_raw) > 0
+                else 0.0
+            )
             bar_list.append(i)
             asset_list.append(j)
             side_list.append(_sim_pyfb.SIDE_SELL if side_s == "sell" else _sim_pyfb.SIDE_BUY)
@@ -343,6 +394,9 @@ class Simulator:
             notional_list.append(notional)
             kind_list.append(kind)
             limit_list.append(limit_price)
+            sl_list.append(sl_stop)
+            tp_list.append(tp_stop)
+            tsl_list.append(tsl_stop)
 
         cfg = _sim_pyfb.SimCfg(
             cash=self.cash,
@@ -356,6 +410,8 @@ class Simulator:
         sim_out = _sim_dispatcher.run_orders(
             open_np,
             close_np,
+            high_np,
+            low_np,
             np.asarray(bar_list, dtype=np.intp),
             np.asarray(asset_list, dtype=np.intp),
             np.asarray(side_list, dtype=np.intp),
@@ -363,6 +419,9 @@ class Simulator:
             np.asarray(notional_list, dtype=float),
             np.asarray(kind_list, dtype=np.intp),
             np.asarray(limit_list, dtype=float),
+            np.asarray(sl_list, dtype=float),
+            np.asarray(tp_list, dtype=float),
+            np.asarray(tsl_list, dtype=float),
             cfg,
         )
         return _rehydrate_sim_result(sim_out, self.bars, assets, cash=self.cash)
@@ -400,6 +459,16 @@ class Simulator:
                 else:
                     still_pending.append((fill_idx, order))
             pending[:] = still_pending
+
+            # 1.5 Intra-bar bracket-order check. Each open position carrying
+            #     an ``sl_level`` and/or ``tp_level`` is tested against the
+            #     current bar's range. Long stops fire on bar.low <= sl_level;
+            #     long take-profits on bar.high >= tp_level; shorts mirror.
+            #     If both could fire on the same bar, the stop-loss wins.
+            #     A forced exit is synthesised at the stop price (or the
+            #     bar's open on a gap), with slippage + costs applied the
+            #     same as a signal-driven fill.
+            self._check_intrabar_exits(i, ts, portfolio, trades_rows)
 
             # 2. Ask the caller for new orders, schedule them for their fill bar.
             ctx = Context(
@@ -448,6 +517,213 @@ class Simulator:
             equity_curve=portfolio.equity_curve,
             bars=self.bars,
         )
+
+    def _check_intrabar_exits(
+        self,
+        bar_idx: int,
+        ts: pd.Timestamp,
+        portfolio: Portfolio,
+        trades_rows: list[dict[str, object]],
+    ) -> None:
+        """Trip per-position bracket exits (SL / TSL / TP) if the bar's range pierces.
+
+        Called once per bar after pending fills are applied and before the
+        strategy's :meth:`decide` runs, so a forced exit on bar *t* is
+        visible to the strategy on bar *t* (it sees a flat position).
+
+        Trailing-stop semantics (per position)
+        --------------------------------------
+        Two-step ratchet within a single bar:
+
+        1. **Pre-trigger ratchet** — anchor moves to ``bar.open`` if
+           favourable (long: ``max(anchor, bar.open)``; short:
+           ``min(anchor, bar.open)``). Most bars are a no-op; only
+           gap-up bars (long) or gap-down bars (short) move the
+           anchor here.
+        2. **Trigger check** — compute the level from the post-open
+           anchor, then check the bar's OHLC against it.
+        3. **Post-trigger ratchet** — if the trail didn't fire, ratchet
+           the anchor against the favourable extreme (long:
+           ``max(anchor, bar.high)``; short: ``min(anchor, bar.low)``)
+           so subsequent bars see the new high-water mark.
+
+        Splitting the ratchet across the trigger check (open-side
+        before, full-extreme after) means a single wide-range bar
+        can't tighten the level mid-bar to something the open never
+        traded against — the trigger uses the level that was actually
+        in force when the bar started.
+
+        Arbitration
+        -----------
+        Any stop (fixed or trailing) **beats take-profit** on the same
+        bar — the conservative choice. Between the fixed ``sl_level``
+        and the trail's level, the *tighter fill* wins (higher fill
+        price for long, lower for short). The recorded
+        :attr:`Trade.reason` distinguishes ``"stop_loss"`` (the fixed
+        SL bound the trigger), ``"trailing_stop"`` (the trail bound
+        the trigger), or ``"take_profit"``.
+
+        Gap handling
+        ------------
+        * Stop gap (open already beyond the stop in the unfavourable
+          direction): fill at ``bar.open`` (worse than the stop).
+        * TP gap (open already beyond the take-profit in the favourable
+          direction): fill at ``bar.open`` (better than the TP).
+
+        The synthesised :class:`~fundcloud.sim.Trade` runs through the
+        configured slippage and cost models so it's indistinguishable
+        from a market exit other than ``Trade.reason`` and the absence of
+        a strategy-emitted :class:`~fundcloud.sim.Order` in the orders log.
+        """
+        positions = portfolio._live.positions
+        if not positions:
+            return
+        # Snapshot keys; a fire mutates the dict (qty -> 0) so we can't
+        # iterate it directly under mutation.
+        candidates = [
+            (asset, pos)
+            for asset, pos in positions.items()
+            if pos.qty != 0
+            and (pos.sl_level is not None or pos.tp_level is not None or pos.tsl_pct is not None)
+        ]
+        if not candidates:
+            return
+
+        high_row = _py_kernel.prices_at(self.bars, bar_idx, field="high")
+        low_row = _py_kernel.prices_at(self.bars, bar_idx, field="low")
+        open_row = _py_kernel.prices_at(self.bars, bar_idx, field="open")
+
+        for asset, pos in candidates:
+            try:
+                bar_high = float(high_row[asset])
+                bar_low = float(low_row[asset])
+                bar_open = float(open_row[asset])
+            except (KeyError, ValueError, TypeError):
+                continue
+            if not (np.isfinite(bar_high) and np.isfinite(bar_low) and np.isfinite(bar_open)):
+                continue
+
+            is_long = pos.qty > 0
+
+            # Compute the fill price each potential exit would land at this
+            # bar (or ``None`` if no fire). This separates "did it fire?"
+            # from "where did it fill?" so the gap rule can be applied
+            # correctly per source — particularly important for the trail,
+            # whose level changes mid-bar via ratchet.
+
+            # Fixed stop-loss
+            sl_fires_at: float | None = None
+            if pos.sl_level is not None:
+                sl = pos.sl_level
+                if is_long and bar_low <= sl:
+                    sl_fires_at = min(bar_open, sl) if bar_open <= sl else sl
+                elif not is_long and bar_high >= sl:
+                    sl_fires_at = max(bar_open, sl) if bar_open >= sl else sl
+
+            # Trailing stop. Two-step ratchet:
+            #
+            # 1. Before the trigger check, ratchet the anchor against the
+            #    bar's *open* (not high). This way the trigger uses the
+            #    level that was actually in force at bar open — wide-range
+            #    bars don't tighten the level mid-bar to something the
+            #    open never traded against.
+            # 2. Check the trigger using that level: gap fire at
+            #    ``bar.open`` if the open is already past the level,
+            #    otherwise fire at the level if the bar's
+            #    unfavourable-side extreme reaches it.
+            # 3. After the trigger check, ratchet the anchor to the
+            #    bar's high (long) / low (short) so subsequent bars see
+            #    the new high-water mark.
+            tsl_fires_at: float | None = None
+            if pos.tsl_pct is not None and pos.tsl_anchor is not None:
+                # Step 1 — ratchet to bar.open before trigger check.
+                if (is_long and bar_open > pos.tsl_anchor) or (
+                    (not is_long) and bar_open < pos.tsl_anchor
+                ):
+                    pos.tsl_anchor = bar_open
+                level = (
+                    pos.tsl_anchor * (1.0 - pos.tsl_pct)
+                    if is_long
+                    else pos.tsl_anchor * (1.0 + pos.tsl_pct)
+                )
+                # Step 2 — trigger check.
+                if is_long:
+                    if bar_open <= level:
+                        tsl_fires_at = bar_open
+                    elif bar_low <= level:
+                        tsl_fires_at = level
+                else:
+                    if bar_open >= level:
+                        tsl_fires_at = bar_open
+                    elif bar_high >= level:
+                        tsl_fires_at = level
+                # Step 3 — post-trigger ratchet for next bar's check
+                # (skip when the trail fired; the position is closing).
+                if tsl_fires_at is None:
+                    if is_long and bar_high > pos.tsl_anchor:
+                        pos.tsl_anchor = bar_high
+                    elif not is_long and bar_low < pos.tsl_anchor:
+                        pos.tsl_anchor = bar_low
+
+            # Take-profit
+            tp_fires_at: float | None = None
+            if pos.tp_level is not None:
+                tp = pos.tp_level
+                if is_long and bar_high >= tp:
+                    tp_fires_at = max(bar_open, tp) if bar_open >= tp else tp
+                elif not is_long and bar_low <= tp:
+                    tp_fires_at = min(bar_open, tp) if bar_open <= tp else tp
+
+            # Arbitrate. Stops beat take-profit. Between fixed SL and TSL
+            # pick the **tighter** fill (higher price for long → less loss;
+            # lower price for short → less loss).
+            ref_price: float
+            reason: TradeReason
+            exit_side: str
+            if sl_fires_at is not None and tsl_fires_at is not None:
+                if is_long:
+                    if tsl_fires_at >= sl_fires_at:
+                        ref_price, reason = tsl_fires_at, "trailing_stop"
+                    else:
+                        ref_price, reason = sl_fires_at, "stop_loss"
+                else:
+                    if tsl_fires_at <= sl_fires_at:
+                        ref_price, reason = tsl_fires_at, "trailing_stop"
+                    else:
+                        ref_price, reason = sl_fires_at, "stop_loss"
+                exit_side = "sell" if is_long else "buy"
+            elif sl_fires_at is not None:
+                ref_price = sl_fires_at
+                reason = "stop_loss"
+                exit_side = "sell" if is_long else "buy"
+            elif tsl_fires_at is not None:
+                ref_price = tsl_fires_at
+                reason = "trailing_stop"
+                exit_side = "sell" if is_long else "buy"
+            elif tp_fires_at is not None:
+                ref_price = tp_fires_at
+                reason = "take_profit"
+                exit_side = "sell" if is_long else "buy"
+            else:
+                continue
+
+            qty_abs = abs(pos.qty)
+            fill_price, slippage_bps = self.slippage.apply(price=ref_price, side=exit_side)
+            signed_qty = qty_abs if exit_side == "buy" else -qty_abs
+            fee = self.costs.fee(price=fill_price, qty=signed_qty)
+            synthetic_order = Order(ts=ts, asset=asset, side=exit_side, qty=qty_abs)
+            trade = Trade(
+                order=synthetic_order,
+                ts=ts,
+                asset=asset,
+                qty=signed_qty,
+                price=fill_price,
+                fee=fee,
+                slippage_bps=slippage_bps,
+                reason=reason,
+            )
+            trades_rows.append(_trade_to_row(trade))
+            portfolio.apply(trade)
 
     def _execute(self, order: Order, fill_idx: int) -> Trade | None:
         """Turn an ``Order`` into a ``Trade`` using reference price + slippage + cost."""
@@ -558,7 +834,7 @@ def _current_prices_map(ctx: Context) -> dict[str, float]:
 
 
 def _trade_columns() -> list[str]:
-    return ["ts", "asset", "qty", "price", "fee", "slippage_bps", "notional"]
+    return ["ts", "asset", "qty", "price", "fee", "slippage_bps", "notional", "reason"]
 
 
 def _order_columns() -> list[str]:
@@ -574,6 +850,7 @@ def _trade_to_row(trade: Trade) -> dict[str, object]:
         "fee": trade.fee,
         "slippage_bps": trade.slippage_bps,
         "notional": trade.notional,
+        "reason": trade.reason,
     }
 
 
@@ -604,36 +881,52 @@ def _rows_to_frame(rows: list[dict[str, object]], columns: list[str]) -> pd.Data
 # ============================================================================
 
 
-def _pack_panels(bars: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, tuple[str, ...]]:
-    """Extract ``(open, close, asset_names)`` as C-contiguous float64 panels.
+def _pack_panels(
+    bars: pd.DataFrame,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, tuple[str, ...]]:
+    """Extract ``(open, close, high, low, asset_names)`` as C-contiguous float64 panels.
 
-    The order of ``asset_names`` is the column order of both panels; the
-    dispatcher uses this to translate asset-name lookups to integer index
-    lookups.
+    The order of ``asset_names`` is the column order of all four panels;
+    the dispatcher uses this to translate asset-name lookups to integer
+    index lookups. ``high`` and ``low`` are needed by the bracket-order
+    intra-bar exit check (:func:`fundcloud.kernels._sim_pyfallback._check_intrabar_exits`
+    and its Rust mirror); they fall back to the close-price panel when the
+    Bars frame has flat columns (no field MultiIndex).
     """
     assets = _assets_from(bars)
     n_bars = len(bars)
     n_assets = len(assets)
     open_np = np.full((n_bars, n_assets), np.nan, dtype=float)
     close_np = np.full((n_bars, n_assets), np.nan, dtype=float)
+    high_np = np.full((n_bars, n_assets), np.nan, dtype=float)
+    low_np = np.full((n_bars, n_assets), np.nan, dtype=float)
     if isinstance(bars.columns, pd.MultiIndex):
         for j, asset in enumerate(assets):
             if ("open", asset) in bars.columns:
                 open_np[:, j] = bars[("open", asset)].to_numpy(dtype=float)
             if ("close", asset) in bars.columns:
                 close_np[:, j] = bars[("close", asset)].to_numpy(dtype=float)
+            if ("high", asset) in bars.columns:
+                high_np[:, j] = bars[("high", asset)].to_numpy(dtype=float)
+            if ("low", asset) in bars.columns:
+                low_np[:, j] = bars[("low", asset)].to_numpy(dtype=float)
     else:
-        # Flat columns: treat each as a close-price panel; open = close
-        # under this convention (NextBarClose / NextBarOpen coalesce on
-        # the same numeric panel anyway).
+        # Flat columns: treat each as a close-price panel; open = close =
+        # high = low under this convention (NextBarClose / NextBarOpen
+        # coalesce on the same numeric panel anyway, and bracket checks
+        # against close=low=high never fire).
         for j, asset in enumerate(assets):
             if asset in bars.columns:
                 values = bars[asset].to_numpy(dtype=float)
                 open_np[:, j] = values
                 close_np[:, j] = values
+                high_np[:, j] = values
+                low_np[:, j] = values
     return (
         np.ascontiguousarray(open_np),
         np.ascontiguousarray(close_np),
+        np.ascontiguousarray(high_np),
+        np.ascontiguousarray(low_np),
         tuple(assets),
     )
 
@@ -715,6 +1008,23 @@ def _rehydrate_sim_result(
             "slippage_bps": [float(s) for s in sim_out["trade_slip_bps"]],
         })
         trades_df["notional"] = trades_df["qty"] * trades_df["price"]
+        # Translate the dispatcher's ``trade_reason`` field. Both the
+        # Python fallback and the bracket-aware Rust kernel emit ``int``
+        # codes (0 = signal, 1 = stop_loss, 2 = take_profit, 3 =
+        # trailing_stop); the bracket-naive Rust kernel doesn't emit the
+        # field at all, in which case we default every fill to
+        # ``"signal"``.
+        raw_reasons = sim_out.get("trade_reason")
+        if raw_reasons:
+            reason_map = {
+                0: "signal",
+                1: "stop_loss",
+                2: "take_profit",
+                3: "trailing_stop",
+            }
+            trades_df["reason"] = [reason_map.get(int(r), "signal") for r in raw_reasons]
+        else:
+            trades_df["reason"] = "signal"
     else:
         trades_df = pd.DataFrame(columns=_trade_columns())
 

@@ -44,10 +44,63 @@ class Position:
         to an existing direction (or opening a new one); closes leave
         ``avg_cost`` alone so reporting can compute realised P&L on the
         original basis.
+    sl_level
+        Absolute stop-loss price for this position, or ``None`` for
+        positions without a stop. Set by the simulator when an entry
+        :class:`~fundcloud.sim.Order` carries an ``sl_stop`` fraction:
+        for longs the level becomes ``trade_price * (1 - sl_stop)``,
+        for shorts ``trade_price * (1 + sl_stop)``. Anchored to the
+        latest fill's price (not ``avg_cost``) so accumulating entries
+        tighten the stop relative to current price — the conservative
+        choice for risk management. Cleared when ``qty`` returns to
+        zero. Preserved on partial closes that leave the direction
+        unchanged.
+    tp_level
+        Absolute take-profit price for this position, or ``None`` for
+        positions without one. Mirror of ``sl_level``: set by the
+        simulator when an entry :class:`~fundcloud.sim.Order` carries a
+        ``tp_stop`` fraction. Long: ``trade_price * (1 + tp_stop)`` —
+        the simulator fires when a subsequent bar's *high* pierces it.
+        Short: ``trade_price * (1 - tp_stop)`` against bar *low*.
+        Anchored to the latest fill, cleared on close, preserved on
+        partial close. Coexists with ``sl_level`` and the trail
+        (bracket order); any stop (fixed or trailing) beats
+        take-profit on the same bar.
+    tsl_pct
+        Trailing-stop fraction in ``(0, 1)`` for this position, or
+        ``None`` for positions without a trailing stop. Set on the
+        *first* entry that carries ``tsl_stop`` and held constant
+        thereafter — accumulating entries do not reset it. Combined
+        with :attr:`tsl_anchor` to derive the active trail level on
+        each bar (long: ``tsl_anchor * (1 - tsl_pct)``; short:
+        ``tsl_anchor * (1 + tsl_pct)``). Cleared on close.
+    tsl_anchor
+        Running high-water mark for the trailing stop (long: peak price
+        seen since the first entry, ratchets up only; short: trough
+        price, ratchets down only). Initially the first entry's fill
+        price. Updated by the simulator's intra-bar exit check via a
+        two-step ratchet around the trigger:
+
+        1. Before the trigger check, ratchet against ``bar.open`` if
+           favourable (gap-up for long, gap-down for short).
+        2. After the trigger check (only if the trail didn't fire),
+           ratchet against ``bar.high`` (long) / ``bar.low`` (short)
+           so the next bar sees the new high-water mark.
+
+        Splitting the ratchet means a single wide-range bar can't
+        tighten the level mid-bar to something the open never traded
+        against — the trigger uses the level that was in force when
+        the bar started. Accumulating entries do not reset the anchor;
+        the trail tracks the high-water mark from the original entry.
+        Cleared on close.
     """
 
     qty: float = 0.0
     avg_cost: float = 0.0
+    sl_level: float | None = None
+    tp_level: float | None = None
+    tsl_pct: float | None = None
+    tsl_anchor: float | None = None
 
 
 @dataclass(slots=True)
@@ -174,6 +227,21 @@ class Portfolio:
         or partially close a position leave ``avg_cost`` unchanged so
         downstream reporting can compute realised P&L on the original
         basis.
+
+        Bracket-order bookkeeping (when the trade's underlying
+        :class:`~fundcloud.sim.Order` carries ``sl_stop`` / ``tp_stop``
+        / ``tsl_stop``):
+
+        * Fixed ``sl_level`` / ``tp_level`` re-anchor to *this fill's
+          price* on every accumulating add — tightens the bracket as
+          the position scales up.
+        * The trailing stop is initialised on the *first* entry that
+          carries ``tsl_stop`` and held thereafter — accumulating adds
+          do **not** reset :attr:`Position.tsl_pct` or
+          :attr:`Position.tsl_anchor`. The high-water mark continues
+          to ratchet from the original entry's price.
+        * All four bracket fields are cleared when the position closes
+          (``qty == 0``).
         """
         asset = str(trade.asset)
         qty = float(trade.qty)
@@ -183,11 +251,60 @@ class Portfolio:
         notional = qty * price
         self._live.cash -= notional + fee
         # Weighted-average cost update for adds; leave avg_cost alone on closes.
-        if pos.qty == 0 or (pos.qty > 0) == (qty > 0):
+        is_add = pos.qty == 0 or (pos.qty > 0) == (qty > 0)
+        if is_add:
             total = pos.qty + qty
             if total != 0:
                 pos.avg_cost = (pos.qty * pos.avg_cost + qty * price) / total
         pos.qty += qty
+
+        # Bracket-order bookkeeping (stop-loss + take-profit + trailing
+        # stop). Each fraction is carried on the originating Order; the
+        # simulator translates them to position state here so the per-bar
+        # intra-bar exit check has nothing else to compute. Any
+        # combination may be set on the same Order.
+        #
+        # Fixed SL/TP levels are anchored to *this trade's fill price* —
+        # not the running ``avg_cost`` — so on an accumulating position
+        # each new entry tightens the stop / take-profit relative to
+        # current price. This is the conservative choice for risk
+        # management.
+        #
+        # The trailing stop is different: it has its own running anchor
+        # that ratchets bar-by-bar in the favourable direction. Once the
+        # trail is active (``tsl_pct`` is non-None), accumulating entries
+        # do **not** reset it — the high-water mark continues to track
+        # from the *first* entry's fill price regardless of subsequent
+        # adds. If a user wants per-add re-anchoring they should close
+        # and re-open instead of accumulating.
+        #
+        # All bracket state is cleared when the position closes
+        # (``qty == 0``), regardless of whether the closing trade carried
+        # its own bracket fractions. A trade without any bracket set
+        # leaves the existing state alone — useful when only some
+        # entries in a multi-entry position should re-anchor SL/TP.
+        order = getattr(trade, "order", None)
+        sl_stop = getattr(order, "sl_stop", None)
+        tp_stop = getattr(order, "tp_stop", None)
+        tsl_stop = getattr(order, "tsl_stop", None)
+        if pos.qty == 0:
+            pos.sl_level = None
+            pos.tp_level = None
+            pos.tsl_pct = None
+            pos.tsl_anchor = None
+        else:
+            if sl_stop is not None and is_add and price > 0:
+                pos.sl_level = price * (1.0 - sl_stop) if pos.qty > 0 else price * (1.0 + sl_stop)
+            if tp_stop is not None and is_add and price > 0:
+                pos.tp_level = price * (1.0 + tp_stop) if pos.qty > 0 else price * (1.0 - tp_stop)
+            if tsl_stop is not None and is_add and price > 0 and pos.tsl_pct is None:
+                # First entry that carries ``tsl_stop`` — initialise the
+                # trail. Subsequent accumulating entries leave the
+                # anchor in place; the high-water mark keeps ratcheting
+                # from the original entry's price.
+                pos.tsl_pct = tsl_stop
+                pos.tsl_anchor = price
+
         self._live.trade_log.append(trade)
 
     def mark_to_market(

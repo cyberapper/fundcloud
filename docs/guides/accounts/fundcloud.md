@@ -49,6 +49,10 @@ Mint an API key in **Settings → API Key** at
 export FUNDCLOUD_API_KEY=fc_live_...
 ```
 
+The provider picks the env var up automatically. Pass `api_key=`
+explicitly if you'd rather load credentials from a vault or pin a
+specific key for a given run.
+
 The same key works for [`fundcloud.data.FundCloud`](../../reference/data.md)
 (market-data backend), so you can pull benchmark prices through the
 same credential.

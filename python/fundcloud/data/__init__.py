@@ -50,6 +50,7 @@ __all__ = [
     "BaseBackend",
     "Binance",
     "Catalog",
+    "ClickHouse",
     "DatasetSpec",
     "DuckDB",
     "FundCloud",
@@ -77,6 +78,7 @@ _LAZY: dict[str, tuple[str, str]] = {
     "AV": ("fundcloud.data.av", "AV"),
     "Binance": ("fundcloud.data.binance", "Binance"),
     "FundCloud": ("fundcloud.data.fundcloud", "FundCloud"),
+    "ClickHouse": ("fundcloud.data.clickhouse", "ClickHouse"),
 }
 
 
@@ -98,6 +100,7 @@ def __dir__() -> list[str]:
 if TYPE_CHECKING:  # pragma: no cover — static-analysis only
     from fundcloud.data.av import AV
     from fundcloud.data.binance import Binance
+    from fundcloud.data.clickhouse import ClickHouse
     from fundcloud.data.fmp import FMP
     from fundcloud.data.fundcloud import FundCloud
     from fundcloud.data.yf import YF

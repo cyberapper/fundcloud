@@ -56,3 +56,36 @@ def test_portfolio_apply_consumes_a_trade() -> None:
     p.apply(t)
     assert p.cash == pytest.approx(1000 - 200 - 1)
     assert p.position("A").qty == 2.0
+
+
+# ----------------------------------------------------------------- bracket-order validation
+
+
+@pytest.mark.parametrize("bad", [0.0, -0.1])
+def test_order_rejects_non_positive_tp_stop(bad: float) -> None:
+    with pytest.raises(ValueError, match="tp_stop"):
+        Order(ts=_ts(), asset="A", side="buy", qty=1.0, tp_stop=bad)
+
+
+def test_order_accepts_tp_stop_above_one() -> None:
+    """No upper bound — values >= 1 are valid (long TP at +200% = price triples)."""
+    o = Order(ts=_ts(), asset="A", side="buy", qty=1.0, tp_stop=2.0)
+    assert o.tp_stop == 2.0
+
+
+def test_order_accepts_bracket_with_both_stops() -> None:
+    o = Order(ts=_ts(), asset="A", side="buy", qty=1.0, sl_stop=0.10, tp_stop=0.20)
+    assert o.sl_stop == 0.10
+    assert o.tp_stop == 0.20
+
+
+def test_trade_reason_defaults_to_signal() -> None:
+    o = Order(ts=_ts(), asset="A", side="buy", qty=1.0)
+    t = Trade(order=o, ts=_ts(), asset="A", qty=1.0, price=100.0)
+    assert t.reason == "signal"
+
+
+def test_trade_accepts_take_profit_reason() -> None:
+    o = Order(ts=_ts(), asset="A", side="buy", qty=1.0)
+    t = Trade(order=o, ts=_ts(), asset="A", qty=-1.0, price=110.0, reason="take_profit")
+    assert t.reason == "take_profit"

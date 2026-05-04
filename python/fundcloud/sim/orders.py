@@ -57,12 +57,56 @@ class Order:
     limit_price
         Price ceiling (buy) or floor (sell). Required when
         ``kind="limit"``.
+    sl_stop
+        Stop-loss attached to the entry, expressed as a fraction in
+        ``(0, 1)`` of the fill price (e.g. ``0.10`` = 10%). On a long
+        entry the simulator records ``sl_level = fill_price * (1 - sl_stop)``
+        and synthesises a forced sell when a subsequent bar's low pierces
+        it. On a short entry the level is ``fill_price * (1 + sl_stop)``
+        tested against bar high. Anchored to the *latest* fill — an
+        accumulating second buy at a higher price tightens the stop.
+        Cleared when the position closes. See
+        :attr:`fundcloud.portfolio.Position.sl_level` and
+        :data:`~fundcloud.sim.TradeReason`.
+    tp_stop
+        Take-profit attached to the entry, expressed as a fraction
+        ``> 0`` of the fill price (e.g. ``0.20`` = 20%). Long entries get
+        ``tp_level = fill_price * (1 + tp_stop)`` tested against bar
+        high; shorts get ``fill_price * (1 - tp_stop)`` tested against
+        bar low. No upper bound — but values ``>= 1`` on a *short* never
+        fire because price cannot drop more than 100%. Anchor and clear
+        rules mirror ``sl_stop``. May be set together with ``sl_stop``
+        as a bracket order; if both could fire on the same bar, the
+        stop-loss wins. See :attr:`fundcloud.portfolio.Position.tp_level`.
+    tsl_stop
+        Trailing stop-loss attached to the entry, expressed as a
+        fraction in ``(0, 1)`` of the high-water mark (e.g. ``0.05``
+        = 5%). Unlike ``sl_stop``, the trail anchor *ratchets in the
+        favourable direction*: long anchors track ``max(anchor, bar.high)``
+        bar by bar, never moving down; shorts track ``min(anchor, bar.low)``,
+        never moving up. Effective trail level = ``anchor * (1 - tsl_stop)``
+        for long, ``anchor * (1 + tsl_stop)`` for short. May coexist with
+        ``sl_stop`` (the *tighter fill* wins — higher price for long,
+        lower for short) and ``tp_stop`` (stops still beat take-profit
+        on tied bars).
+
+        On accumulating entries, the existing trail is **retained** —
+        the high-water mark continues ratcheting from the *first*
+        entry's price, regardless of the new entry's fill price or
+        ``tsl_stop`` value. The trail is unconditionally cleared on
+        close.
+
+        Forced exits tag :attr:`Trade.reason` as ``"trailing_stop"``.
+        See :attr:`fundcloud.portfolio.Position.tsl_pct` /
+        :attr:`fundcloud.portfolio.Position.tsl_anchor`.
 
     Raises
     ------
     ValueError
-        If neither ``qty`` nor ``notional`` is set, if ``qty`` is zero,
-        or if ``kind="limit"`` without a ``limit_price``.
+        If neither ``qty`` nor ``notional`` is set; if ``qty`` is zero;
+        if ``kind="limit"`` without a ``limit_price``; if ``sl_stop`` is
+        outside ``(0, 1)``; if ``tp_stop`` is non-positive; or if
+        ``tsl_stop`` is outside ``(0, 1)``.
 
     Examples
     --------
@@ -70,6 +114,25 @@ class Order:
     >>> from fundcloud.sim import Order
     >>> Order(ts=pd.Timestamp("2024-01-02"), asset="SPY", side="buy", qty=10.0)  # doctest: +ELLIPSIS
     Order(ts=Timestamp('2024-01-02 00:00:00'), asset='SPY', side='buy', qty=10.0, ...)
+
+    Bracket order — long with 5% stop-loss and 10% take-profit:
+
+    >>> Order(  # doctest: +ELLIPSIS
+    ...     ts=pd.Timestamp("2024-01-02"), asset="SPY", side="buy",
+    ...     qty=10.0, sl_stop=0.05, tp_stop=0.10,
+    ... )
+    Order(ts=..., sl_stop=0.05, tp_stop=0.1, ...)
+
+    Full bracket — fixed stop-loss, take-profit, and trailing stop on
+    the same entry. The fixed SL caps the worst-case loss at entry,
+    the take-profit caps the best-case gain, and the trail rides the
+    middle:
+
+    >>> Order(  # doctest: +ELLIPSIS
+    ...     ts=pd.Timestamp("2024-01-02"), asset="SPY", side="buy",
+    ...     qty=10.0, sl_stop=0.10, tp_stop=0.30, tsl_stop=0.05,
+    ... )
+    Order(ts=..., sl_stop=0.1, tp_stop=0.3, tsl_stop=0.05)
     """
 
     ts: pd.Timestamp
@@ -79,6 +142,9 @@ class Order:
     notional: float | None = None
     kind: OrderKind = "market"
     limit_price: float | None = None
+    sl_stop: float | None = None
+    tp_stop: float | None = None
+    tsl_stop: float | None = None
 
     def __post_init__(self) -> None:
         if self.qty is None and self.notional is None:
@@ -87,6 +153,12 @@ class Order:
             raise ValueError("limit order requires limit_price")
         if self.qty is not None and self.qty == 0:
             raise ValueError("Order qty must be non-zero")
+        if self.sl_stop is not None and not (0.0 < self.sl_stop < 1.0):
+            raise ValueError(f"sl_stop must be a fraction in (0, 1); got {self.sl_stop!r}")
+        if self.tp_stop is not None and self.tp_stop <= 0.0:
+            raise ValueError(f"tp_stop must be a positive fraction; got {self.tp_stop!r}")
+        if self.tsl_stop is not None and not (0.0 < self.tsl_stop < 1.0):
+            raise ValueError(f"tsl_stop must be a fraction in (0, 1); got {self.tsl_stop!r}")
 
     # ---------------------------------------------------------------- helpers
 
@@ -114,6 +186,9 @@ class Order:
             notional=None,
             kind=self.kind,
             limit_price=self.limit_price,
+            sl_stop=self.sl_stop,
+            tp_stop=self.tp_stop,
+            tsl_stop=self.tsl_stop,
         )
 
     def signed_qty(self) -> float:
