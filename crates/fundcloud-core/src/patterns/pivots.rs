@@ -143,7 +143,11 @@ pub fn multi_level_pivots(
     // Deduplicate: same kind within ±2 bars → keep more extreme price.
     // `all` was filled small-order first; on a tie we still prefer the
     // current candidate when its price is strictly more extreme.
-    all.sort_by(|a, b| a.index.cmp(&b.index).then_with(|| a.kind.as_str().cmp(b.kind.as_str())));
+    all.sort_by(|a, b| {
+        a.index
+            .cmp(&b.index)
+            .then_with(|| a.kind.as_str().cmp(b.kind.as_str()))
+    });
 
     let mut deduped: Vec<Pivot> = Vec::new();
     for p in all {

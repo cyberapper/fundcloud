@@ -24,7 +24,7 @@ from typing import Any, ClassVar
 import numpy as np
 import pandas as pd
 
-from fundcloud import _core
+from fundcloud import _core  # type: ignore[attr-defined]
 from fundcloud.features.indicators.base import IndicatorSpec
 from fundcloud.features.patterns._condition import PatternCondition
 from fundcloud.features.patterns._enums import SignalMode, coerce

@@ -117,8 +117,8 @@ fn score_symmetry(pattern: &Pattern) -> f64 {
             if mean == 0.0 {
                 return 50.0;
             }
-            let var: f64 = spacings.iter().map(|s| (s - mean).powi(2)).sum::<f64>()
-                / (spacings.len() as f64);
+            let var: f64 =
+                spacings.iter().map(|s| (s - mean).powi(2)).sum::<f64>() / (spacings.len() as f64);
             let cv = var.sqrt() / mean;
             (100.0 * (1.0 - cv)).max(0.0)
         }
@@ -138,8 +138,7 @@ fn score_volume(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     }
     let mid = volumes.len() / 2;
     let first_half: f64 = volumes[..mid].iter().sum::<f64>() / (mid as f64);
-    let second_half: f64 =
-        volumes[mid..].iter().sum::<f64>() / ((volumes.len() - mid) as f64);
+    let second_half: f64 = volumes[mid..].iter().sum::<f64>() / ((volumes.len() - mid) as f64);
     if first_half == 0.0 {
         return 50.0;
     }
@@ -158,7 +157,11 @@ fn score_trendline(pattern: &Pattern) -> f64 {
     if pattern.trend_lines.is_empty() {
         return 50.0;
     }
-    let avg_r2: f64 = pattern.trend_lines.iter().map(|tl| tl.r_squared).sum::<f64>()
+    let avg_r2: f64 = pattern
+        .trend_lines
+        .iter()
+        .map(|tl| tl.r_squared)
+        .sum::<f64>()
         / (pattern.trend_lines.len() as f64);
     avg_r2 * 100.0
 }
@@ -214,7 +217,12 @@ mod tests {
         vec![vol; n]
     }
 
-    fn view<'a>(close: &'a [f64], volume: &'a [f64], high: &'a [f64], low: &'a [f64]) -> OhlcvView<'a> {
+    fn view<'a>(
+        close: &'a [f64],
+        volume: &'a [f64],
+        high: &'a [f64],
+        low: &'a [f64],
+    ) -> OhlcvView<'a> {
         OhlcvView {
             ts_ns: &[],
             open: close,

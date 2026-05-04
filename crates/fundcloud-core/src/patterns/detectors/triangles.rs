@@ -112,10 +112,16 @@ impl PatternDetector for AscendingTriangleDetector {
     }
 
     fn detect(&self, pivots: &[Pivot], ohlcv: OhlcvView<'_>) -> Vec<Pattern> {
-        let high_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::High).collect();
-        let low_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::Low).collect();
+        let high_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::High)
+            .collect();
+        let low_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::Low)
+            .collect();
         if high_pivots.len() < self.min_touches || low_pivots.len() < self.min_touches {
             return Vec::new();
         }
@@ -127,7 +133,9 @@ impl PatternDetector for AscendingTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(h_subset) else { continue };
+                let Some(upper) = fit_trendline(h_subset) else {
+                    continue;
+                };
 
                 // Asymmetric flat tolerance: full threshold for upward
                 // drift (consistent with bullish bias), 70% for downward.
@@ -149,7 +157,9 @@ impl PatternDetector for AscendingTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(&l_subset) else { continue };
+                let Some(lower) = fit_trendline(&l_subset) else {
+                    continue;
+                };
 
                 let l_prices = pivot_prices(&l_subset);
                 let lower_norm = normalized_slope(lower.slope, &l_prices);
@@ -223,10 +233,16 @@ impl PatternDetector for DescendingTriangleDetector {
     }
 
     fn detect(&self, pivots: &[Pivot], ohlcv: OhlcvView<'_>) -> Vec<Pattern> {
-        let high_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::High).collect();
-        let low_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::Low).collect();
+        let high_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::High)
+            .collect();
+        let low_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::Low)
+            .collect();
         if high_pivots.len() < self.min_touches || low_pivots.len() < self.min_touches {
             return Vec::new();
         }
@@ -238,7 +254,9 @@ impl PatternDetector for DescendingTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(l_subset) else { continue };
+                let Some(lower) = fit_trendline(l_subset) else {
+                    continue;
+                };
 
                 let l_prices = pivot_prices(l_subset);
                 let lower_norm = normalized_slope(lower.slope, &l_prices);
@@ -258,7 +276,9 @@ impl PatternDetector for DescendingTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(&h_subset) else { continue };
+                let Some(upper) = fit_trendline(&h_subset) else {
+                    continue;
+                };
 
                 let h_prices = pivot_prices(&h_subset);
                 let upper_norm = normalized_slope(upper.slope, &h_prices);
@@ -344,10 +364,16 @@ impl PatternDetector for SymmetricalTriangleDetector {
     }
 
     fn detect(&self, pivots: &[Pivot], ohlcv: OhlcvView<'_>) -> Vec<Pattern> {
-        let high_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::High).collect();
-        let low_pivots: Vec<Pivot> =
-            pivots.iter().copied().filter(|p| p.kind == PivotKind::Low).collect();
+        let high_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::High)
+            .collect();
+        let low_pivots: Vec<Pivot> = pivots
+            .iter()
+            .copied()
+            .filter(|p| p.kind == PivotKind::Low)
+            .collect();
         if high_pivots.len() < self.min_touches || low_pivots.len() < self.min_touches {
             return Vec::new();
         }
@@ -359,7 +385,9 @@ impl PatternDetector for SymmetricalTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(h_subset) else { continue };
+                let Some(upper) = fit_trendline(h_subset) else {
+                    continue;
+                };
 
                 let h_prices = pivot_prices(h_subset);
                 let upper_norm = normalized_slope(upper.slope, &h_prices);
@@ -379,7 +407,9 @@ impl PatternDetector for SymmetricalTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(&l_subset) else { continue };
+                let Some(lower) = fit_trendline(&l_subset) else {
+                    continue;
+                };
 
                 let l_prices = pivot_prices(&l_subset);
                 let lower_norm = normalized_slope(lower.slope, &l_prices);
@@ -413,11 +443,8 @@ impl PatternDetector for SymmetricalTriangleDetector {
                     continue;
                 }
 
-                let direction = direction_from_prior_trend(
-                    ohlcv.close,
-                    range_start,
-                    self.prior_window,
-                );
+                let direction =
+                    direction_from_prior_trend(ohlcv.close, range_start, self.prior_window);
                 let upper_end = upper.price_at(range_end);
                 let lower_end = lower.price_at(range_end);
                 let (entry, breakout) = match direction {
@@ -466,7 +493,13 @@ fn validate_boundaries_abs(
     tol_price: f64,
 ) -> bool {
     let last = end.min(highs.len().saturating_sub(1));
-    for (i, (h, l)) in highs.iter().zip(lows.iter()).enumerate().take(last + 1).skip(start) {
+    for (i, (h, l)) in highs
+        .iter()
+        .zip(lows.iter())
+        .enumerate()
+        .take(last + 1)
+        .skip(start)
+    {
         let up = upper.price_at(i);
         let lo = lower.price_at(i);
         if up <= lo {
@@ -533,11 +566,7 @@ mod tests {
     /// and every bar's low sits on the lower trend line, computed
     /// piecewise-linearly between the supplied (index, upper, lower)
     /// anchors. Outside the formation, prices stay at the boundary values.
-    fn channel_panel(
-        n: usize,
-        anchors: &[(usize, f64, f64)],
-        prior_close: f64,
-    ) -> Panel {
+    fn channel_panel(n: usize, anchors: &[(usize, f64, f64)], prior_close: f64) -> Panel {
         let mut high = vec![0.0; n];
         let mut low = vec![0.0; n];
         for i in 0..n {
@@ -568,7 +597,11 @@ mod tests {
         }
         // Closes / opens halfway between high and low; pre-formation close
         // forced to a single level so prior_trend_slope is meaningful.
-        let mut close: Vec<f64> = high.iter().zip(low.iter()).map(|(h, l)| (h + l) / 2.0).collect();
+        let mut close: Vec<f64> = high
+            .iter()
+            .zip(low.iter())
+            .map(|(h, l)| (h + l) / 2.0)
+            .collect();
         if anchors[0].0 > 0 {
             for c in close.iter_mut().take(anchors[0].0) {
                 *c = prior_close;
@@ -590,7 +623,9 @@ mod tests {
         // Flat resistance at 110, rising support 90 → 105 over bars 5..=20.
         let anchors = [(5, 110.0, 90.0), (20, 110.0, 105.0)];
         let p = channel_panel(30, &anchors, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(5, 110.0, PivotKind::High),
@@ -600,7 +635,10 @@ mod tests {
             pivot(20, 110.0, PivotKind::High),
         ];
         let raw = AscendingTriangleDetector::default().detect(&pivots, v);
-        assert!(!raw.is_empty(), "expected at least one ascending-triangle detection");
+        assert!(
+            !raw.is_empty(),
+            "expected at least one ascending-triangle detection"
+        );
         let det = &raw[0];
         assert_eq!(det.name, "ascending_triangle");
         assert_eq!(det.direction, Direction::Bullish);
@@ -612,7 +650,9 @@ mod tests {
         // Resistance falling from 110 → 100 (norm slope ≈ -1%/bar / 105 ≈ huge).
         let anchors = [(5, 110.0, 90.0), (20, 100.0, 105.0)];
         let p = channel_panel(30, &anchors, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(5, 110.0, PivotKind::High),
@@ -632,19 +672,32 @@ mod tests {
         // three lows (bars 8, 16, 22) sandwiching two highs (12, 20).
         let anchors = [(5, 102.0, 90.0), (22, 92.0, 90.0)];
         let p = channel_panel(30, &anchors, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         // High prices match the linear channel exactly so the fitted line
         // sits on the bar highs and boundary validation passes.
         let pivots = vec![
             pivot(8, 90.0, PivotKind::Low),
-            pivot(12, 102.0 + (12.0 - 5.0) / 17.0 * (92.0 - 102.0), PivotKind::High),
+            pivot(
+                12,
+                102.0 + (12.0 - 5.0) / 17.0 * (92.0 - 102.0),
+                PivotKind::High,
+            ),
             pivot(16, 90.0, PivotKind::Low),
-            pivot(20, 102.0 + (20.0 - 5.0) / 17.0 * (92.0 - 102.0), PivotKind::High),
+            pivot(
+                20,
+                102.0 + (20.0 - 5.0) / 17.0 * (92.0 - 102.0),
+                PivotKind::High,
+            ),
             pivot(22, 90.0, PivotKind::Low),
         ];
         let raw = DescendingTriangleDetector::default().detect(&pivots, v);
-        assert!(!raw.is_empty(), "expected at least one descending-triangle detection");
+        assert!(
+            !raw.is_empty(),
+            "expected at least one descending-triangle detection"
+        );
         let det = &raw[0];
         assert_eq!(det.name, "descending_triangle");
         assert_eq!(det.direction, Direction::Bearish);
@@ -659,7 +712,9 @@ mod tests {
         for (i, c) in p.close.iter_mut().take(5).enumerate() {
             *c = 80.0 + (i as f64) * 2.0;
         }
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(5, 112.0, PivotKind::High),
@@ -669,7 +724,10 @@ mod tests {
             pivot(22, 102.0, PivotKind::High),
         ];
         let raw = SymmetricalTriangleDetector::default().detect(&pivots, v);
-        assert!(!raw.is_empty(), "expected at least one symmetrical-triangle detection");
+        assert!(
+            !raw.is_empty(),
+            "expected at least one symmetrical-triangle detection"
+        );
         let det = &raw[0];
         assert_eq!(det.name, "symmetrical_triangle");
         assert_eq!(det.direction, Direction::Bullish);
@@ -681,7 +739,9 @@ mod tests {
         // converging — so neither slope passes the symmetric check.
         let anchors = [(5, 100.0, 90.0), (22, 115.0, 80.0)];
         let p = channel_panel(35, &anchors, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(5, 100.0, PivotKind::High),

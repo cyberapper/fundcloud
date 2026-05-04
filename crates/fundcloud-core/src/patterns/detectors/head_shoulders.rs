@@ -339,7 +339,9 @@ mod tests {
         for (i, c) in close.iter_mut().take(10).enumerate() {
             *c = 100.0 - i as f64;
         }
-        let ts: Vec<i64> = (0..close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let view = OhlcvView {
             ts_ns: &ts,
             open: &panel.open,
@@ -363,7 +365,9 @@ mod tests {
     #[test]
     fn rejects_when_shoulders_too_asymmetric() {
         let p = synthetic_h_and_s_panel();
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let view = OhlcvView {
             ts_ns: &ts,
             open: &p.open,
@@ -390,7 +394,9 @@ mod tests {
         // A formation that detects but scores low (no trend lines, no volume
         // declining); set min_quality high to ensure it gets filtered.
         let p = synthetic_h_and_s_panel();
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let view = OhlcvView {
             ts_ns: &ts,
             open: &p.open,
@@ -408,7 +414,10 @@ mod tests {
         ];
         let detector = HeadShouldersDetector::default();
         let high_bar = run_detector(&detector, &pivots, view, 99.0);
-        assert!(high_bar.is_empty(), "score should not exceed 99 for synthetic case");
+        assert!(
+            high_bar.is_empty(),
+            "score should not exceed 99 for synthetic case"
+        );
         let any = run_detector(&detector, &pivots, view, 0.0);
         assert!(!any.is_empty());
     }
@@ -444,7 +453,9 @@ mod tests {
         let low: Vec<f64> = close.iter().map(|c| c - 0.5).collect();
         let open = close.clone();
         let volume = vec![1000.0; close.len()];
-        let ts: Vec<i64> = (0..close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let view = OhlcvView {
             ts_ns: &ts,
             open: &open,

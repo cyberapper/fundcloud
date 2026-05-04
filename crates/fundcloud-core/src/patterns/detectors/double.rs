@@ -281,7 +281,9 @@ mod tests {
     fn detects_canonical_double_top() {
         // Peaks at idx 2 and 12 (price 100), trough at idx 7 (price 95).
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(2, 100.0, PivotKind::High),
@@ -302,7 +304,9 @@ mod tests {
     fn rejects_when_peaks_too_asymmetric() {
         // Peaks 100 vs 110 → pct_diff ≈ 0.095 > 0.015 tolerance.
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(2, 100.0, PivotKind::High),
@@ -316,7 +320,9 @@ mod tests {
     #[test]
     fn weak_variant_when_second_peak_higher() {
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         // Within tolerance (1% < 1.5%) but p3 > p1.
         let pivots = vec![
@@ -332,7 +338,9 @@ mod tests {
     #[test]
     fn detects_canonical_double_bottom() {
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(2, 100.0, PivotKind::Low),
@@ -350,7 +358,9 @@ mod tests {
     #[test]
     fn rejects_when_formation_too_short() {
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         // Only 4 bars between peaks (< MIN_FORMATION_BARS = 5).
         let pivots = vec![

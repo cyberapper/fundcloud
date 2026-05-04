@@ -129,7 +129,7 @@ def events_to_signal(
             if pd.isna(ts):
                 continue
             if ts in pos.index:
-                out.iloc[int(pos[ts])] = 1.0
+                out.iloc[int(pos[ts])] = 1.0  # type: ignore[call-overload]
         return out
 
     if mode is SignalMode.FORMATION:
@@ -142,7 +142,7 @@ def events_to_signal(
                 continue
             i0 = int(pos[start_ts])
             i1 = int(pos[end_ts])
-            out.iloc[i0 : i1 + 1] = 1.0
+            out.iloc[i0 : i1 + 1] = 1.0  # type: ignore[call-overload]
         return out
 
     # DECAY
@@ -160,7 +160,7 @@ def events_to_signal(
                 break
             value = 1.0 - (k / decay_bars)
             if value > out.iloc[j]:
-                out.iloc[j] = value
+                out.iloc[j] = value  # type: ignore[call-overload]
     return out
 
 

@@ -199,7 +199,9 @@ mod tests {
         };
         let highs = [9.0, 9.5, 9.0, 8.0, 9.0];
         let lows = [1.0, 0.5, 1.0, 1.5, 1.0];
-        assert!(validate_boundaries(&highs, &lows, &upper, &lower, 0, 4, 0.02));
+        assert!(validate_boundaries(
+            &highs, &lows, &upper, &lower, 0, 4, 0.02
+        ));
     }
 
     #[test]
@@ -222,7 +224,9 @@ mod tests {
         };
         let highs = [9.0, 9.5, 12.0, 8.0, 9.0]; // bar 2 breaks out
         let lows = [1.0; 5];
-        assert!(!validate_boundaries(&highs, &lows, &upper, &lower, 0, 4, 0.02));
+        assert!(!validate_boundaries(
+            &highs, &lows, &upper, &lower, 0, 4, 0.02
+        ));
     }
 
     #[test]

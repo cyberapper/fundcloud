@@ -410,10 +410,13 @@ fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bou
     let d = PyDict::new_bound(py);
     d.set_item("start_index", tl.start_index)
         .expect("set start_index");
-    d.set_item("end_index", tl.end_index).expect("set end_index");
+    d.set_item("end_index", tl.end_index)
+        .expect("set end_index");
     d.set_item("slope", tl.slope).expect("set slope");
-    d.set_item("intercept", tl.intercept).expect("set intercept");
-    d.set_item("r_squared", tl.r_squared).expect("set r_squared");
+    d.set_item("intercept", tl.intercept)
+        .expect("set intercept");
+    d.set_item("r_squared", tl.r_squared)
+        .expect("set r_squared");
     d.set_item("touch_count", tl.touch_count)
         .expect("set touch_count");
     d
@@ -446,7 +449,8 @@ fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Boun
         .expect("set breakout_price");
     out.set_item("variant", d.pattern.variant.as_deref())
         .expect("set variant");
-    out.set_item("quality", d.score.quality).expect("set quality");
+    out.set_item("quality", d.score.quality)
+        .expect("set quality");
     let features = PyDict::new_bound(py);
     for (k, v) in &d.score.features {
         features.set_item(k, v).expect("set feature");
@@ -463,16 +467,16 @@ fn multi_level_pivots<'py>(
     lows: PyReadonlyArray1<'py, f64>,
     ts_ns: PyReadonlyArray1<'py, i64>,
     orders: Vec<usize>,
-) -> PyResult<Bound<'py, PyList>> {
-    let h = highs.as_slice()?;
-    let l = lows.as_slice()?;
-    let t = ts_ns.as_slice()?;
+) -> Bound<'py, PyList> {
+    let h = highs.as_slice().expect("highs slice contiguous");
+    let l = lows.as_slice().expect("lows slice contiguous");
+    let t = ts_ns.as_slice().expect("ts_ns slice contiguous");
     let pivots = py.allow_threads(|| core_patterns::multi_level_pivots(h, l, t, &orders));
     let out = PyList::empty_bound(py);
     for p in &pivots {
         out.append(pivot_to_dict(py, p)).expect("append pivot");
     }
-    Ok(out)
+    out
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -491,13 +495,13 @@ fn scan_pattern<'py>(
     volume: PyReadonlyArray1<'py, f64>,
     pivot_orders: Vec<usize>,
     min_quality: f64,
-) -> PyResult<Bound<'py, PyList>> {
-    let ts = ts_ns.as_slice()?;
-    let o = open.as_slice()?;
-    let h = high.as_slice()?;
-    let l = low.as_slice()?;
-    let c = close.as_slice()?;
-    let v = volume.as_slice()?;
+) -> Bound<'py, PyList> {
+    let ts = ts_ns.as_slice().expect("ts_ns slice contiguous");
+    let o = open.as_slice().expect("open slice contiguous");
+    let h = high.as_slice().expect("high slice contiguous");
+    let l = low.as_slice().expect("low slice contiguous");
+    let c = close.as_slice().expect("close slice contiguous");
+    let v = volume.as_slice().expect("volume slice contiguous");
     let view = core_patterns::OhlcvView {
         ts_ns: ts,
         open: o,
@@ -508,12 +512,12 @@ fn scan_pattern<'py>(
     };
     let detections = py
         .allow_threads(|| core_patterns::scan(name, view, &pivot_orders, min_quality))
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        .unwrap_or_else(|e| panic!("scan_pattern: {e}"));
     let out = PyList::empty_bound(py);
     for d in &detections {
         out.append(detection_to_dict(py, d)).expect("append");
     }
-    Ok(out)
+    out
 }
 
 #[pyfunction]

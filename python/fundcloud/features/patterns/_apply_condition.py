@@ -24,6 +24,8 @@ fall back to ``1 × ATR`` as the height — keeps the pipeline robust.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -71,7 +73,7 @@ def _select_asset(bars: pd.DataFrame, asset: str) -> pd.DataFrame:
     if not isinstance(bars.columns, pd.MultiIndex):
         msg = "bars must have MultiIndex (field, asset) columns"
         raise TypeError(msg)
-    return bars.xs(asset, level=-1, axis=1).dropna(subset=["open", "high", "low", "close"])
+    return bars.xs(asset, level=-1, axis=1).dropna(subset=["open", "high", "low", "close"])  # type: ignore[call-overload, no-any-return]
 
 
 def _direction_sign(direction: Direction | str) -> int:
@@ -85,7 +87,7 @@ def _direction_sign(direction: Direction | str) -> int:
 
 
 def _pattern_height(
-    pivots: list[dict],
+    pivots: list[dict[str, Any]],
     entry: float,
     sign: int,
     fallback: float,
@@ -144,7 +146,7 @@ def _resolve_stop(
     *,
     entry: float,
     sign: int,
-    pivots: list[dict],
+    pivots: list[dict[str, Any]],
     atr: float,
     method: StopMethod,
     atr_multiple: float,
@@ -198,7 +200,7 @@ def apply_condition(
       O(events) on the hot path.
     """
     if events.empty:
-        return events.copy()
+        return events.copy()  # type: ignore[no-any-return]
 
     out = events.copy()
     asset_cache: dict[str, pd.DataFrame | None] = {}
@@ -291,4 +293,4 @@ def apply_condition(
 
     out["target_price"] = targets
     out["stop_price"] = stops
-    return out
+    return out  # type: ignore[no-any-return]

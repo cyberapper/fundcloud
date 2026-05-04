@@ -260,7 +260,9 @@ mod tests {
     #[test]
     fn detects_canonical_triple_top() {
         let p = flat_panel(40, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         // Three peaks at 100, troughs at 95 and 96 → neckline = 95.
         let pivots = vec![
@@ -285,7 +287,9 @@ mod tests {
         // Middle peak at 115 vs shoulders at 100 → pct_diff > 0.02.
         // This is what distinguishes triple-top from H&S.
         let p = flat_panel(40, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(2, 100.0, PivotKind::High),
@@ -301,7 +305,9 @@ mod tests {
     #[test]
     fn detects_canonical_triple_bottom() {
         let p = flat_panel(40, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         let pivots = vec![
             pivot(2, 100.0, PivotKind::Low),
@@ -321,7 +327,9 @@ mod tests {
     #[test]
     fn rejects_when_formation_too_short() {
         let p = flat_panel(20, 100.0);
-        let ts: Vec<i64> = (0..p.close.len() as i64).map(|i| i * 60 * 1_000_000_000).collect();
+        let ts: Vec<i64> = (0..p.close.len() as i64)
+            .map(|i| i * 60 * 1_000_000_000)
+            .collect();
         let v = view(&p, &ts);
         // p5.index - p1.index = 9 < min_bar_count (10).
         let pivots = vec![

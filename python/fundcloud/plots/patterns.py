@@ -122,7 +122,7 @@ def _add_candlestick(fig: go.Figure, ohlc: pd.DataFrame, asset: str) -> None:
     )
 
 
-def _add_pivots(fig: go.Figure, pivots: list[dict]) -> None:
+def _add_pivots(fig: go.Figure, pivots: list[dict[str, Any]]) -> None:
     """Render each pivot as a triangle marker — pointing down for HIGH
     (visually sits above the bar high) and up for LOW (below the low).
     """
@@ -166,7 +166,7 @@ def _add_pivots(fig: go.Figure, pivots: list[dict]) -> None:
 
 def _add_trend_lines(
     fig: go.Figure,
-    trend_lines: list[dict],
+    trend_lines: list[dict[str, Any]],
     ohlc_window: pd.DataFrame,
     bars_full: pd.DataFrame,
     asset: str,
@@ -219,7 +219,7 @@ def _add_trend_lines(
         )
 
 
-def _add_levels(fig: go.Figure, event: dict, x_range: tuple) -> None:
+def _add_levels(fig: go.Figure, event: dict[str, Any], x_range: tuple[Any, Any]) -> None:
     """Horizontal lines for entry / target / stop. Drawn across the
     formation+padding range only, not the whole chart.
     """
@@ -265,7 +265,7 @@ def _shade_formation(
     )
 
 
-def _build_title(event: dict) -> str:
+def _build_title(event: dict[str, Any]) -> str:
     """Single-line title: 'DOUBLE_TOP / SPY / Bearish / 1995-04-12 / Q=68'."""
     pattern = event.get("pattern")
     pattern_str = pattern.value if hasattr(pattern, "value") else str(pattern)
@@ -283,7 +283,7 @@ def _build_title(event: dict) -> str:
     return " · ".join(b for b in bits if b)
 
 
-def _event_to_dict(event: pd.Series | dict) -> dict:
+def _event_to_dict(event: pd.Series | dict[str, Any]) -> dict[str, Any]:
     if isinstance(event, pd.Series):
         return event.to_dict()
     if isinstance(event, dict):
@@ -292,12 +292,12 @@ def _event_to_dict(event: pd.Series | dict) -> dict:
     raise TypeError(msg)
 
 
-def _direction_str(event: dict) -> str:
+def _direction_str(event: dict[str, Any]) -> str:
     d = event.get("direction")
     return d.value if hasattr(d, "value") else str(d).lower()
 
 
-def _pattern_str(event: dict) -> str:
+def _pattern_str(event: dict[str, Any]) -> str:
     p = event.get("pattern")
     return p.value if hasattr(p, "value") else str(p)
 
@@ -332,7 +332,7 @@ def _bar_offset_ts(
 
 def _add_pattern_shape(
     fig: go.Figure,
-    event: dict,
+    event: dict[str, Any],
     *,
     color: str | None = None,
     legendgroup: str | None = None,
@@ -381,7 +381,7 @@ def _add_pattern_shape(
 
 def _add_horizon_markers(
     fig: go.Figure,
-    event: dict,
+    event: dict[str, Any],
     bars_full: pd.DataFrame,
     *,
     horizon: int,
@@ -460,7 +460,7 @@ def _add_horizon_markers(
 
 
 def plot_pattern_event(
-    event: pd.Series | dict,
+    event: pd.Series | dict[str, Any],
     bars: pd.DataFrame,
     *,
     padding: int = 20,
@@ -663,7 +663,7 @@ def plot_asset_patterns(
 
 def _add_horizon_markers_silent(
     fig: go.Figure,
-    event: dict,
+    event: dict[str, Any],
     bars_full: pd.DataFrame,
     *,
     horizon: int,
