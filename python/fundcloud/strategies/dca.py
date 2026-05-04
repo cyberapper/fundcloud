@@ -113,6 +113,9 @@ class DCA(BaseStrategy):
 
         if amount is not None:
             if isinstance(amount, Mapping):
+                if weights is not None:
+                    msg = "DCA: `weights` must be omitted when `amount` is a mapping."
+                    raise ValueError(msg)
                 self._amounts = {k: float(v) for k, v in amount.items()}
             else:
                 self._scalar_amount = float(amount)
@@ -123,7 +126,11 @@ class DCA(BaseStrategy):
                     self._amounts = {k: self._scalar_amount * float(v) for k, v in weights.items()}
         else:
             assert amount_pct is not None  # for type-checkers; guarded above
+            _validate_amount_pct_values(amount_pct)
             if isinstance(amount_pct, Mapping):
+                if weights is not None:
+                    msg = "DCA: `weights` must be omitted when `amount_pct` is a mapping."
+                    raise ValueError(msg)
                 self._amount_pcts = {k: float(v) for k, v in amount_pct.items()}
             else:
                 self._scalar_amount_pct = float(amount_pct)
@@ -233,6 +240,21 @@ def _validate_weights_sum_to_one(weights: Mapping[str, float]) -> None:
     if abs(total_w - 1.0) > 1e-6:
         msg = f"DCA weights must sum to 1, got {total_w}"
         raise ValueError(msg)
+
+
+def _validate_amount_pct_values(amount_pct: float | Mapping[str, float]) -> None:
+    """Reject ``amount_pct`` outside ``[0, 1]`` — a typo like ``1.5`` would
+    silently oversize orders, and negatives degrade into skipped buys."""
+    if isinstance(amount_pct, Mapping):
+        bad = {k: float(v) for k, v in amount_pct.items() if not 0.0 <= float(v) <= 1.0}
+        if bad:
+            msg = f"DCA amount_pct values must be in [0, 1]; got {bad}"
+            raise ValueError(msg)
+    else:
+        v = float(amount_pct)
+        if not 0.0 <= v <= 1.0:
+            msg = f"DCA amount_pct must be in [0, 1]; got {amount_pct!r}"
+            raise ValueError(msg)
 
 
 def _close_all(ctx: Context) -> list[Order]:

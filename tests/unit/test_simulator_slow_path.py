@@ -264,7 +264,7 @@ def test_order_rejects_negative_qty_at_construction(panel: pd.DataFrame) -> None
     values are rejected at construction time so they can't silently flow
     into ``_execute`` and flip the trade's sign."""
     del panel  # only here for the parametrised fixture symmetry
-    with pytest.raises(ValueError, match="qty must be positive"):
+    with pytest.raises(ValueError, match="qty must be"):
         Order(ts=pd.Timestamp("2024-01-04"), asset="A", side="buy", qty=-1.0)
 
 

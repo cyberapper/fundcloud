@@ -54,6 +54,38 @@ def test_dca_per_asset_amounts(panel: pd.DataFrame) -> None:
     assert len(result.trades) >= 1
 
 
+# ------------------------------------------------------- constructor input validation
+
+
+@pytest.mark.parametrize("bad", [-0.1, 1.5, 2.0])
+def test_dca_rejects_scalar_amount_pct_outside_unit_interval(bad: float) -> None:
+    """``amount_pct`` is documented as a fraction in [0, 1]; values outside
+    that range silently oversize or skip orders."""
+    with pytest.raises(ValueError, match="amount_pct"):
+        DCA(amount_pct=bad, horizon="weekly")
+
+
+def test_dca_rejects_mapping_amount_pct_outside_unit_interval() -> None:
+    with pytest.raises(ValueError, match="amount_pct"):
+        DCA(amount_pct={"A": 0.3, "B": 1.5}, horizon="weekly")
+
+
+def test_dca_rejects_weights_when_amount_is_mapping() -> None:
+    """When ``amount`` is per-asset, ``weights`` is silently ignored today;
+    fail fast to surface the misconfiguration."""
+    with pytest.raises(ValueError, match="weights"):
+        DCA(amount={"A": 100, "B": 200}, weights={"A": 0.5, "B": 0.5}, horizon="weekly")
+
+
+def test_dca_rejects_weights_when_amount_pct_is_mapping() -> None:
+    with pytest.raises(ValueError, match="weights"):
+        DCA(
+            amount_pct={"A": 0.05, "B": 0.05},
+            weights={"A": 0.5, "B": 0.5},
+            horizon="weekly",
+        )
+
+
 def test_dca_scalar_amount_defaults_to_equal_weights() -> None:
     """Scalar ``amount`` + no ``weights`` → equal split across bars assets."""
     rng = np.random.default_rng(2)

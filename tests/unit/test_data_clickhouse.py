@@ -345,6 +345,45 @@ def test_read_multi_asset_returns_multiindex(fake_ch: _FakeClient) -> None:
     assert out[("close", "TSE:7203")].iloc[0] == pytest.approx(201.0)
 
 
+def test_read_dedup_is_order_independent_when_duplicates_have_distinct_values(
+    fake_ch: _FakeClient,
+) -> None:
+    """ClickHouse-backed sources (MV / ReplacingMergeTree) routinely emit
+    several rows per logical ``(timestamp, asset)`` key while merges
+    catch up. The ``read()`` pipeline must yield the same row regardless
+    of the physical order in which the duplicates arrived — otherwise
+    repeated reads of the same table can return different ``close`` /
+    ``volume`` values, which silently corrupts downstream backtests.
+    """
+    from fundcloud.data import ClickHouse
+
+    rows_natural = pd.DataFrame({
+        "ts": pd.to_datetime(["2024-01-02", "2024-01-02"]),
+        "prefix": ["HKEX", "HKEX"],
+        "code": ["0001", "0001"],
+        "open": [100.0, 100.0],
+        "close": [105.0, 100.0],
+    })
+    rows_reversed = rows_natural.iloc[::-1].reset_index(drop=True)
+
+    ch = ClickHouse(
+        host="x",
+        table="t",
+        timestamp_col="ts",
+        asset_cols=["prefix", "code"],
+        asset_separator=":",
+    )
+    fake_ch.df_response = rows_natural
+    out_a = ch.read()
+    fake_ch.df_response = rows_reversed
+    out_b = ch.read()
+
+    assert out_a.equals(out_b), (
+        f"dedup is order-dependent: natural→{out_a[('close', 'HKEX:0001')].iloc[0]} "
+        f"vs reversed→{out_b[('close', 'HKEX:0001')].iloc[0]}"
+    )
+
+
 def test_read_multi_asset_with_key_filters_to_single_symbol(fake_ch: _FakeClient) -> None:
     from fundcloud.data import ClickHouse
 
@@ -571,7 +610,7 @@ def test_db_qualified_table_quoted_correctly(fake_ch: _FakeClient) -> None:
         "timestamp": pd.to_datetime(["2024-01-02"]),
         "close": [100.0],
     })
-    ch = ClickHouse(host="x", table="default.tv_whale_snapshot_latest_mv")
+    ch = ClickHouse(host="x", table="default.bars_1m")
     ch.read()
     _, sql, _ = fake_ch.calls[0]
-    assert "FROM `default`.`tv_whale_snapshot_latest_mv`" in sql
+    assert "FROM `default`.`bars_1m`" in sql

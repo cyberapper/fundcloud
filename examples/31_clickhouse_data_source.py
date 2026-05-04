@@ -32,7 +32,7 @@ Run:
 
     # Or point at an existing Clickhouse via env vars:
     export CLICKHOUSE_HOST=...; export CLICKHOUSE_USER=...; export CLICKHOUSE_PASSWORD=...
-    export FC_EXAMPLE_TABLE=tv_whale_snapshot_latest_mv
+    export FC_EXAMPLE_TABLE=<your_table_name>
     uv run python examples/31_clickhouse_data_source.py
 """
 

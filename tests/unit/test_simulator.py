@@ -98,6 +98,34 @@ def test_run_orders_rejects_missing_columns(panel: pd.DataFrame) -> None:
         Simulator(panel).run_orders(bad)
 
 
+@pytest.mark.parametrize(
+    ("field", "bad"),
+    [
+        ("sl_stop", 1.5),
+        ("sl_stop", -0.1),
+        ("tsl_stop", 1.5),
+        ("tp_stop", float("inf")),
+    ],
+)
+def test_run_orders_fast_path_validates_bracket_fractions(
+    panel: pd.DataFrame, field: str, bad: float
+) -> None:
+    """Both fast and slow paths must agree on bracket-fraction validity.
+    The slow path goes through ``Order(...)`` and rejects out-of-range
+    values; the fast path used to silently forward them to the kernel.
+    """
+    row = {
+        "ts": panel.index[2],
+        "asset": "A",
+        "side": "buy",
+        "qty": 100.0,
+        field: bad,
+    }
+    explicit = pd.DataFrame([row])
+    with pytest.raises(ValueError):
+        Simulator(panel, cash=100_000).run_orders(explicit)
+
+
 # -------------------------------------------------------------------- run_signals
 
 

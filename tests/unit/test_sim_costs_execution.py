@@ -28,6 +28,28 @@ def test_fixed_bps_scales_with_notional() -> None:
     assert model.fee(price=100, qty=-20) == pytest.approx(2.0)  # signed qty OK
 
 
+@pytest.mark.parametrize("bad", [-1.0, -0.0001])
+def test_fixed_bps_rejects_negative_bps(bad: float) -> None:
+    with pytest.raises(ValueError, match="bps"):
+        FixedBps(bps=bad)
+
+
+def test_fixed_bps_rejects_negative_minimum() -> None:
+    with pytest.raises(ValueError, match="minimum"):
+        FixedBps(bps=5.0, minimum=-1.0)
+
+
+@pytest.mark.parametrize("bad", [-0.005, -1.0])
+def test_per_share_rejects_negative_rate(bad: float) -> None:
+    with pytest.raises(ValueError, match="rate"):
+        PerShare(rate=bad)
+
+
+def test_per_share_rejects_negative_minimum() -> None:
+    with pytest.raises(ValueError, match="minimum"):
+        PerShare(rate=0.005, minimum=-0.5)
+
+
 def test_fixed_bps_minimum() -> None:
     model = FixedBps(bps=1.0, minimum=5.0)
     assert model.fee(price=1, qty=1) == 5.0

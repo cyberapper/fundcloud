@@ -250,13 +250,21 @@ class Portfolio:
         pos = self.position(asset)
         notional = qty * price
         self._live.cash -= notional + fee
-        # Weighted-average cost update for adds; leave avg_cost alone on closes.
-        is_add = pos.qty == 0 or (pos.qty > 0) == (qty > 0)
+        # Weighted-average cost update for adds; leave avg_cost alone on
+        # pure closes. A single fill that crosses zero (e.g. long +5 with
+        # a sell of 8 -> short -3) is treated as a close-and-reopen: the
+        # residual is a fresh entry on the opposite side, so ``avg_cost``
+        # resets to this trade's fill price.
+        prev_qty = pos.qty
+        new_qty = prev_qty + qty
+        is_add = prev_qty == 0 or (prev_qty > 0) == (qty > 0)
+        crossed_zero = prev_qty != 0 and new_qty != 0 and (prev_qty > 0) != (new_qty > 0)
         if is_add:
-            total = pos.qty + qty
-            if total != 0:
-                pos.avg_cost = (pos.qty * pos.avg_cost + qty * price) / total
-        pos.qty += qty
+            if new_qty != 0:
+                pos.avg_cost = (prev_qty * pos.avg_cost + qty * price) / new_qty
+        elif crossed_zero:
+            pos.avg_cost = price
+        pos.qty = new_qty
 
         # Bracket-order bookkeeping (stop-loss + take-profit + trailing
         # stop). Each fraction is carried on the originating Order; the
@@ -293,11 +301,22 @@ class Portfolio:
             pos.tsl_pct = None
             pos.tsl_anchor = None
         else:
-            if sl_stop is not None and is_add and price > 0:
+            if crossed_zero:
+                # Residual position is on the opposite side from the prior
+                # state — clear the prior side's brackets before applying
+                # any fresh ones the flipping order may carry. Without
+                # this, a long-side SL set above an old short's entry
+                # would persist on the new long and fire as a take-profit.
+                pos.sl_level = None
+                pos.tp_level = None
+                pos.tsl_pct = None
+                pos.tsl_anchor = None
+            is_entry_like = is_add or crossed_zero
+            if sl_stop is not None and is_entry_like and price > 0:
                 pos.sl_level = price * (1.0 - sl_stop) if pos.qty > 0 else price * (1.0 + sl_stop)
-            if tp_stop is not None and is_add and price > 0:
+            if tp_stop is not None and is_entry_like and price > 0:
                 pos.tp_level = price * (1.0 + tp_stop) if pos.qty > 0 else price * (1.0 - tp_stop)
-            if tsl_stop is not None and is_add and price > 0 and pos.tsl_pct is None:
+            if tsl_stop is not None and is_entry_like and price > 0 and pos.tsl_pct is None:
                 # First entry that carries ``tsl_stop`` — initialise the
                 # trail. Subsequent accumulating entries leave the
                 # anchor in place; the high-water mark keeps ratcheting

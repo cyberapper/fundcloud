@@ -109,6 +109,71 @@ def test_short_position_can_flip_to_long_via_two_trades() -> None:
     assert p.cash == pytest.approx(7_800.0)
 
 
+def test_single_trade_crossing_zero_resets_avg_cost_to_flip_fill_price() -> None:
+    """A single fill that flips direction (short −100 → buy +150 ⇒ net long
+    +50) must reset ``avg_cost`` to the flip-fill price. The residual
+    position is a fresh entry on the opposite side; carrying the old
+    short-side cost over would corrupt unrealised-PnL math.
+    """
+    p = Portfolio(cash=10_000.0)
+    ts = pd.Timestamp("2024-01-02")
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=-100.0, price=50.0))  # short open
+    # Single trade that crosses zero — buys 150 against existing −100.
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=150.0, price=48.0))
+
+    pos = p.position("BTC")
+    assert pos.qty == pytest.approx(50.0)
+    assert pos.avg_cost == pytest.approx(48.0)
+
+
+def test_single_trade_crossing_zero_clears_prior_brackets() -> None:
+    """Opening a short with SL/TP, then flipping to long in a single fill,
+    must clear the prior short's SL/TP/TSL state and re-anchor brackets to
+    the new long if the flipping order carries fresh fractions."""
+    p = Portfolio(cash=10_000.0)
+    ts = pd.Timestamp("2024-01-02")
+
+    short_open = Order(ts=ts, asset="BTC", side="sell", qty=100.0, sl_stop=0.10, tp_stop=0.20)
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=-100.0, price=50.0, order=short_open))
+    # Sanity: short brackets are anchored to the entry price.
+    pos = p.position("BTC")
+    assert pos.sl_level == pytest.approx(50.0 * 1.10)  # short SL is above
+    assert pos.tp_level == pytest.approx(50.0 * 0.80)  # short TP is below
+
+    # Single trade flips short → long with fresh long-side brackets.
+    flip = Order(ts=ts, asset="BTC", side="buy", qty=150.0, sl_stop=0.05, tp_stop=0.10)
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=150.0, price=48.0, order=flip))
+
+    pos = p.position("BTC")
+    # Long-side brackets anchored to the flip-fill price (long TP is above,
+    # long SL is below, mirror image of the short brackets cleared above).
+    assert pos.sl_level == pytest.approx(48.0 * 0.95)
+    assert pos.tp_level == pytest.approx(48.0 * 1.10)
+
+
+def test_single_trade_crossing_zero_clears_brackets_when_flip_order_has_none() -> None:
+    """If the flipping order carries no fresh brackets, the prior side's
+    SL/TP/TSL must still be cleared — leaving them in place would let an
+    inverted long position fire a stop-loss meant for a short."""
+    p = Portfolio(cash=10_000.0)
+    ts = pd.Timestamp("2024-01-02")
+
+    short_open = Order(ts=ts, asset="BTC", side="sell", qty=100.0, sl_stop=0.10)
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=-100.0, price=50.0, order=short_open))
+    assert p.position("BTC").sl_level is not None
+
+    # Plain flip — no SL on the new order.
+    plain_flip = Order(ts=ts, asset="BTC", side="buy", qty=150.0)
+    p.apply(_MockTrade(ts=ts, asset="BTC", qty=150.0, price=48.0, order=plain_flip))
+
+    pos = p.position("BTC")
+    assert pos.qty == pytest.approx(50.0)
+    assert pos.sl_level is None
+    assert pos.tp_level is None
+    assert pos.tsl_pct is None
+    assert pos.tsl_anchor is None
+
+
 def test_metrics_treat_short_returns_identically_to_long() -> None:
     """Sharpe / max_drawdown / total_return are sign-agnostic.
 

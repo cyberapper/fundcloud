@@ -9,6 +9,7 @@ and explicit orders produce the same post-run analytics surface.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
@@ -303,6 +304,10 @@ class Simulator:
         if missing:
             msg = f"orders frame missing columns: {missing}"
             raise KeyError(msg)
+        # Bracket-fraction validation runs at the entry point so the fast
+        # (kernel) and slow (``Order(...)``) paths agree on what's a valid
+        # input. The slow path also re-validates via ``Order.__post_init__``.
+        _validate_orders_brackets(orders)
         cfg = _model_tags(self.costs, self.slippage, self.execution)
         if cfg is not None:
             return self._run_orders_fast(orders, cfg)
@@ -769,6 +774,36 @@ class Simulator:
 
 
 _PRICE_FIELDS = frozenset({"open", "high", "low", "close"})
+
+
+def _validate_orders_brackets(orders: pd.DataFrame) -> None:
+    """Reject out-of-range / non-finite bracket fractions on a long-format
+    orders frame. Mirrors :meth:`Order.__post_init__` so the fast kernel
+    path can't accept inputs the slow ``Order(...)`` path would refuse.
+
+    A value of ``0`` (or NaN) is the wire-format "no stop" sentinel and
+    is treated as absent — the kernel only acts on strictly-positive
+    fractions.
+    """
+    for col, valid in (
+        ("sl_stop", lambda v: 0.0 < v < 1.0),
+        ("tp_stop", lambda v: v > 0.0),
+        ("tsl_stop", lambda v: 0.0 < v < 1.0),
+    ):
+        if col not in orders.columns:
+            continue
+        for raw in orders[col]:
+            if raw is None or pd.isna(raw):
+                continue
+            v = float(raw)
+            if v == 0.0:
+                continue
+            if not math.isfinite(v) or not valid(v):
+                msg = (
+                    f"orders frame contains invalid {col}={raw!r}; "
+                    f"must be a finite fraction (sentinel 0/NaN means 'no stop')"
+                )
+                raise ValueError(msg)
 
 
 def _forward_fill_prices(bars: pd.DataFrame) -> pd.DataFrame:

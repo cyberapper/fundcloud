@@ -92,6 +92,15 @@ class FixedBps:
     bps: float = 5.0
     minimum: float = 0.0
 
+    def __post_init__(self) -> None:
+        # The :class:`CostModel` protocol promises non-negative fees; a
+        # negative ``bps`` or ``minimum`` would credit cash on every fill
+        # and silently corrupt downstream PnL.
+        if self.bps < 0:
+            raise ValueError(f"FixedBps bps must be non-negative; got {self.bps!r}")
+        if self.minimum < 0:
+            raise ValueError(f"FixedBps minimum must be non-negative; got {self.minimum!r}")
+
     def fee(self, *, price: float, qty: float) -> float:
         notional = abs(price * qty)
         return max(self.minimum, notional * self.bps * 1e-4)
@@ -122,6 +131,12 @@ class PerShare:
 
     rate: float = 0.005
     minimum: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.rate < 0:
+            raise ValueError(f"PerShare rate must be non-negative; got {self.rate!r}")
+        if self.minimum < 0:
+            raise ValueError(f"PerShare minimum must be non-negative; got {self.minimum!r}")
 
     def fee(self, *, price: float, qty: float) -> float:
         return max(self.minimum, abs(qty) * self.rate)

@@ -10,8 +10,9 @@ Required env vars (read via the same fall-throughs as the constructor):
 * ``CLICKHOUSE_HOST`` — required
 * ``CLICKHOUSE_PORT``, ``CLICKHOUSE_USER``, ``CLICKHOUSE_PASSWORD``,
   ``CLICKHOUSE_DATABASE`` — recommended
-* ``FC_TEST_CLICKHOUSE_TABLE`` — table name to read; defaults to
-  ``tv_whale_snapshot_latest_mv``.
+* ``FC_TEST_CLICKHOUSE_TABLE`` — table name to read. Required when
+  pointing at a real ClickHouse; the fixture-based docker tests in
+  ``tests/integration/test_clickhouse_docker.py`` seed their own.
 * ``FC_TEST_CLICKHOUSE_TIMESTAMP_COL`` — defaults to ``timestamp``.
 * ``FC_TEST_CLICKHOUSE_ASSET_COLS`` — comma-separated list, e.g.
   ``"prefix,code"``. If unset, the table is read in single-asset mode.
@@ -44,8 +45,8 @@ def _build_backend() -> object:
     pytest.importorskip("clickhouse_connect")
     from fundcloud.data import ClickHouse
 
-    _require_env("CLICKHOUSE_HOST")
-    table = os.environ.get("FC_TEST_CLICKHOUSE_TABLE", "tv_whale_snapshot_latest_mv")
+    host = _require_env("CLICKHOUSE_HOST")
+    table = _require_env("FC_TEST_CLICKHOUSE_TABLE")
     timestamp_col = os.environ.get("FC_TEST_CLICKHOUSE_TIMESTAMP_COL", "timestamp")
     asset_cols_raw = os.environ.get("FC_TEST_CLICKHOUSE_ASSET_COLS")
     asset_cols = (
@@ -53,9 +54,21 @@ def _build_backend() -> object:
     )
     timeframe_col = os.environ.get("FC_TEST_CLICKHOUSE_TIMEFRAME_COL")
     timeframe = os.environ.get("FC_TEST_CLICKHOUSE_TIMEFRAME")
+    # The backend no longer reads connection env vars itself; forward
+    # whatever the live runner exported so the constructor receives
+    # explicit config.
+    port_raw = os.environ.get("CLICKHOUSE_PORT")
+    user = os.environ.get("CLICKHOUSE_USER")
+    password = os.environ.get("CLICKHOUSE_PASSWORD")
+    database = os.environ.get("CLICKHOUSE_DATABASE")
 
     return ClickHouse(
         table=table,
+        host=host,
+        port=int(port_raw) if port_raw else None,
+        user=user,
+        password=password,
+        database=database,
         timestamp_col=timestamp_col,
         asset_cols=asset_cols,
         timeframe_col=timeframe_col,

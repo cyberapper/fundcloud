@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -147,6 +148,11 @@ class Order:
     tsl_stop: float | None = None
 
     def __post_init__(self) -> None:
+        if self.side not in ("buy", "sell"):
+            # ``Literal["buy", "sell"]`` is static-only; an arbitrary string
+            # would be treated as sell-by-default in :meth:`signed_qty`,
+            # silently flipping trade direction. Reject at construction.
+            raise ValueError(f"Order side must be 'buy' or 'sell'; got {self.side!r}")
         if self.qty is None and self.notional is None:
             raise ValueError("Order needs qty or notional")
         if self.kind == "limit" and self.limit_price is None:
@@ -154,16 +160,25 @@ class Order:
         # ``qty`` and ``notional`` are unsigned magnitudes — direction
         # comes from :attr:`side`. A negative value here would silently
         # flip the trade's sign at fill time, so reject it at construction.
-        if self.qty is not None and self.qty <= 0:
-            raise ValueError(f"Order qty must be positive; got {self.qty!r}")
-        if self.notional is not None and self.notional <= 0:
-            raise ValueError(f"Order notional must be positive; got {self.notional!r}")
-        if self.sl_stop is not None and not (0.0 < self.sl_stop < 1.0):
-            raise ValueError(f"sl_stop must be a fraction in (0, 1); got {self.sl_stop!r}")
-        if self.tp_stop is not None and self.tp_stop <= 0.0:
-            raise ValueError(f"tp_stop must be a positive fraction; got {self.tp_stop!r}")
-        if self.tsl_stop is not None and not (0.0 < self.tsl_stop < 1.0):
-            raise ValueError(f"tsl_stop must be a fraction in (0, 1); got {self.tsl_stop!r}")
+        # NaN/Inf would also pass past simple ``<= 0`` comparisons (since
+        # all NaN comparisons are False), so we reject non-finite values
+        # explicitly before the range checks.
+        if self.qty is not None and (not math.isfinite(self.qty) or self.qty <= 0):
+            raise ValueError(f"Order qty must be a positive finite number; got {self.qty!r}")
+        if self.notional is not None and (not math.isfinite(self.notional) or self.notional <= 0):
+            raise ValueError(
+                f"Order notional must be a positive finite number; got {self.notional!r}"
+            )
+        if self.sl_stop is not None and (
+            not math.isfinite(self.sl_stop) or not (0.0 < self.sl_stop < 1.0)
+        ):
+            raise ValueError(f"sl_stop must be a finite fraction in (0, 1); got {self.sl_stop!r}")
+        if self.tp_stop is not None and (not math.isfinite(self.tp_stop) or self.tp_stop <= 0.0):
+            raise ValueError(f"tp_stop must be a positive finite fraction; got {self.tp_stop!r}")
+        if self.tsl_stop is not None and (
+            not math.isfinite(self.tsl_stop) or not (0.0 < self.tsl_stop < 1.0)
+        ):
+            raise ValueError(f"tsl_stop must be a finite fraction in (0, 1); got {self.tsl_stop!r}")
 
     # ---------------------------------------------------------------- helpers
 

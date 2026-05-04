@@ -8,7 +8,6 @@ fixtures.
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -299,14 +298,16 @@ def test_deposit_type_phrasing_variants() -> None:
 # ---------------------------------------------------------------- real-sample smoke
 
 
-def test_real_sample_smoke() -> None:
-    """Smoke test against the real anonymised export, gated by file presence."""
-    sample = Path("temp/ib_fundcloud_example.csv")
-    if not sample.exists():
-        pytest.skip("temp/ib_fundcloud_example.csv not present (intentional)")
+def test_synthetic_full_year_smoke(synthetic_ib_full_year_csv: str) -> None:
+    """Parser smoke test against a synthetic full-year export.
+
+    Replaces a previous file-gated test that required a real (anonymised)
+    broker export under ``temp/``. The fixture lives in ``conftest.py``
+    so any test can reuse it.
+    """
     from fundcloud.accounts._flex import parse_flex_csv
 
-    result = parse_flex_csv(sample)
+    result = parse_flex_csv(synthetic_ib_full_year_csv)
     assert len(result.nav) >= 200, "expected at least ~262 daily NAV rows"
     assert "account_id" in result.nav.columns
     # At least one deposit/withdrawal post-filter.

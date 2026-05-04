@@ -419,10 +419,17 @@ class ClickHouse(BaseBackend):
         # 5. dedup on the (timestamp, asset_cols) primary key. Materialised
         # views and ReplacingMergeTree-backed tables routinely emit several
         # rows for the same logical key while merges catch up; without this
-        # the pivot below would crash on duplicate index entries. We keep
-        # the last row per key — combined with the SQL ``ORDER BY timestamp``
-        # this yields a deterministic choice across runs.
+        # the pivot below would crash on duplicate index entries. The SQL
+        # ``ORDER BY timestamp`` alone is not enough — duplicates within a
+        # single timestamp can arrive in any physical order, which would
+        # leave ``drop_duplicates(keep="last")`` picking different rows
+        # across reads. Sort the frame by ``[*dedup_keys, *other_cols]``
+        # with a stable kind first so the chosen row is the
+        # lexicographically-last one across all data columns, regardless
+        # of how ClickHouse returned them.
         dedup_keys = [self.timestamp_col, *(self.asset_cols or ())]
+        stable_order = [*dedup_keys, *[c for c in df.columns if c not in dedup_keys]]
+        df = df.sort_values(stable_order, kind="mergesort", ignore_index=True)
         df = df.drop_duplicates(subset=dedup_keys, keep="last")
 
         # 6. pivot for multi-asset, or set index for single. ``_symbol`` is
