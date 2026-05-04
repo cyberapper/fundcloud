@@ -320,12 +320,31 @@ class Simulator:
             sl = float(sl) if sl is not None and pd.notna(sl) and float(sl) > 0 else None
             tp = float(tp) if tp is not None and pd.notna(tp) and float(tp) > 0 else None
             tsl = float(tsl) if tsl is not None and pd.notna(tsl) and float(tsl) > 0 else None
+            # Forward optional sizing fields so the slow path produces the
+            # same Order shape as the fast kernel — a notional-only row
+            # used to silently lose its ``notional`` here, and any
+            # ``kind="limit"`` / ``limit_price`` was dropped too.
+            qty_raw = getattr(row, "qty", None)
+            qty = float(qty_raw) if qty_raw is not None and pd.notna(qty_raw) else None
+            notional_raw = getattr(row, "notional", None)
+            notional = (
+                float(notional_raw) if notional_raw is not None and pd.notna(notional_raw) else None
+            )
+            kind_raw = getattr(row, "kind", None)
+            kind = str(kind_raw) if kind_raw is not None and pd.notna(kind_raw) else "market"
+            limit_raw = getattr(row, "limit_price", None)
+            limit_price = (
+                float(limit_raw) if limit_raw is not None and pd.notna(limit_raw) else None
+            )
             by_ts.setdefault(ts, []).append(
                 Order(
                     ts=ts,
                     asset=str(row.asset),
                     side=str(row.side),
-                    qty=float(row.qty),
+                    qty=qty,
+                    notional=notional,
+                    kind=kind,  # type: ignore[arg-type]
+                    limit_price=limit_price,
                     sl_stop=sl,
                     tp_stop=tp,
                     tsl_stop=tsl,

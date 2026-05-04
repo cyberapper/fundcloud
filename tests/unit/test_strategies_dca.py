@@ -86,6 +86,28 @@ def test_dca_rejects_weights_when_amount_pct_is_mapping() -> None:
         )
 
 
+def test_dca_rejects_non_finite_weights() -> None:
+    """NaN/Inf in a weight propagates into ``Order.qty`` (which Order's
+    own ``__post_init__`` then rejects with a less helpful message).
+    Catch it at the validator with a clear message instead."""
+    with pytest.raises(ValueError, match="finite"):
+        DCA(amount=1000, weights={"A": float("nan"), "B": 1.0}, horizon="weekly")
+    with pytest.raises(ValueError, match="finite"):
+        DCA(amount=1000, weights={"A": float("inf"), "B": 1.0}, horizon="weekly")
+
+
+def test_dca_accepts_negative_weights_for_short_selling() -> None:
+    """Negative weights are intentional — they represent short positions
+    in a long-short setup. Net exposure must still sum to 1 (the
+    ``scalar_amount`` is fully deployed). For example:
+    ``{"A": -0.5, "B": 1.5}`` says short A by half a unit, long B by
+    one and a half.
+    """
+    # Should construct without raising.
+    DCA(amount=1000, weights={"A": -0.5, "B": 1.5}, horizon="weekly")
+    DCA(amount=1000, weights={"A": 1.5, "B": -0.5}, horizon="weekly")
+
+
 def test_dca_scalar_amount_defaults_to_equal_weights() -> None:
     """Scalar ``amount`` + no ``weights`` → equal split across bars assets."""
     rng = np.random.default_rng(2)

@@ -19,6 +19,14 @@ def test_order_requires_qty_or_notional() -> None:
         Order(ts=_ts(), asset="A", side="buy")
 
 
+def test_order_rejects_both_qty_and_notional() -> None:
+    """Mutually exclusive — downstream ``_execute`` uses ``qty`` and
+    silently ignores ``notional`` if both are passed, which gives bad
+    callers the wrong sizing semantics with no error."""
+    with pytest.raises(ValueError, match="exactly one"):
+        Order(ts=_ts(), asset="A", side="buy", qty=10.0, notional=1000.0)
+
+
 def test_order_rejects_zero_qty() -> None:
     with pytest.raises(ValueError, match="qty must be"):
         Order(ts=_ts(), asset="A", side="buy", qty=0.0)

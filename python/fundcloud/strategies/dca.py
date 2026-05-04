@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Literal
 
@@ -236,7 +237,16 @@ class DCA(BaseStrategy):
 
 
 def _validate_weights_sum_to_one(weights: Mapping[str, float]) -> None:
-    total_w = sum(weights.values())
+    # Reject NaN / Inf per-weight before summing — those would otherwise
+    # poison the total (NaN sum ≠ 1) with a confusing message, and
+    # propagate into ``Order.qty`` downstream. Negative weights are
+    # **allowed** (they represent short positions in a long-short setup),
+    # so we don't bound the per-weight value — only the net sum matters.
+    bad = {k: v for k, v in weights.items() if not math.isfinite(float(v))}
+    if bad:
+        msg = f"DCA weights must be finite numbers, got {bad}"
+        raise ValueError(msg)
+    total_w = sum(float(v) for v in weights.values())
     if abs(total_w - 1.0) > 1e-6:
         msg = f"DCA weights must sum to 1, got {total_w}"
         raise ValueError(msg)

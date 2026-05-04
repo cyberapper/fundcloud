@@ -127,6 +127,17 @@ def test_orphan_timeframe_filter_raises() -> None:
         ClickHouse(host="x", table="t", timeframe="1h")
 
 
+def test_orphan_timeframe_col_raises() -> None:
+    """Symmetric guard: a ``timeframe_col`` without a ``timeframe`` filter
+    silently collapses multi-resolution rows during ``_postprocess`` —
+    the dedup step drops the timeframe column then dedups on
+    ``(timestamp, asset_cols)``, merging different resolutions into one."""
+    from fundcloud.data import ClickHouse
+
+    with pytest.raises(ValueError, match="timeframe is None"):
+        ClickHouse(host="x", table="t", timeframe_col="interval")
+
+
 def test_bad_ohlcv_map_key_raises() -> None:
     from fundcloud.data import ClickHouse
 
@@ -554,6 +565,21 @@ def test_exists_runs_limit_one_query(fake_ch: _FakeClient) -> None:
     assert "LIMIT 1" in sql
     assert "`symbol` = {asset_0:String}" in sql
     assert params["asset_0"] == "BTC-USD"
+
+
+def test_exists_returns_false_for_arbitrary_key_in_single_asset_mode(
+    fake_ch: _FakeClient,
+) -> None:
+    """Single-asset backends have no concept of a per-key existence check;
+    ``read(key=...)`` raises and ``keys()`` returns ``[]``, but
+    ``exists("anything")`` used to return ``True`` whenever the table had
+    rows. That made arbitrary keys look valid.
+    """
+    fake_ch.rows_response = [(1,)]
+    from fundcloud.data import ClickHouse
+
+    ch = ClickHouse(host="x", table="t")  # asset_cols=None → single-asset
+    assert ch.exists("any-spurious-key") is False
 
 
 # --------------------------------------------------------------------- read-only

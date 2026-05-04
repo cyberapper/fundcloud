@@ -153,8 +153,12 @@ class Order:
             # would be treated as sell-by-default in :meth:`signed_qty`,
             # silently flipping trade direction. Reject at construction.
             raise ValueError(f"Order side must be 'buy' or 'sell'; got {self.side!r}")
-        if self.qty is None and self.notional is None:
-            raise ValueError("Order needs qty or notional")
+        # ``qty`` and ``notional`` are mutually exclusive (the docstring
+        # promises this). Downstream ``_execute`` uses ``qty`` and would
+        # silently ignore ``notional`` if both were set, so reject the
+        # ambiguous payload at construction.
+        if (self.qty is None) == (self.notional is None):
+            raise ValueError("Order needs exactly one of qty or notional")
         if self.kind == "limit" and self.limit_price is None:
             raise ValueError("limit order requires limit_price")
         # ``qty`` and ``notional`` are unsigned magnitudes — direction

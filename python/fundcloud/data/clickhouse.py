@@ -156,6 +156,14 @@ class ClickHouse(BaseBackend):
                 "timeframe filter is set but timeframe_col is None — "
                 "pass timeframe_col= naming the column to filter on"
             )
+        if timeframe_col is not None and timeframe is None:
+            # ``_postprocess`` drops the timeframe column then dedups on
+            # ``(timestamp, asset_cols)``; without a timeframe filter that
+            # silently collapses different resolutions into one row.
+            raise ValueError(
+                "timeframe_col is set but timeframe is None — "
+                "pass timeframe= to select a single resolution"
+            )
 
         self.ohlcv_map: dict[str, str] = {c: c for c in OHLCV_COLUMNS}
         if ohlcv_map:
@@ -263,13 +271,12 @@ class ClickHouse(BaseBackend):
 
     def exists(self, key: str) -> bool:
         if self.asset_cols is None:
-            sql, params = self._build_select_sql(
-                key=None, start=None, end=None, projection="1", limit=1
-            )
-        else:
-            sql, params = self._build_select_sql(
-                key=key, start=None, end=None, projection="1", limit=1
-            )
+            # Single-asset backends have no concept of per-key existence.
+            # ``read(key=...)`` raises and ``keys()`` returns ``[]``, so
+            # an arbitrary ``key`` here can't ever match — return False
+            # rather than letting the caller think any string is valid.
+            return False
+        sql, params = self._build_select_sql(key=key, start=None, end=None, projection="1", limit=1)
         try:
             result = self.client.query(sql, parameters=params)
         except KeyError:

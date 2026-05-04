@@ -126,6 +126,42 @@ def test_run_orders_fast_path_validates_bracket_fractions(
         Simulator(panel, cash=100_000).run_orders(explicit)
 
 
+class _CustomNoCost:
+    """Duck-typed cost model — bypasses ``_model_tags`` so ``run_orders``
+    routes through the slow ``_drive`` path. Used to assert the slow
+    path forwards the same DataFrame columns that the fast path uses."""
+
+    def fee(self, *, price: float, qty: float) -> float:
+        return 0.0
+
+
+def test_run_orders_slow_path_forwards_notional(panel: pd.DataFrame) -> None:
+    """The slow path used to drop ``notional``/``kind``/``limit_price``
+    from each row, building ``Order(qty=...)`` only. That made the same
+    input frame produce different fill semantics depending on whether
+    a custom cost/slip/exec model disabled the fast-path dispatcher.
+    Pass a notional-only order through the slow path and verify it
+    actually trades.
+    """
+    notional = 1_000.0
+    explicit = pd.DataFrame([
+        {
+            "ts": panel.index[2],
+            "asset": "A",
+            "side": "buy",
+            "qty": float("nan"),  # NaN -> the slow path used to coerce to 0
+            "notional": notional,
+        },
+    ])
+    sim = Simulator(panel, cash=100_000, costs=_CustomNoCost())  # type: ignore[arg-type]
+    result = sim.run_orders(explicit)
+    assert len(result.trades) == 1
+    # Notional / fill_price ≈ qty traded.
+    fill_price = float(result.trades.iloc[0]["price"])
+    traded_notional = abs(float(result.trades.iloc[0]["qty"])) * fill_price
+    assert traded_notional == pytest.approx(notional, rel=0.05)
+
+
 # -------------------------------------------------------------------- run_signals
 
 
