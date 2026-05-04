@@ -2,6 +2,37 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0](https://github.com/cyberapper/fundcloud/compare/v0.3.0...v0.4.0) (2026-05-04)
+
+
+### ### Added
+
+* add Codecov configuration and update CI workflow for coverage uploads ([919b663](https://github.com/cyberapper/fundcloud/commit/919b66325de30c9441df6e5707b02cb731a47059))
+* **sim,data:** intra-bar bracket orders + ClickHouse backend ([a2064fe](https://github.com/cyberapper/fundcloud/commit/a2064fe414a24edefb3981be923717ad118a3f3f))
+* **strategies:** DCA executes long-short via negative weights ([89bf882](https://github.com/cyberapper/fundcloud/commit/89bf882087d9a09ab3b811ef8afb3b3a3b356b8e))
+* **strategies:** improve run_hold / run_dca clarity and configurability ([8e63355](https://github.com/cyberapper/fundcloud/commit/8e63355ebab40067e6b91147cfbb4511489dd2cf))
+* update dependencies and improve performance ([1ccd9df](https://github.com/cyberapper/fundcloud/commit/1ccd9df449c2631ddbb899678c24749a373e3644))
+
+
+### ### Fixed
+
+* address CodeRabbit PR [#20](https://github.com/cyberapper/fundcloud/issues/20) review ([151d90a](https://github.com/cyberapper/fundcloud/commit/151d90ab0717bbbd0d09ec40a8935857388c4091))
+* align fast paths to fire same-bar fill-bar SL/TP/TSL ([9b502fd](https://github.com/cyberapper/fundcloud/commit/9b502fd8b0c787db55070cc844df3c855bb4dd43))
+* **ci,sim:** exclude docker tests on Windows/macOS + PR review fixes ([5a099a2](https://github.com/cyberapper/fundcloud/commit/5a099a25df9288a3dda753eaf286c467868bda74))
+* enhance validation in ClickHouse and Order classes ([4b3c995](https://github.com/cyberapper/fundcloud/commit/4b3c995ef64622b52ddc18924ecb20e3f31750b9))
+* **strategies:** clip DCA `amount_pct` deposits to available cash ([2a29d2c](https://github.com/cyberapper/fundcloud/commit/2a29d2c54168bea62f0b595ce626848a67621903))
+* tighten DCA tests + future-proof trade_reason rehydrate ([32a1885](https://github.com/cyberapper/fundcloud/commit/32a188502c33615bdcf10f3950757b0f1b9f2683))
+
+
+### ### Changed
+
+* **sim:** no-look-ahead execution invariant + docstring uplift ([0911031](https://github.com/cyberapper/fundcloud/commit/0911031b86fb0ff8a8af83ab02718200fdf6bd9b))
+
+
+### ### Documentation
+
+* docstring improvement ([0911031](https://github.com/cyberapper/fundcloud/commit/0911031b86fb0ff8a8af83ab02718200fdf6bd9b))
+
 ## [0.3.0](https://github.com/cyberapper/fundcloud/compare/v0.2.1...v0.3.0) (2026-04-29)
 
 
