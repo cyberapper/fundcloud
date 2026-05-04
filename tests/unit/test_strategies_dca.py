@@ -278,8 +278,19 @@ def test_dca_amount_pct_scales_with_starting_cash() -> None:
     # Run the simulator — first fire deploys 1 % of starting cash per leg
     # (equity_history is empty on the first bar, so it falls back to cash).
     result = Simulator(bars, cash=100_000.0).run_strategy(DCA(amount_pct=0.02, horizon="weekly"))
-    assert len(result.trades) >= 2
-    assert {"A", "B"}.issubset(set(result.trades["asset"].unique()))
+    # First trade per asset = first fire's leg. 1 % of $100k starting cash
+    # per leg = $1,000 *ordered* notional. The recorded trade notional
+    # uses the next-bar-open fill price, which can drift a few percent
+    # from the close price the strategy sized against on a noisy walk —
+    # widen the tolerance to absorb that without masking a real sizing
+    # bug (which would be off by orders of magnitude, not percents).
+    first_fire = result.trades.groupby("asset", sort=False).head(1).set_index("asset")
+    assert {"A", "B"}.issubset(first_fire.index)
+    expected_per_leg = 100_000.0 * 0.01
+    a_notional = float(abs(first_fire.loc["A", "qty"] * first_fire.loc["A", "price"]))
+    b_notional = float(abs(first_fire.loc["B", "qty"] * first_fire.loc["B", "price"]))
+    assert a_notional == pytest.approx(expected_per_leg, rel=0.05)
+    assert b_notional == pytest.approx(expected_per_leg, rel=0.05)
 
 
 def test_dca_amount_pct_with_weights(panel: pd.DataFrame) -> None:
@@ -326,9 +337,15 @@ def test_dca_amount_pct_does_not_leverage() -> None:
     n = 800  # ~3 years of business days — long enough for cash to deplete
     idx = pd.DatetimeIndex(pd.date_range("2024-01-01", periods=n, freq="B").values)
     # Strong drift so equity-scaled deposits would otherwise leverage up.
+    # Monotonic price path is required for the lump-sum upper bound below
+    # to be a valid no-leverage invariant — on a path with drawdowns a
+    # non-leveraged DCA can legitimately outperform a day-1 lump sum
+    # (buy-low effect), which would mask the very leverage bug this test
+    # is meant to catch. ``np.maximum.accumulate`` enforces monotonicity
+    # while preserving the random-walk shape between new highs.
     drift = np.linspace(0, 1.5, n)
     noise = np.cumsum(rng.normal(0, 0.005, n))
-    close_a = 100.0 * np.exp(drift + noise)
+    close_a = 100.0 * np.exp(np.maximum.accumulate(drift + noise))
     cols = {
         ("open", "A"): close_a,
         ("high", "A"): close_a + 1,

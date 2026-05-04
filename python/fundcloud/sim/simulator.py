@@ -1067,9 +1067,13 @@ def _rehydrate_sim_result(
         # codes (0 = signal, 1 = stop_loss, 2 = take_profit, 3 =
         # trailing_stop); the bracket-naive Rust kernel doesn't emit the
         # field at all, in which case we default every fill to
-        # ``"signal"``.
+        # ``"signal"``. Use an explicit presence-and-length check rather
+        # than truthiness — today ``raw_reasons`` is ``bytes`` (PyO3
+        # ``Vec<u8>`` default) or ``list``, but a future switch to
+        # ``into_pyarray`` for zero-copy would make ``if raw_reasons:``
+        # raise on multi-element NumPy arrays.
         raw_reasons = sim_out.get("trade_reason")
-        if raw_reasons:
+        if raw_reasons is not None and len(raw_reasons) > 0:
             reason_map = {
                 0: "signal",
                 1: "stop_loss",
