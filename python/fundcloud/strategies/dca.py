@@ -30,8 +30,11 @@ class DCA(BaseStrategy):
     * ``amount_pct`` — fraction of the **current** portfolio equity
       deployed at each fire (scalar or per-asset). The dollar size is
       recomputed at every fire from ``Portfolio.equity_curve``, so the
-      deposit grows or shrinks with the portfolio. On the very first
-      fire (no equity history yet) it falls back to starting cash.
+      deposit grows or shrinks with the portfolio. Each fire is also
+      clipped to currently-available cash — DCA never borrows; once
+      cash is exhausted, subsequent fires emit no orders. On the very
+      first fire (no equity history yet) it falls back to starting
+      cash.
 
     Parameters
     ----------
@@ -192,11 +195,22 @@ class DCA(BaseStrategy):
         else:
             deposits = self._amounts
 
+        # Clip total deployment to live cash so DCA never borrows. Decrement
+        # a running counter as we allocate per asset — multi-asset fires share
+        # remaining cash in iteration order rather than letting the first leg
+        # consume everything. The next-bar fill price differs slightly from
+        # the close price used here, so cash may dip marginally negative for
+        # a single bar from fees / slippage; this avoids the unbounded
+        # leverage that occurs without the clip.
+        cash_left = float(ctx.portfolio.cash)
         orders: list[Order] = []
         for asset, dollars in deposits.items():
+            if cash_left <= 0:
+                break
             if asset not in prices or prices[asset] <= 0:
                 continue
-            qty = dollars / prices[asset]
+            funded = min(float(dollars), cash_left)
+            qty = funded / prices[asset]
             if qty <= 0:
                 continue
             orders.append(
@@ -207,6 +221,7 @@ class DCA(BaseStrategy):
                     qty=qty,
                 )
             )
+            cash_left -= funded
         return orders
 
 

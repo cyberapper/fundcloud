@@ -149,6 +149,91 @@ def test_dca_amount_pct_grows_with_equity(panel: pd.DataFrame) -> None:
     assert notionals.std() > 0.0
 
 
+def test_dca_amount_pct_does_not_leverage() -> None:
+    """``amount_pct`` must not push cash negative or inflate equity past
+    the lump-sum upper bound on a single rising asset.
+
+    Regression for the bug where DCA sized orders against current equity
+    with no cash check, so a 5 %-of-equity monthly fire over a long rising
+    asset accumulated implicit leverage and produced ~40x the buy-and-hold
+    return.
+    """
+    rng = np.random.default_rng(42)
+    n = 800  # ~3 years of business days — long enough for cash to deplete
+    idx = pd.DatetimeIndex(pd.date_range("2024-01-01", periods=n, freq="B").values)
+    # Strong drift so equity-scaled deposits would otherwise leverage up.
+    drift = np.linspace(0, 1.5, n)
+    noise = np.cumsum(rng.normal(0, 0.005, n))
+    close_a = 100.0 * np.exp(drift + noise)
+    cols = {
+        ("open", "A"): close_a,
+        ("high", "A"): close_a + 1,
+        ("low", "A"): close_a - 1,
+        ("close", "A"): close_a,
+        ("volume", "A"): 1_000_000.0,
+    }
+    bars = pd.DataFrame(cols, index=idx)
+    bars.columns = pd.MultiIndex.from_tuples(bars.columns)
+
+    cash = 100_000.0
+    sim = Simulator(bars, cash=cash)
+    result = sim.run_strategy(DCA(amount_pct=0.05, horizon="weekly", weights={"A": 1.0}))
+
+    # Total dollars deployed across the whole run must not exceed starting
+    # cash by more than a small fees/slippage fudge — the pre-fix bug would
+    # blow this past the cap by 100x within the first few years.
+    total_notional = float((result.trades["qty"] * result.trades["price"]).abs().sum())
+    assert total_notional <= cash * 1.01, (
+        f"DCA deployed {total_notional:.2f} but starting cash was only {cash:.2f} — "
+        "implies implicit leverage."
+    )
+
+    # Final equity bounded above by the lump-sum upper bound: investing ALL
+    # cash on day 1 would give cash * (final_price / first_price). DCA can
+    # never beat that on a monotonically rising asset.
+    final_equity = float(result.equity_curve.iloc[-1])
+    lump_sum_upper_bound = cash * float(close_a[-1]) / float(close_a[0])
+    assert final_equity <= lump_sum_upper_bound * 1.01, (
+        f"DCA equity {final_equity:.2f} exceeds lump-sum upper bound "
+        f"{lump_sum_upper_bound:.2f} — implies leverage."
+    )
+
+
+def test_dca_clips_when_cash_exhausted() -> None:
+    """When ``amount_pct`` would deploy more than available cash, DCA clips
+    to remaining cash and later fires emit nothing.
+    """
+    rng = np.random.default_rng(7)
+    idx = pd.DatetimeIndex(pd.date_range("2024-01-01", periods=200, freq="B").values)
+    close_a = 100 + np.cumsum(rng.normal(0, 0.4, 200))
+    cols = {
+        ("open", "A"): close_a,
+        ("high", "A"): close_a + 1,
+        ("low", "A"): close_a - 1,
+        ("close", "A"): close_a,
+        ("volume", "A"): 1_000_000.0,
+    }
+    bars = pd.DataFrame(cols, index=idx)
+    bars.columns = pd.MultiIndex.from_tuples(bars.columns)
+
+    cash = 1_000.0
+    # 50%/week into a single asset exhausts cash within 2-3 fires.
+    sim = Simulator(bars, cash=cash)
+    result = sim.run_strategy(DCA(amount_pct=0.5, horizon="weekly", weights={"A": 1.0}))
+
+    # Total notional traded must not exceed starting cash by more than fees.
+    total_notional = float((result.trades["qty"] * result.trades["price"]).abs().sum())
+    assert total_notional <= cash * 1.01, (
+        f"Total deployed {total_notional:.2f} exceeds starting cash {cash:.2f}"
+    )
+
+    # Trade notionals should taper off — the last trade should be smaller
+    # than the first as remaining cash shrinks toward zero.
+    notionals = (result.trades["qty"] * result.trades["price"]).abs().to_numpy()
+    assert len(notionals) >= 2
+    assert notionals[-1] <= notionals[0]
+
+
 def test_dca_sell_on_end_closes_positions(panel: pd.DataFrame) -> None:
     sim = Simulator(panel, cash=100_000)
     strat = DCA(

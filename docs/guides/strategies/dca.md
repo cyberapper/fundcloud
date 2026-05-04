@@ -107,6 +107,11 @@ be supplied. On the very first fire (before any mark-to-market), DCA
 falls back to starting cash so the first deposit is well-defined even
 when `equity_curve` is still empty.
 
+Each fire is also clipped to currently-available cash — DCA never
+borrows. Once cash is exhausted, subsequent fires emit no orders, so a
+long-running `amount_pct` strategy on a rising asset cannot accumulate
+implicit leverage.
+
 ## Horizon semantics
 
 | Horizon | Meaning |
