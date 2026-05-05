@@ -38,8 +38,10 @@ const SYM_ABS_TOLERANCE_FRACTION: f64 = 0.05;
 /// Symmetrical-triangle minimum normalised slope magnitude (each leg must
 /// move at least this fast to count as "converging").
 const SYM_MIN_SLOPE_THRESHOLD: f64 = 0.0005;
-/// Symmetrical-triangle prior-trend look-back window.
-const SYM_PRIOR_WINDOW: usize = 10;
+/// Symmetrical-triangle prior-trend look-back window (≈ one trading
+/// month on dailies). Used only to label the breakout direction
+/// (bullish vs bearish), not to gate detection.
+const SYM_PRIOR_WINDOW: usize = 20;
 
 /// Slope normalised by the average price level — makes thresholds
 /// independent of an asset's absolute price scale. Mirrors

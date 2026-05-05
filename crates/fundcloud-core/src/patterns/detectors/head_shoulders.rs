@@ -9,9 +9,11 @@ use crate::patterns::detect::{prior_trend_slope, PatternDetector};
 use crate::patterns::trendline::fit_trendline;
 use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
 
-/// Window (in bars) used to infer the pre-formation trend. Matches
-/// `PRIOR_TREND_WINDOW` in the reference Python.
-const PRIOR_TREND_WINDOW: usize = 10;
+/// Window (in bars) used to infer the pre-formation trend. 20 bars
+/// (≈ one trading month on dailies) is wide enough to detect a real
+/// uptrend even when the last week or two has flattened. Tunable per
+/// detector via `prior_trend_window`.
+const PRIOR_TREND_WINDOW: usize = 20;
 /// Minimum bar count between the first and last pivot of the formation.
 const MIN_FORMATION_BARS: usize = 8;
 /// Default shoulder-symmetry tolerance (10%).

@@ -12,13 +12,10 @@
 //! | poor | 1–39 | Just barely passes the detector |
 //! | adversarial | 0–25 | Should not score high — synthetic / degenerate |
 //!
-//! Adding a fixture is a 5-line change to `FIXTURES`. Bumping
-//! `SCORER_VERSION` (in `scoring.rs`) is the only legitimate reason for
-//! these expected bands to change; if a refactor moves a fixture out of
-//! its band without a version bump, the contract has been violated.
-//!
-//! See `docs/scoring/quality.md#calibration-record` for how this fixture
-//! set fits the broader calibration plan.
+//! Adding a fixture is a 5-line change to `FIXTURES`. If a refactor
+//! moves a fixture out of its band, either the refactor changed scorer
+//! behaviour (intentionally — update the band) or it broke a property
+//! (revert).
 
 use fundcloud_core::patterns::{
     Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, TrendLine,
@@ -100,10 +97,10 @@ impl OwnedOhlcv {
     }
 
     /// Closes scattered around `mean` with sinusoidal amplitude `amp`,
-    /// exercising the v1.1 `trendline_fit_r2` path. Use for fixtures
-    /// whose rationale claims "weak supporting structure" — flat closes
-    /// would now produce a perfect fit, hiding the very weakness the
-    /// fixture is supposed to demonstrate.
+    /// exercising the `trendline_fit_r2` path. Use for fixtures whose
+    /// rationale claims "weak supporting structure" — flat closes would
+    /// produce a perfect fit, hiding the very weakness the fixture is
+    /// supposed to demonstrate.
     fn noisy_around(n: usize, mean: f64, amp: f64) -> Self {
         let close: Vec<f64> = (0..n)
             .map(|i| mean + amp * (i as f64 * 0.7).sin())
@@ -357,9 +354,8 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
 
 // Trendline-fit demonstration pair: same anchor pivots and same
 // nominal trendline, but the closes between anchors either hug the
-// line cleanly (high score under v1.1) or wander chaotically (low
-// score under v1.1). Anchor-only R² would rate them identically;
-// `trendline_fit_r2` separates them.
+// line cleanly or wander chaotically. Anchor-only R² would rate them
+// identically; `trendline_fit_r2` separates them.
 
 fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
@@ -524,32 +520,30 @@ const FIXTURES: &[Fixture] = &[
     },
     Fixture {
         label: "double_top_clean_trendline_fit",
-        rationale: "v1.1 demonstration: identical anchor pivots to the noisy \
-                    pair, but closes hug the flat neckline cleanly — \
-                    `trendline_fit_r2` should score this near 100.",
+        rationale: "Identical anchor pivots to the noisy pair, but closes hug \
+                    the flat neckline cleanly — `trendline_fit_r2` should \
+                    score this near 100.",
         band: Band::excellent(),
         build: double_top_clean_trendline_fit,
     },
     Fixture {
         label: "double_top_noisy_trendline_fit",
-        rationale: "v1.1 demonstration: same anchors as the clean pair, but \
-                    closes scatter ±15 around the line — the trendline is \
-                    cherry-picked, not structural. \
-                    `trendline_fit_r2` should drop the composite into marginal \
-                    or worse, even though anchor R² remains 1.0.",
+        rationale: "Same anchors as the clean pair, but closes scatter ±15 \
+                    around the line — the trendline is cherry-picked, not \
+                    structural. `trendline_fit_r2` should drop the composite \
+                    into marginal or worse, even though anchor R² remains 1.0.",
         band: Band::marginal(),
         build: double_top_noisy_trendline_fit,
     },
 ];
 
-/// Calibration targets — fixtures whose expected band the current
-/// scorer (`SCORER_VERSION = "1.0.0"`) does **not** satisfy. Each one
-/// encodes a desired property of `quality` that motivates a future
-/// scorer version. These run as `#[ignore]`d tests so they do not break
+/// Calibration targets — fixtures encoding desired properties of
+/// `quality` that the scorer does **not** yet satisfy. Each one motivates
+/// a future change. These run as `#[ignore]`d tests so they don't break
 /// CI but remain visible as durable reminders.
 ///
-/// When a future scorer version brings one of these into its expected
-/// band, move the fixture into `FIXTURES` and bump `SCORER_VERSION`.
+/// When a future scorer change brings one of these into its expected
+/// band, move the fixture into `FIXTURES`.
 const CALIBRATION_TARGETS: &[Fixture] = &[
     Fixture {
         label: "double_top_broken_symmetry",
@@ -604,8 +598,8 @@ fn every_canonical_fixture_lands_in_its_band() {
     assert!(
         failures.is_empty(),
         "\n{} canonical fixture(s) outside their expected band:\n{}\n\n\
-        If this is intentional, bump SCORER_VERSION and update the band(s); \
-        see docs/scoring/quality.md#versioning.\n",
+        If this is intentional, update the band(s); otherwise the scorer \
+        regressed on a property the fixture is supposed to protect.\n",
         failures.len(),
         failures.join("\n"),
     );
@@ -670,7 +664,7 @@ fn calibration_targets_describe_known_gaps() {
     // each calibration target. Failure here means a target was MET and
     // should be promoted out of CALIBRATION_TARGETS into FIXTURES.
     eprintln!(
-        "\nCalibration targets vs current SCORER_VERSION:\n{}\n",
+        "\nCalibration targets vs current scorer:\n{}\n",
         report.join("\n")
     );
     let met_count = CALIBRATION_TARGETS
@@ -682,7 +676,6 @@ fn calibration_targets_describe_known_gaps() {
         .count();
     assert_eq!(
         met_count, 0,
-        "{met_count} calibration target(s) are now within band — promote them to \
-        FIXTURES and bump SCORER_VERSION."
+        "{met_count} calibration target(s) are now within band — promote them to FIXTURES."
     );
 }

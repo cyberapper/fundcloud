@@ -21,19 +21,6 @@ use std::collections::HashMap;
 use crate::patterns::trendline::trendline_fit_r2;
 use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 
-/// Semver-style identifier of the geometric scorer's contract.
-///
-/// Stamped on every event so that downstream records (detections,
-/// trades, calibration runs) are traceable to the exact scorer build
-/// that produced them. See `docs/scoring/quality.md#versioning` for the
-/// bump rules.
-///
-/// **Bump this whenever** any sub-score formula, threshold, or weight
-/// in this file changes. Patch for behaviour-preserving fixes; minor
-/// for additive monotonic changes; major reserved for redefinitions of
-/// what `quality` measures.
-pub const SCORER_VERSION: &str = "1.2.0";
-
 /// Absolute percentage difference using the average magnitude as the
 /// denominator. Returns `0.0` when both values collapse to zero.
 fn pct_diff(a: f64, b: f64) -> f64 {
@@ -183,8 +170,9 @@ fn score_volume(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
 /// line fits closes. Taking the max picks the right series without
 /// requiring `TrendLine` to carry an explicit "anchored on" tag.
 /// A spurious line that fits *none* of the three series remains correctly
-/// scored low. Refining `TrendLine` to store the anchor kind directly
-/// is a v1.2 candidate that would let us drop the max-of-three.
+/// scored low. Storing the anchor kind on `TrendLine` directly would
+/// let us drop the max-of-three; not done yet to keep `TrendLine`
+/// minimal.
 fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     if pattern.trend_lines.is_empty() {
         return 50.0;
@@ -210,8 +198,7 @@ fn score_completeness(pattern: &Pattern) -> f64 {
     // Duration is a quality floor (need enough bars for the formation to be
     // visually identifiable), not a quality ceiling. A textbook 6-month double
     // top is no less geometrically clean than a 30-bar one — they're just
-    // different timeframes. Per docs/scoring/quality.md v1.2.0, drop the
-    // long-pattern penalty: anything past the 10-bar minimum scores 100.
+    // different timeframes. Anything past the 10-bar minimum scores 100.
     let duration_score = if bar_count < 5 {
         0.0
     } else if bar_count < 10 {
@@ -715,9 +702,9 @@ mod tests {
 
     #[test]
     fn completeness_no_long_duration_penalty() {
-        // v1.2.0: long formations no longer penalised. Holding touch count
-        // constant, completeness must be flat across all durations past the
-        // 10-bar minimum (duration_score saturates at 100).
+        // Long formations are not penalised. Holding touch count constant,
+        // completeness must be flat across all durations past the 10-bar
+        // minimum (duration_score saturates at 100).
         let scores: Vec<f64> = [10usize, 30, 60, 90, 120, 200, 500]
             .iter()
             .map(|n| score_completeness(&pattern_with_trendline(1.0, 4, *n)))

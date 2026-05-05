@@ -54,5 +54,5 @@ class InverseHeadAndShoulders(PatternIndicator):
         **PatternIndicator.default_params,
         "shoulder_tolerance": 0.10,
         "min_head_prominence": 0.03,
-        "prior_trend_window": 10,
+        "prior_trend_window": 20,
     }

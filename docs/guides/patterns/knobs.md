@@ -109,12 +109,12 @@ Lives in `crates/fundcloud-core/src/patterns/scoring.rs`.
 
 | Knob | Default | Decision | What it does |
 |---|---|---|---|
-| `symmetry` weight | `0.30` | keep | Composite weight on the symmetry sub-score. Changing this requires a `SCORER_VERSION` bump and a new calibration record. |
+| `symmetry` weight | `0.30` | keep | Composite weight on the symmetry sub-score. |
 | `volume` weight | `0.25` | keep | Volume sub-score weight. |
-| `trendline_r2` weight | `0.25` | keep | Trendline-fit sub-score weight (intermediate-bar fit, post-v1.1). |
+| `trendline_r2` weight | `0.25` | keep | Trendline-fit sub-score weight (measures intermediate-bar fit, not anchor-only). |
 | `completeness` weight | `0.20` | keep | Completeness sub-score weight. |
 | Duration floor | `5 bars` | keep | Below 5 bars, duration score is 0. |
-| Duration saturation | `10 bars` | keep | At ≥10 bars, duration score saturates at 100 (post-v1.2; no long-pattern penalty). |
+| Duration saturation | `10 bars` | keep | At ≥10 bars, duration score saturates at 100 (no long-pattern penalty). |
 | Touch-count thresholds | `≤2 → 30, ≤4 → 60, …` | keep | Trendline touch contribution to completeness. |
 
 If you want to deploy a custom scorer, the supported route is:
@@ -132,9 +132,10 @@ If you want to deploy a custom scorer, the supported route is:
   (subclass `PatternDetector`, register in `detector_for`). The library
   is opinionated about the v1 catalogue.
 - **The events-table schema.** `EVENTS_COLUMNS` is a stable contract.
-- **The scorer's sub-score formulas.** They're the audit-trailed v1.2.0
-  behavior. Changing one requires a `SCORER_VERSION` bump and a new
-  calibration record so downstream pipelines can pin behavior.
+- **The scorer's sub-score formulas.** They're geometric primitives.
+  Changing one is a code change, not a knob — see the
+  [scorer spec](../../scoring/quality.md) for what each sub-score
+  measures and the rationale.
 
 ## Examples
 

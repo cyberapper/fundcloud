@@ -451,8 +451,6 @@ fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Boun
         .expect("set variant");
     out.set_item("quality", d.score.quality)
         .expect("set quality");
-    out.set_item("scorer_version", core_patterns::SCORER_VERSION)
-        .expect("set scorer_version");
     let features = PyDict::new_bound(py);
     for (k, v) in &d.score.features {
         features.set_item(k, v).expect("set feature");
@@ -562,6 +560,5 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(scan_pattern, m)?)?;
     m.add_function(wrap_pyfunction!(multi_level_pivots, m)?)?;
     m.add_function(wrap_pyfunction!(list_pattern_names, m)?)?;
-    m.add("SCORER_VERSION", core_patterns::SCORER_VERSION)?;
     Ok(())
 }

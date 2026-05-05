@@ -90,7 +90,6 @@ def build_events_frame(
             "meta": {
                 "features": ev.get("features", {}),
                 "trend_lines": ev.get("trend_lines", []),
-                "scorer_version": ev.get("scorer_version"),
             },
         })
     return pd.DataFrame(rows, columns=list(EVENTS_COLUMNS))

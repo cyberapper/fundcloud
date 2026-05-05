@@ -2,10 +2,10 @@
 
 What this script demonstrates:
 
-1. **Tiered pivot scanning** (`pivot_tiers`, default in v1.2.0). Disjoint
-   pivot scales surface short, intermediate, and multi-month formations
-   in one call. Compare to the legacy single-tier scan and see how many
-   long-window patterns become reachable.
+1. **Tiered pivot scanning** (`pivot_tiers`). Disjoint pivot scales
+   surface short, intermediate, and multi-month formations in one call.
+   Compare to the single-tier scan and see how many long-window
+   patterns become reachable.
 
 2. **Per-detector knobs.** Every detector now accepts its sensitivity
    thresholds as constructor kwargs. Compare default DoubleTop with a
@@ -84,8 +84,7 @@ def section_1_tiered_vs_single(bars: pd.DataFrame) -> None:
     print(
         "\n  Tiered scanning surfaces formations that the small-order pivots\n"
         "  hide — large swings get fragmented unless we run a separate\n"
-        "  scan with only the larger orders. See docs/decisions/scorer-\n"
-        "  calibration-history.md for the diagnosis."
+        "  scan with only the larger orders."
     )
 
 

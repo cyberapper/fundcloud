@@ -1,12 +1,10 @@
-# Geometric Quality Score — Specification
+# Geometric Quality Score
 
-> **Scope.** This document is the contract for `quality`, the 0–100 score
-> attached to every detected formation. Quality measures one thing only:
-> **how textbook the formation is, geometrically**. It is not a prediction
-> of outcome, regime fit, or expected return — those live in
+> **Scope.** This document is the contract for `quality`, the 0–100
+> score attached to every detected formation. Quality measures one thing
+> only: **how textbook the formation is, geometrically**. It is not a
+> prediction of outcome, regime fit, or expected return — those live in
 > `ReliabilityScorer` and `MLScorer`.
->
-> See `docs/DECISIONS.md#quality-is-geometry-only` for the design rationale.
 
 ## Source of truth
 
@@ -14,13 +12,10 @@
 - Public API: `GeometricScorer.score(pattern, ohlcv) -> PatternScore { quality, features }`
 - Per-event surface: each event in the events frame carries
   - `quality` (the composite score, `f64` in `0..=100`),
-  - `meta["features"]` (each sub-score in `0..=1` for inspection),
-  - `meta["scorer_version"]` (semver string — see [Versioning](#versioning)).
+  - `meta["features"]` (each sub-score in `0..=1` for inspection).
 
-Anything in this document is a claim about what the implementation does. If
-you change a formula, threshold, or weight, **update this file in the same
-commit**. If a number here lacks a citation, it carries a
-`TODO(no-source)` marker — every such marker is a calibration target.
+If you change a formula, threshold, or weight, **update this file in
+the same commit**.
 
 ## Composite
 
@@ -33,18 +28,15 @@ quality = round(
 ), clamped to [0, 100]
 ```
 
-| Weight | Sub-score | Range | Documented source |
-|--:|---|---|---|
-| 0.30 | `symmetry` | 0–100 | TODO(no-source). Inherited from reference Python. Calibration target. |
-| 0.25 | `volume` | 0–100 | TODO(no-source). Inherited from reference Python. Calibration target. |
-| 0.25 | `trendline_r²` | 0–100 | TODO(no-source). Inherited from reference Python. Calibration target. |
-| 0.20 | `completeness` | 0–100 | TODO(no-source). Inherited from reference Python. Calibration target. |
+| Weight | Sub-score | Range |
+|--:|---|---|
+| 0.30 | `symmetry` | 0–100 |
+| 0.25 | `volume` | 0–100 |
+| 0.25 | `trendline_r²` | 0–100 |
+| 0.20 | `completeness` | 0–100 |
 
 The four sub-scores are independent geometric measurements; the weights
-encode an editorial judgment about which dimensions matter most. Until
-calibration (see [Calibration record](#calibration-record)) the weights
-are an inherited prior, not a fitted parameter. Treat as such when
-interpreting absolute scores.
+encode an editorial judgment about which dimensions matter most.
 
 ## Sub-scores
 
@@ -67,13 +59,7 @@ score = max(0, 100 × (1 − diff / 0.015))
 
 `pct_diff(a, b) = |a − b| / ((|a| + |b|) / 2)`.
 
-| Knob | Value | Source |
-|---|---|---|
-| Tolerance | 0.015 (1.5%) | TODO(no-source). Inherited from reference Python. Likely Bulkowski-derived but unverified. |
-| Pivot indices | 0 (first peak/trough), 2 (second peak/trough) | Detector output contract. |
-
-Returns `0.0` if fewer than 3 pivots — defensive guard, should never
-happen for a detected double pattern.
+Returns `0.0` if fewer than 3 pivots — defensive guard.
 
 #### Triple top / Triple bottom
 
@@ -83,10 +69,6 @@ mean = avg(trio)
 worst_diff = max(pct_diff(p, mean) for p in trio)
 score = max(0, 100 × (1 − worst_diff / 0.02))
 ```
-
-| Knob | Value | Source |
-|---|---|---|
-| Tolerance | 0.02 (2%) | TODO(no-source). Wider than double's 1.5%; rationale undocumented. |
 
 Returns `0.0` if fewer than 5 pivots.
 
@@ -99,12 +81,6 @@ shoulder_score = max(0, 100 × (1 − shoulder_diff / 0.10))
 neckline_score = max(0, 100 × (1 − neckline_diff / 0.10))
 score = (shoulder_score + neckline_score) / 2
 ```
-
-| Knob | Value | Source |
-|---|---|---|
-| Shoulder tolerance | 0.10 (10%) | TODO(no-source). Bulkowski 2nd ed. p.317 cites "8% within each other" — possible discrepancy worth verifying. |
-| Neckline tolerance | 0.10 (10%) | TODO(no-source). Same. |
-| Equal weight (50/50) | — | TODO(no-source). Equal split is defensible but not derived. |
 
 Returns `0.0` if fewer than 5 pivots. Note the **head height is not
 scored** — only shoulder symmetry and neckline symmetry. A head only 1%
@@ -120,14 +96,11 @@ cv = std(spacings) / mean_spacing      # coefficient of variation
 score = max(0, 100 × (1 − cv))
 ```
 
-| Knob | Value | Source |
-|---|---|---|
-| Floor for < 4 pivots | 50.0 | TODO(no-source). Neutral fallback, undocumented. |
-| Floor when `mean_spacing == 0` | 50.0 | Numerical guard. |
-
 Triangle symmetry is **temporal**, not price — measures how regularly
 the alternating pivots are spaced in time. A perfectly regular triangle
 scores 100; high variance in inter-pivot gaps drives the score down.
+
+Floors at `50.0` for fewer than 4 pivots and when `mean_spacing == 0`.
 
 #### Unknown patterns
 
@@ -148,12 +121,7 @@ elif ratio >= 1.5: score = 0
 else:              score = 100 × (1.5 − ratio)
 ```
 
-| Knob | Value | Source |
-|---|---|---|
-| Lower bound (full credit) | ratio ≤ 0.5 | TODO(no-source). |
-| Upper bound (zero credit) | ratio ≥ 1.5 | TODO(no-source). |
-| Floor when formation ≤ 3 bars | 50.0 | Defensive — too few bars to estimate halves. |
-| Floor when `front == 0` | 50.0 | Division guard. |
+Floors at `50.0` when the formation has ≤ 3 bars or when `front == 0`.
 
 The intuition is Bulkowski's "volume should decline during the
 formation, then expand on the breakout". This sub-score only measures
@@ -162,7 +130,14 @@ the in-formation decline; breakout-bar volume is not part of `quality`.
 ### `trendline_r²` (25%)
 
 ```
-score = mean(trendline_fit_r2(ohlcv.close, tl) for tl in pattern.trend_lines) × 100
+score = mean(
+    max(
+        trendline_fit_r2(ohlcv.close, tl),
+        trendline_fit_r2(ohlcv.high,  tl),
+        trendline_fit_r2(ohlcv.low,   tl),
+    )
+    for tl in pattern.trend_lines
+) × 100
 ```
 
 If no trend lines are attached to the pattern, returns `50.0` (neutral).
@@ -181,14 +156,11 @@ as support / resistance) over the formation window. Cleanly-respected
 trendlines score near 1.0; cherry-picked anchors with chaotic
 intermediate behaviour score near 0.0.
 
-| Knob | Value | Source |
-|---|---|---|
-| Price series evaluated against | `ohlcv.close` | v1.1 convention. Refining to per-line price series (highs for resistance lines, lows for support lines) is a v1.2 candidate. |
-
-Introduced in `SCORER_VERSION = 1.1.0`. Prior versions read the
-anchor-only `r_squared` field directly, which produced a near-constant
-score of ~95–100 across all detections and contributed no
-discriminative signal.
+The max-of-three over `(close, high, low)` auto-selects the natural
+price series for the line: a low-anchored support line naturally fits
+the lows; a high-anchored resistance line fits the highs; a midline-ish
+line fits closes. A spurious line that fits *none* of the three remains
+correctly scored low.
 
 ### `completeness` (20%)
 
@@ -204,22 +176,10 @@ completeness = (duration_score + touch_score) / 2
 | `5..10` | linear ramp 0 → 50 |
 | `>= 10` | 100 |
 
-| Knob | Value | Source |
-|---|---|---|
-| Min viable formation | 5 bars | TODO(no-source). |
-| Saturation point | 10 bars | `SCORER_VERSION = 1.2.0`. |
-
-**`SCORER_VERSION 1.1.0 → 1.2.0` change** — duration is a quality
-*floor* (need enough bars for the formation to be visually
-identifiable), not a quality *ceiling*. A textbook 6-month double top
-is not less geometrically clean than a 30-bar one — they're just
-different timeframes. The previous penalty (decay 100 → 50 over
-60..120 bars, floor 50 past 120 bars) actively biased the system
-against long-window patterns and combined with `min_quality=50` to
-filter them out. Now any formation past the 10-bar floor scores 100
-on the duration component, regardless of length.
-
-Short-formation handling (under 10 bars) is unchanged.
+Duration is a quality *floor* (need enough bars for the formation to be
+visually identifiable), not a quality *ceiling*. A textbook 6-month
+double top is no less geometrically clean than a 30-bar one — they're
+just different timeframes. Anything past the 10-bar floor scores 100.
 
 #### Touch score (cumulative trend-line touch count)
 
@@ -231,106 +191,48 @@ elif total <= 4: score = 60
 else:            score = min(100, 60 + (total − 4) × 10)
 ```
 
-| Knob | Value | Source |
-|---|---|---|
-| Step thresholds (2, 4) | TODO(no-source). |
-| Step values (30, 60) | TODO(no-source). |
-| Increment above 4 | +10 per touch | TODO(no-source). |
-
 Step function. A pattern with only the two anchor pivots touching gets
 30; cleanly retested formations with 5+ touches saturate at 100.
 
-## Versioning
-
-The scorer is a **stable contract**. Every event written to the events
-frame carries `meta["scorer_version"]` so that any downstream record
-(detection, trade, evaluation) is traceable to the exact scorer build
-that produced it.
-
-- `SCORER_VERSION` is defined in [`scoring.rs`](../../crates/fundcloud-core/src/patterns/scoring.rs)
-  and propagated through the PyO3 binding into Python.
-- Bumping rules (semver-like, where each level corresponds to the
-  granularity of the change):
-  - **Patch** (`x.y.Z`): bug fix that does not change scores by more
-    than `\|Δquality\| ≤ 1` on the canonical fixture set.
-  - **Minor** (`x.Y.0`): adds a sub-score, adds a pattern, or any change
-    that moves canonical scores by `\|Δquality\| > 1` but is monotonic
-    in geometric quality (i.e., better-looking patterns still score
-    higher).
-  - **Major** (`X.0.0`): redefinition of what `quality` measures (e.g.,
-    repurposing as outcome-aware). Reserved — not anticipated.
-- Every version bump must:
-  1. Update `SCORER_VERSION` in `scoring.rs`.
-  2. Update this document.
-  3. Update / regenerate canonical fixture scores under
-     `tests/fixtures/scoring/canonical/` if expected.
-  4. Note the change in `docs/CHANGELOG.md`.
-
-## Calibration history
-
-Per-version calibration data, methodology, and the structural findings
-that drove each `SCORER_VERSION` bump have moved to
-[`docs/decisions/scorer-calibration-history.md`](../decisions/scorer-calibration-history.md).
-That's an audit trail of how the current defaults were chosen — it's
-not a workflow library users need to follow.
-
-The library ships with the v1.2.0 defaults; the four sub-score weights
-(30 / 25 / 25 / 20) reflect the audit. If you want different
-behaviour, pair the geometric scorer with your own outcome-based
-filtering or replace it entirely (subclass / `ReliabilityScorer` /
-`MLScorer`).
-
 ## Anti-patterns
 
-What `quality` is **not** allowed to do, with the rationale and the
-test that protects against it. **If a sub-scorer ever needs one of
-these inputs, it does not belong in `GeometricScorer`** — propose a new
-scorer (`ReliabilityScorer`, `MLScorer`, etc.).
+What `quality` is **not** allowed to do. **If a sub-scorer ever needs
+one of these inputs, it does not belong in `GeometricScorer`** —
+propose a new scorer (`ReliabilityScorer`, `MLScorer`, etc.).
 
-1. **Read future bars.**
-   _Why._ Lookahead. Any score that depends on `bars[formation_end+1:]`
-   is fitting outcome, not geometry.
-   _Protection._ The Rust `score()` signature only takes
-   `OhlcvView<'_>` and a `Pattern` whose `formation` slice is bounded.
-   `tests/scoring/test_no_lookahead.py` (TODO) asserts that score is
-   invariant to changes in `ohlcv[formation_end+1:]`.
+1. **Read future bars.** Any score that depends on
+   `bars[formation_end+1:]` is fitting outcome, not geometry. The Rust
+   `score()` signature only takes `OhlcvView<'_>` and a `Pattern` whose
+   `formation` slice is bounded.
 
-2. **Read realised outcome statistics** (e.g., per-asset historical
-   hit rate; per-regime expectancy; an aggregate from the analytics
-   DB).
-   _Why._ Same as above — leaks outcome into geometry.
-   _Protection._ `GeometricScorer` is `Default` and stateless. Do not
-   add cached parameters that are loaded from outcome aggregates.
+2. **Read realised outcome statistics** (per-asset historical hit rate;
+   per-regime expectancy; an aggregate from the analytics DB). Same
+   reason — leaks outcome into geometry. `GeometricScorer` is `Default`
+   and stateless.
 
-3. **Be tuned to maximise IC against future returns.**
-   _Why._ Conflates geometry with predictive value; destroys IC's
-   utility as a diagnostic.
-   _Protection._ The calibration target (above) is rank-agreement with
-   a **hand-rated** sample, not with realised returns.
+3. **Be tuned to maximise IC against future returns.** Conflates
+   geometry with predictive value; destroys IC's utility as a
+   diagnostic. Outcome-based confidence belongs in a separate scorer
+   that the user composes downstream.
 
-4. **Vary across runs given identical inputs.**
-   _Why._ Real-money decisions need reproducibility.
-   _Protection._ The scorer is pure (no RNG, no clock, no I/O).
-   `tests/scoring/test_determinism.py` (TODO) asserts bitwise-equal
-   scores across repeated calls.
+4. **Vary across runs given identical inputs.** Real-money decisions
+   need reproducibility. The scorer is pure (no RNG, no clock, no I/O).
 
 ## Canonical fixture set
 
-The fixture set in [`crates/fundcloud-core/tests/canonical_quality.rs`](../../crates/fundcloud-core/tests/canonical_quality.rs)
+The fixture set in
+[`crates/fundcloud-core/tests/canonical_quality.rs`](../../crates/fundcloud-core/tests/canonical_quality.rs)
 is the executable contract for what `quality` should produce on
 hand-crafted formations across the documented bands.
 
 - `every_canonical_fixture_lands_in_its_band` — runs by default; passes
   today.
 - `calibration_targets_describe_known_gaps` — ignored by default; lists
-  fixtures whose desired band the current scorer doesn't satisfy. Each
-  one maps to a calibration TODO. Run with:
+  fixtures whose desired band the current scorer doesn't satisfy. Run
+  with:
   ```bash
   cargo test -p fundcloud-core --test canonical_quality -- --ignored --nocapture
   ```
-
-Promoting a calibration target into the contract requires bumping
-`SCORER_VERSION`.
 
 ## Monotonicity tests
 
@@ -338,22 +240,4 @@ The monotonicity tests in
 [`scoring.rs#tests`](../../crates/fundcloud-core/src/patterns/scoring.rs)
 (prefix `*_monotonic_*`) lock in the *shape* of the scorer's response
 on each axis: perturbing one geometric attribute toward "more textbook"
-must never decrease the relevant score. These tests are independent of
-the absolute weighting; they survive any future calibration that keeps
-the scorer monotonic.
-
-## Open calibration TODOs
-
-Each item is a known reason the scorer is not yet defensible at scale:
-
-- Replace every `TODO(no-source)` threshold above with either a
-  citation (Bulkowski, Edwards & Magee, …) or a value derived from
-  data via the calibration script.
-- Address the three `CALIBRATION_TARGETS` in
-  `crates/fundcloud-core/tests/canonical_quality.rs`:
-  composite-vs-symmetry weighting, short-duration penalty, head
-  prominence in H&S symmetry.
-- Hand-rate ≥ 200 real detections; fit weights via
-  `scripts/scoring/calibrate.py`; record `ρ` in the calibration table
-  above.
-- Decide whether timeframe-aware completeness ranges are needed.
+must never decrease the relevant score.

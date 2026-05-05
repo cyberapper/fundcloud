@@ -65,5 +65,5 @@ class SymmetricalTriangle(PatternIndicator):
         "min_slope_threshold": 0.0005,
         "min_touches": 2,
         "min_bar_count": 10,
-        "prior_trend_window": 10,
+        "prior_trend_window": 20,
     }
