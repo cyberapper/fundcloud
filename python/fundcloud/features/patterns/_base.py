@@ -50,7 +50,17 @@ class PatternIndicator(IndicatorSpec):
     outputs: ClassVar[tuple[str, ...]] = ("signal",)
     default_params: ClassVar[dict[str, Any]] = {
         "min_quality": 50.0,
+        # Single-tier orders. Used when `pivot_tiers` is empty/None or when
+        # callers explicitly override (backward-compat). For most users,
+        # `pivot_tiers` (below) is what determines scan behaviour.
         "pivot_orders": (3, 5, 8),
+        # Multi-tier scan: each inner tuple runs a separate scan and the
+        # detections are unioned. Small-order pivots (3,5,8) dominate the
+        # alternating sequence and prevent the windowing logic from seeing
+        # major swings as consecutive peaks; running disjoint tiers exposes
+        # patterns at multiple scales — short, intermediate, multi-month.
+        # Set to () or None to disable tiering and use `pivot_orders` only.
+        "pivot_tiers": ((3, 5, 8), (13, 21), (34, 55)),
         "signal_mode": SignalMode.BREAKOUT,
         "decay_bars": 5,
     }
@@ -152,21 +162,54 @@ class PatternIndicator(IndicatorSpec):
             index = index[finite_mask]
             ts_ns = ts_ns[finite_mask]
             params = {name: arr[finite_mask] for name, arr in params.items()}
-        raw = _core.scan_pattern(
-            self.pattern_name,
-            ts_ns,
-            params["open"],
-            params["high"],
-            params["low"],
-            params["close"],
-            params["volume"],
-            list(self.pivot_orders),
-            float(self.min_quality),
-        )
-        return build_events_frame(raw, asset=asset, index=index)
+
+        tiers = _resolve_tiers(self.pivot_tiers, self.pivot_orders)
+        merged: dict[tuple[int, int], dict[str, Any]] = {}
+        for orders in tiers:
+            raw = _core.scan_pattern(
+                self.pattern_name,
+                ts_ns,
+                params["open"],
+                params["high"],
+                params["low"],
+                params["close"],
+                params["volume"],
+                list(orders),
+                float(self.min_quality),
+            )
+            for ev in raw:
+                key = (int(ev["formation_start"]), int(ev["formation_end"]))
+                # Same formation bounds at different scales → keep highest quality.
+                existing = merged.get(key)
+                if existing is None or float(ev.get("quality", 0.0)) > float(
+                    existing.get("quality", 0.0)
+                ):
+                    merged[key] = ev
+        return build_events_frame(list(merged.values()), asset=asset, index=index)
 
 
 # ----------------------------------------------------------------------- helpers
+
+
+def _resolve_tiers(
+    pivot_tiers: Any,
+    pivot_orders: Any,
+) -> tuple[tuple[int, ...], ...]:
+    """Pick the scan tiers to run.
+
+    If ``pivot_tiers`` is non-empty, use it (each inner sequence is one
+    tier). Otherwise fall back to a single tier built from ``pivot_orders``.
+    Empty / None / falsy ``pivot_tiers`` is the explicit "single-tier" opt-out.
+    """
+    if pivot_tiers:
+        out: list[tuple[int, ...]] = []
+        for tier in pivot_tiers:
+            tier_t = tuple(int(x) for x in tier)
+            if tier_t:
+                out.append(tier_t)
+        if out:
+            return tuple(out)
+    return (tuple(int(x) for x in pivot_orders),)
 
 
 def _index_to_ns(index: pd.DatetimeIndex) -> np.ndarray:

@@ -1,0 +1,54 @@
+{
+  "calibration_date": "2026-05-05T08:32:51+00:00",
+  "scorer_version": "1.2.0",
+  "rater_id": "all",
+  "n_samples": 69,
+  "folds": 5,
+  "bootstrap": 1000,
+  "weights": {
+    "production": {
+      "symmetry": 0.3,
+      "volume": 0.25,
+      "trendline_r2": 0.25,
+      "completeness": 0.2
+    },
+    "uniform": {
+      "symmetry": 0.25,
+      "volume": 0.25,
+      "trendline_r2": 0.25,
+      "completeness": 0.25
+    },
+    "fitted": {
+      "symmetry": 0.3,
+      "volume": 0.25,
+      "trendline_r2": 0.25,
+      "completeness": 0.2
+    }
+  },
+  "weight_ci_95": {
+    "symmetry": [
+      0.0,
+      1.0
+    ],
+    "volume": [
+      0.0,
+      0.25
+    ],
+    "trendline_r2": [
+      0.0,
+      0.25
+    ],
+    "completeness": [
+      0.0,
+      1.0
+    ]
+  },
+  "spearman_rho": {
+    "production": 0.36447239452020236,
+    "uniform": 0.3529604095950857,
+    "fitted_in_sample": 0.36447239452020236,
+    "fitted_cv_mean": 0.33546431975261753,
+    "fitted_cv_std": 0.12584661589576668
+  },
+  "verdict": "Fitted weights are within \u0394\u03c1 = -0.029 of production. Not worth a version bump on this calibration alone."
+}

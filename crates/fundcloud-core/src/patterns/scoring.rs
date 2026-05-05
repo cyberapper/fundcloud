@@ -32,7 +32,7 @@ use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 /// in this file changes. Patch for behaviour-preserving fixes; minor
 /// for additive monotonic changes; major reserved for redefinitions of
 /// what `quality` measures.
-pub const SCORER_VERSION: &str = "1.1.0";
+pub const SCORER_VERSION: &str = "1.2.0";
 
 /// Absolute percentage difference using the average magnitude as the
 /// denominator. Returns `0.0` when both values collapse to zero.
@@ -207,16 +207,17 @@ fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
 fn score_completeness(pattern: &Pattern) -> f64 {
     let (start, end) = pattern.formation;
     let bar_count = end.saturating_sub(start);
+    // Duration is a quality floor (need enough bars for the formation to be
+    // visually identifiable), not a quality ceiling. A textbook 6-month double
+    // top is no less geometrically clean than a 30-bar one — they're just
+    // different timeframes. Per docs/scoring/quality.md v1.2.0, drop the
+    // long-pattern penalty: anything past the 10-bar minimum scores 100.
     let duration_score = if bar_count < 5 {
         0.0
     } else if bar_count < 10 {
         ((bar_count - 5) as f64) / 5.0 * 50.0
-    } else if bar_count <= 60 {
-        100.0
-    } else if bar_count <= 120 {
-        100.0 - ((bar_count - 60) as f64) / 60.0 * 50.0
     } else {
-        50.0
+        100.0
     };
 
     let total_touches: u32 = pattern
@@ -713,15 +714,25 @@ mod tests {
     }
 
     #[test]
-    fn completeness_monotonic_through_long_duration_decay() {
-        // Past the sweet spot (60), duration_score decays 100 → 50 over
-        // 60..=120. Completeness must monotonically decrease (touch_score
-        // held constant).
-        let scores: Vec<f64> = [60usize, 75, 90, 105, 120]
+    fn completeness_no_long_duration_penalty() {
+        // v1.2.0: long formations no longer penalised. Holding touch count
+        // constant, completeness must be flat across all durations past the
+        // 10-bar minimum (duration_score saturates at 100).
+        let scores: Vec<f64> = [10usize, 30, 60, 90, 120, 200, 500]
             .iter()
             .map(|n| score_completeness(&pattern_with_trendline(1.0, 4, *n)))
             .collect();
-        assert_non_increasing("completeness decay 60→120", &scores);
+        let first = scores[0];
+        for (i, s) in scores.iter().enumerate() {
+            assert!(
+                (s - first).abs() < 1e-9,
+                "duration {} should match {} at bar 10, got {} vs {}",
+                i,
+                first,
+                s,
+                first,
+            );
+        }
     }
 
     #[test]

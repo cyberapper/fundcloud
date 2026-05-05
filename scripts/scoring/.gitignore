@@ -2,3 +2,7 @@
 charts/
 charts_png/
 rating_set.parquet
+# Per-version sample sets (regenerable from the same script)
+charts_v*/
+charts_v*_png/
+rating_set_v*.parquet

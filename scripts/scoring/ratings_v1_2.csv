@@ -1,0 +1,70 @@
+detection_id,rater_id,rating,note,rated_at,scorer_version,pattern_value,asset,breakout_ts
+10f6a117fb93,claude,15,single V-trough between two same-level highs is not an ascending triangle,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,MSFT,2008-09-29T00:00:00+00:00
+5201da47d480,claude,55,clean horizontal resistance ~28.6 lows barely ascending 27.0->27.3,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,AAPL,2015-04-13T00:00:00+00:00
+56bf76fe9f91,claude,70,three touches at flat resistance 58 ascending lows 54.9->55.2 broke out,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,QQQ,2012-07-30T00:00:00+00:00
+6a724d6b6f52,claude,25,highs ascending 17.7->18.4->18.9 not flat - this is a wedge not asc triangle,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,MSFT,2004-11-15T00:00:00+00:00
+6e7c66c3a97c,claude,25,highs declining 26.32->26.16 not flat - mislabeled,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,SPY,1993-11-29T00:00:00+00:00
+83a55500d540,claude,30,long-window highs slightly ascending 0.377->0.388 not flat,2026-05-05T12:00:00+00:00,1.2.0,ascending_triangle,NVDA,2014-01-08T00:00:00+00:00
+342232a0832f,claude,60,three lower highs 122->122->121.5 flat lows ~113 reasonable desc triangle,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,META,2016-12-30T00:00:00+00:00
+4d4762480e98,claude,50,long-window highs declining 20.4->18.2 lows flat 14 but pattern very loose,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,AMZN,2014-10-24T00:00:00+00:00
+6b6b0106cd04,claude,25,lows ascending 10.8->11.7->11.9 not flat - this is a wedge,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,GOOGL,2011-10-04T00:00:00+00:00
+7e1f6f18bc58,claude,55,highs declining 23->22.5 three lows at 21 flat decent,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,GOOGL,2013-10-09T00:00:00+00:00
+7fb8b787a804,claude,30,lows slightly descending 49.7->49.4->48.9 not flat,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,GOOGL,2018-03-28T00:00:00+00:00
+836547e9ed59,claude,50,highs declining 137->134 three lows flat ~126 short formation,2026-05-05T12:00:00+00:00,1.2.0,descending_triangle,AMZN,2023-08-03T00:00:00+00:00
+1c0e5d74238f,claude,45,two close lows 18.16/18.24 short formation weak follow-through,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,MSFT,2006-01-24T00:00:00+00:00
+66ad992273e3,claude,35,two same-day-ish lows tiny formation no real W shape,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,QQQ,2025-08-01T00:00:00+00:00
+875ee4bb71f7,claude,35,short formation 73.2/72.5 lows peak 77.8 minor pattern,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,META,2014-09-16T00:00:00+00:00
+973b911a72e3,claude,15,barely visible peak between lows then post-breakout crashed,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,QQQ,2015-08-12T00:00:00+00:00
+c6a9894de852,claude,30,2-week formation lows 39.4/39.5 minimal U,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,QQQ,2007-05-24T00:00:00+00:00
+efa50a0df2ae,claude,40,2-week formation reasonable W 38.7/38.6,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,AAPL,2018-04-02T00:00:00+00:00
+f296dba63a16,claude,50,decent W lows 273/276 peak 290 broke out continued up,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,SPY,2020-06-29T00:00:00+00:00
+f63eeba83230,claude,35,decent W shape but no breakout follow-through,2026-05-05T12:00:00+00:00,1.2.0,double_bottom,AMZN,2009-12-18T00:00:00+00:00
+5be01416e26b,claude,75,picture-perfect twin peaks at 1.94 clear trough at 1.58 dramatic breakdown,2026-05-05T12:00:00+00:00,1.2.0,double_top,AMZN,2006-06-30T00:00:00+00:00
+9e0b7db63094,claude,45,asymmetric peaks 26.9/26.6 reasonable trough 25.9 broke down,2026-05-05T12:00:00+00:00,1.2.0,double_top,SPY,1994-03-22T00:00:00+00:00
+b416509922ab,claude,30,close highs 0.197/0.198 tiny formation broke down,2026-05-05T12:00:00+00:00,1.2.0,double_top,AAPL,1996-03-19T00:00:00+00:00
+cce2fbe7b9c4,claude,50,close peaks 22.05/22.10 reasonable trough 21.3 broke down,2026-05-05T12:00:00+00:00,1.2.0,double_top,MSFT,2007-05-31T00:00:00+00:00
+d0c5ad68c17a,claude,25,tiny formation barely visible trough rallied after breakout wrong direction,2026-05-05T12:00:00+00:00,1.2.0,double_top,AMZN,2025-06-18T00:00:00+00:00
+d866e62575c6,claude,30,decent twin peaks but rallied after - wrong direction,2026-05-05T12:00:00+00:00,1.2.0,double_top,MSFT,2005-05-06T00:00:00+00:00
+e79141aad567,claude,35,exact twin peaks 217.7 deep trough 200 but rallied after,2026-05-05T12:00:00+00:00,1.2.0,double_top,MSFT,2020-12-29T00:00:00+00:00
+f04ce9330c3a,claude,50,asymmetric peaks 379/375 deep V trough 349 broke down,2026-05-05T12:00:00+00:00,1.2.0,double_top,QQQ,2023-09-01T00:00:00+00:00
+09e9e6cac301,claude,35,asymmetric R-shoulder higher than L no breakdown,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,MSFT,2020-10-13T00:00:00+00:00
+458ef6fc7161,claude,50,reasonable shape R-shoulder lower deep V-trough broke down,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,GOOGL,2022-11-15T00:00:00+00:00
+61da2bfb80b9,claude,35,long-window asymmetric tilted neckline,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,NVDA,2015-05-04T00:00:00+00:00
+82f5d82f88a9,claude,35,asymmetric L-shoulder 4.83 R-shoulder 4.55 declining neckline,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,AMZN,2007-10-29T00:00:00+00:00
+9c34e47a52b7,claude,50,reasonable symmetric L44 H48 R46 clean shape but no follow-through,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,NVDA,2023-07-27T00:00:00+00:00
+c677b730431c,claude,75,clean symmetric shoulders 0.385 head 0.405 neckline 0.34 broke down,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,AAPL,2001-05-15T00:00:00+00:00
+d64dc3349ea3,claude,15,massive sell-off between shoulders not an H&S - mislabeled,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,AMZN,2025-07-31T00:00:00+00:00
+eab7256d9a26,claude,45,L200 H208 R190 asymmetric declining neckline did break down,2026-05-05T12:00:00+00:00,1.2.0,head_and_shoulders,TSLA,2023-04-12T00:00:00+00:00
+236bc35b40a9,claude,50,nearly symmetric shoulders 213/214 head 208 broke out decent,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,MSFT,2022-11-17T00:00:00+00:00
+3248c1cf6fb5,claude,70,long-window excellent symmetry shoulders 14/14 head 11 broke out clean,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,NVDA,2022-12-28T00:00:00+00:00
+463bb20ca908,claude,45,reasonable symmetric shoulders tilted neckline,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,AAPL,2002-12-20T00:00:00+00:00
+64e3f136ea18,claude,25,head is single-day flash crash bar - unrepresentative,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,META,2015-09-01T00:00:00+00:00
+73ad4640fb60,claude,25,uptrend with pullbacks not inverse H&S - right shoulder higher than left,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,AMZN,2011-10-04T00:00:00+00:00
+99d10d6bb85a,claude,30,asymmetric R-shoulder much higher head is single bar plunge,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,QQQ,2018-03-02T00:00:00+00:00
+c5b8fd04193c,claude,40,long-window symmetric shoulders 69 head 60 but tilted-down resistance,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,SPY,2002-02-20T00:00:00+00:00
+ce8578097494,claude,30,head and R-shoulder nearly same level asymmetric resistance,2026-05-05T12:00:00+00:00,1.2.0,inverse_head_and_shoulders,TSLA,2019-01-03T00:00:00+00:00
+00e1da870257,claude,50,reasonable convergence highs declining lows ascending,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,NVDA,2010-07-21T00:00:00+00:00
+13422acde5db,claude,55,clean convergence highs 0.22->0.187->0.172 lows ascending,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,AAPL,1997-09-03T00:00:00+00:00
+50d3d32c273e,claude,55,clean convergence highs 44->42.5->40.6 lows 37->37.6,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,QQQ,2010-06-03T00:00:00+00:00
+5e7b6ee61915,claude,35,long-window dominated by major decline not really a triangle,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,AAPL,2009-01-06T00:00:00+00:00
+7245f3c1e3ad,claude,50,wide convergence highs 367->292->284 lows ascending bearish breakdown,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,TSLA,2025-04-02T00:00:00+00:00
+af7b92282e1c,claude,45,reasonable convergence over 5mo but broke down not up,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,GOOGL,2012-05-17T00:00:00+00:00
+b4f6fefcadfb,claude,50,good convergence highs 123->115->111 lows ascending broke out,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,NVDA,2025-04-25T00:00:00+00:00
+c330663db034,claude,35,trough at 6 is single-bar flash plunge unrepresentative,2026-05-05T12:00:00+00:00,1.2.0,symmetrical_triangle,AAPL,2010-06-01T00:00:00+00:00
+044123c97eb1,claude,25,only 2 visible lows looks like double bottom not triple,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,SPY,2017-06-09T00:00:00+00:00
+80475cde5f0e,claude,50,three flat lows ~55 two peaks at 63 decent geometry no breakout,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,META,2014-04-28T00:00:00+00:00
+96df4f9cc945,claude,25,looks like double bottom 3rd low at breakout edge,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,MSFT,2004-05-17T00:00:00+00:00
+9b7a88e42e28,claude,55,three close lows 428/427.5/430.5 two peaks 443/444 decent,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,QQQ,2024-04-04T00:00:00+00:00
+9bd242c20b34,claude,20,lows descending 51/50/49.5 not flat collapsed after breakout,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,QQQ,2011-05-25T00:00:00+00:00
+d19f0cc984aa,claude,40,lows uneven 85.85/85/87.5 loose pattern,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,SPY,2006-08-10T00:00:00+00:00
+eeba6753d8bb,claude,35,uneven lows 82.4/84.85/84.2 no real breakout,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,SPY,2000-11-13T00:00:00+00:00
+ffe396cd76db,claude,55,three close lows 39.4/39/39.6 symmetric peaks 41 decent,2026-05-05T12:00:00+00:00,1.2.0,triple_bottom,AAPL,2017-12-29T00:00:00+00:00
+049060016bdb,claude,55,three close highs 33.7/34.2/34.05 two troughs 31.1/31.8 broke down,2026-05-05T12:00:00+00:00,1.2.0,triple_top,AMZN,2015-12-17T00:00:00+00:00
+2d6c186b7000,claude,25,highs ascending 114/115/116.7 not flat rallied after,2026-05-05T12:00:00+00:00,1.2.0,triple_top,SPY,2013-01-04T00:00:00+00:00
+309fe7a8792b,claude,35,three close highs but rallied not broke down,2026-05-05T12:00:00+00:00,1.2.0,triple_top,SPY,1998-01-20T00:00:00+00:00
+3756b5883295,claude,30,highs ascending 25.25/25.55/25.95 not flat sideways after,2026-05-05T12:00:00+00:00,1.2.0,triple_top,SPY,1993-09-02T00:00:00+00:00
+76e9c52b20bb,claude,30,middle/right highs lower than left rallied after,2026-05-05T12:00:00+00:00,1.2.0,triple_top,GOOGL,2015-01-23T00:00:00+00:00
+ad986492e06d,claude,25,highs ascending 310/316/315 not flat rallied after,2026-05-05T12:00:00+00:00,1.2.0,triple_top,QQQ,2023-04-18T00:00:00+00:00
+db2127de5e08,claude,30,highs descending 82.6/81.7/80.4 looks like downtrend,2026-05-05T12:00:00+00:00,1.2.0,triple_top,QQQ,2014-04-24T00:00:00+00:00
+e6ec6dade10b,claude,35,middle high highest then lower loose pattern,2026-05-05T12:00:00+00:00,1.2.0,triple_top,SPY,1999-02-11T00:00:00+00:00
+ec5b9fcd5fc2,claude,35,highs descending looks like downtrend not triple top,2026-05-05T12:00:00+00:00,1.2.0,triple_top,MSFT,2015-06-11T00:00:00+00:00

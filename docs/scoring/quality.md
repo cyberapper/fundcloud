@@ -202,20 +202,24 @@ completeness = (duration_score + touch_score) / 2
 |---|---|
 | `< 5` | 0 |
 | `5..10` | linear ramp 0 → 50 |
-| `10..=60` | 100 (sweet spot) |
-| `60..=120` | linear ramp 100 → 50 |
-| `> 120` | 50 |
+| `>= 10` | 100 |
 
 | Knob | Value | Source |
 |---|---|---|
 | Min viable formation | 5 bars | TODO(no-source). |
-| Sweet-spot range | 10–60 bars | TODO(no-source). Likely daily-bar-centric. |
-| Slow decay above | 60 bars | TODO(no-source). |
-| Floor for very long formations | 50 (at >120 bars) | TODO(no-source). |
+| Saturation point | 10 bars | `SCORER_VERSION = 1.2.0`. |
 
-These ranges presume daily bars. **They are not timeframe-invariant** —
-a 10-minute-bar scan will systematically under-score short formations.
-A timeframe-aware version is a known calibration TODO.
+**`SCORER_VERSION 1.1.0 → 1.2.0` change** — duration is a quality
+*floor* (need enough bars for the formation to be visually
+identifiable), not a quality *ceiling*. A textbook 6-month double top
+is not less geometrically clean than a 30-bar one — they're just
+different timeframes. The previous penalty (decay 100 → 50 over
+60..120 bars, floor 50 past 120 bars) actively biased the system
+against long-window patterns and combined with `min_quality=50` to
+filter them out. Now any formation past the 10-bar floor scores 100
+on the duration component, regardless of length.
+
+Short-formation handling (under 10 bars) is unchanged.
 
 #### Touch score (cumulative trend-line touch count)
 
@@ -272,7 +276,8 @@ detections.
 | Date | Sample (n) | Rater | Held-out ρ | 95% CI | Scorer version |
 |---|---|---|---|---|---|
 | 2026-05-05 | 60 | claude (AI) | +0.289 ± 0.154 | weights wide-open | 1.0.0 |
-| 2026-05-05 | (rerun pending) | — | — | — | 1.1.0 |
+| 2026-05-05 | (skipped) | — | — | — | 1.1.0 |
+| 2026-05-05 | 69 | claude (AI) | +0.335 ± 0.126 | weights wide-open | 1.2.0 |
 
 **2026-05-05 run notes** (`scripts/scoring/calibration_interim_n60.json`):
 - This run is a *baseline*, not a production calibration — the rater
@@ -327,6 +332,32 @@ detections.
   only overlap 19 detections with the new sample, and within that
   overlap `trendline_r2` is constant zero so individual-component ρ is
   undefined.
+
+**`SCORER_VERSION 1.1.0 → 1.2.0` change** (2026-05-05):
+- `score_completeness` removes the long-formation duration penalty.
+  Previously `bar_count > 60` decayed 100 → 50 over 60..120 and
+  floored at 50 past 120. v1.2 saturates at 100 once `bar_count >= 10`,
+  consistent with the philosophy that quality measures geometric
+  textbookness only — not a preferred timeframe (see
+  `feedback_quality_geometric_only`). The 5-bar minimum and 5..10 ramp
+  are unchanged.
+- Companion change in the **Python detection layer** (not in the
+  scorer): `PatternIndicator` now defaults to **multi-tier pivot
+  scanning** (`pivot_tiers=((3,5,8), (13,21), (34,55))`). The detector
+  windows over the merged alternating pivot sequence; with all orders
+  in one sweep, small-order pivots clutter that sequence and hide
+  major swings. Running disjoint tiers exposes patterns at three
+  scales — short, intermediate, multi-month. Empirical impact on AAPL
+  full history (1980–2026, daily, 11.4k bars):
+
+  | min_quality | OLD detections | NEW detections | NEW long-window (>60 bars) | NEW multi-quarter (>120 bars) |
+  |---|---|---|---|---|
+  | 50 | 182 | 206 (+13%) | 22 | 8 |
+  | 30 | 648 | 751 (+16%) | 99 | 53 |
+
+  The largest H&S formation under min_quality=30 spans 604 bars
+  (~2.4 years on dailies). Whether it's a *good* H&S is a quality
+  question — the detector now sees it instead of fragmenting it.
 
 The calibration workflow lives in
 [`scripts/scoring/calibrate.py`](../../scripts/scoring/calibrate.py).
