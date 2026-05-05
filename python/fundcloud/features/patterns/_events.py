@@ -87,7 +87,11 @@ def build_events_frame(
                 {"ts": index[int(p["index"])], "price": float(p["price"]), "kind": p["kind"]}
                 for p in ev.get("pivots", [])
             ],
-            "meta": {"features": ev.get("features", {}), "trend_lines": ev.get("trend_lines", [])},
+            "meta": {
+                "features": ev.get("features", {}),
+                "trend_lines": ev.get("trend_lines", []),
+                "scorer_version": ev.get("scorer_version"),
+            },
         })
     return pd.DataFrame(rows, columns=list(EVENTS_COLUMNS))
 

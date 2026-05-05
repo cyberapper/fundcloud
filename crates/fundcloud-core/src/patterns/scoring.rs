@@ -18,6 +18,19 @@ use std::collections::HashMap;
 
 use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 
+/// Semver-style identifier of the geometric scorer's contract.
+///
+/// Stamped on every event so that downstream records (detections,
+/// trades, calibration runs) are traceable to the exact scorer build
+/// that produced them. See `docs/scoring/quality.md#versioning` for the
+/// bump rules.
+///
+/// **Bump this whenever** any sub-score formula, threshold, or weight
+/// in this file changes. Patch for behaviour-preserving fixes; minor
+/// for additive monotonic changes; major reserved for redefinitions of
+/// what `quality` measures.
+pub const SCORER_VERSION: &str = "1.0.0";
+
 /// Absolute percentage difference using the average magnitude as the
 /// denominator. Returns `0.0` when both values collapse to zero.
 fn pct_diff(a: f64, b: f64) -> f64 {
@@ -419,5 +432,280 @@ mod tests {
         assert!((0.0..=100.0).contains(&score.quality));
         assert!(score.features.contains_key("symmetry"));
         assert!(score.features.contains_key("trendline_r2"));
+    }
+
+    // ---------------------------------------------------------------- monotonicity
+    //
+    // Each test perturbs one geometric attribute of an otherwise-fixed
+    // formation along an axis where "more textbook" is unambiguous, and
+    // asserts the relevant score is monotonic in that perturbation.
+    //
+    // These tests do not pin specific values — they pin the *shape* of the
+    // scorer's response. Rebalancing weights or tightening tolerances must
+    // never reverse these orderings; if any future change does, the
+    // calibration philosophy in `docs/scoring/quality.md` is being violated.
+
+    fn assert_non_increasing(label: &str, scores: &[f64]) {
+        for w in scores.windows(2) {
+            assert!(
+                w[0] >= w[1] - 1e-9,
+                "{label}: expected non-increasing, got {scores:?}"
+            );
+        }
+    }
+
+    fn assert_non_decreasing(label: &str, scores: &[f64]) {
+        for w in scores.windows(2) {
+            assert!(
+                w[1] >= w[0] - 1e-9,
+                "{label}: expected non-decreasing, got {scores:?}"
+            );
+        }
+    }
+
+    fn double_top(p0: f64, p2: f64) -> Pattern {
+        Pattern {
+            name: "double_top",
+            direction: Direction::Bearish,
+            pivots: vec![
+                pv(0, p0, PivotKind::High),
+                pv(5, 90.0, PivotKind::Low),
+                pv(10, p2, PivotKind::High),
+            ],
+            trend_lines: vec![],
+            formation: (0, 10),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        }
+    }
+
+    fn head_shoulders(left: f64, head: f64, right: f64, neck_l: f64, neck_r: f64) -> Pattern {
+        Pattern {
+            name: "head_and_shoulders",
+            direction: Direction::Bearish,
+            pivots: vec![
+                pv(0, left, PivotKind::High),
+                pv(5, neck_l, PivotKind::Low),
+                pv(10, head, PivotKind::High),
+                pv(15, neck_r, PivotKind::Low),
+                pv(20, right, PivotKind::High),
+            ],
+            trend_lines: vec![],
+            formation: (0, 20),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        }
+    }
+
+    fn triangle(spacings: &[usize]) -> Pattern {
+        // Build a symmetrical triangle whose pivot spacings are exactly
+        // the provided sequence. Prices alternate high/low around 100.
+        let mut pivots = Vec::with_capacity(spacings.len() + 1);
+        pivots.push(pv(0, 100.0, PivotKind::High));
+        let mut idx = 0usize;
+        for (i, &gap) in spacings.iter().enumerate() {
+            idx += gap;
+            let kind = if i % 2 == 0 {
+                PivotKind::Low
+            } else {
+                PivotKind::High
+            };
+            let price = if i % 2 == 0 { 95.0 } else { 100.0 };
+            pivots.push(pv(idx, price, kind));
+        }
+        Pattern {
+            name: "symmetrical_triangle",
+            direction: Direction::Neutral,
+            pivots,
+            trend_lines: vec![],
+            formation: (0, idx),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        }
+    }
+
+    fn pattern_with_trendline(r_squared: f64, touch_count: u8, formation_len: usize) -> Pattern {
+        Pattern {
+            name: "double_top",
+            direction: Direction::Bearish,
+            pivots: vec![],
+            trend_lines: vec![TrendLine {
+                start_index: 0,
+                end_index: formation_len,
+                slope: 0.0,
+                intercept: 0.0,
+                r_squared,
+                touch_count,
+            }],
+            formation: (0, formation_len),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        }
+    }
+
+    #[test]
+    fn symmetry_monotonic_in_double_top_peak_skew() {
+        // Hold the first peak at 100; widen the second peak's deviation
+        // upward. Symmetry must monotonically decrease.
+        let scores: Vec<f64> = [100.0, 100.5, 101.0, 101.5, 102.0]
+            .iter()
+            .map(|p2| score_symmetry(&double_top(100.0, *p2)))
+            .collect();
+        assert_non_increasing("double-top peak skew", &scores);
+        assert!((scores[0] - 100.0).abs() < 1e-9, "perfect match should be 100");
+    }
+
+    #[test]
+    fn symmetry_monotonic_in_h_and_s_shoulder_skew() {
+        // Hold neckline level; widen right shoulder vs left. Symmetry must
+        // monotonically decrease.
+        let scores: Vec<f64> = [100.0, 102.0, 105.0, 108.0, 112.0]
+            .iter()
+            .map(|right| score_symmetry(&head_shoulders(100.0, 110.0, *right, 90.0, 90.0)))
+            .collect();
+        assert_non_increasing("h&s shoulder skew", &scores);
+    }
+
+    #[test]
+    fn symmetry_monotonic_in_h_and_s_neckline_tilt() {
+        // Hold shoulders symmetric; tilt the right neckline pivot. Symmetry
+        // must monotonically decrease.
+        let scores: Vec<f64> = [90.0, 91.0, 92.0, 93.0, 94.0]
+            .iter()
+            .map(|nr| score_symmetry(&head_shoulders(100.0, 110.0, 100.0, 90.0, *nr)))
+            .collect();
+        assert_non_increasing("h&s neckline tilt", &scores);
+    }
+
+    #[test]
+    fn symmetry_monotonic_in_triangle_spacing_variance() {
+        // Build triangles with progressively higher variance in pivot
+        // spacing. Perfectly regular spacing should score highest;
+        // increasingly irregular sequences must score no higher.
+        let cases: Vec<Vec<usize>> = vec![
+            vec![10, 10, 10, 10],     // uniform
+            vec![9, 10, 11, 10],      // mild variance
+            vec![5, 12, 8, 15],       // moderate variance
+            vec![3, 18, 6, 13],       // high variance
+        ];
+        let scores: Vec<f64> = cases
+            .iter()
+            .map(|c| score_symmetry(&triangle(c)))
+            .collect();
+        assert_non_increasing("triangle spacing variance", &scores);
+    }
+
+    #[test]
+    fn volume_monotonic_in_back_half_inflation() {
+        // Front half fixed at 100; back half ramps from 30 → 200.
+        // Volume confirmation score must monotonically decrease.
+        let p = Pattern {
+            name: "double_top",
+            direction: Direction::Bearish,
+            pivots: vec![],
+            trend_lines: vec![],
+            formation: (0, 7),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        };
+        let close = vec![1.0; 8];
+        let high = vec![1.0; 8];
+        let low = vec![1.0; 8];
+
+        let scores: Vec<f64> = [30.0, 50.0, 70.0, 100.0, 130.0, 160.0, 200.0]
+            .iter()
+            .map(|back| {
+                let volumes = vec![100.0, 100.0, 100.0, 100.0, *back, *back, *back, *back];
+                score_volume(&p, view(&close, &volumes, &high, &low))
+            })
+            .collect();
+        assert_non_increasing("volume back-half inflation", &scores);
+    }
+
+    #[test]
+    fn trendline_score_monotonic_in_r_squared() {
+        // Same formation, increasing r². Score must monotonically increase.
+        let scores: Vec<f64> = [0.0, 0.25, 0.5, 0.75, 1.0]
+            .iter()
+            .map(|r2| score_trendline(&pattern_with_trendline(*r2, 4, 30)))
+            .collect();
+        assert_non_decreasing("trendline r²", &scores);
+        assert!((scores[0] - 0.0).abs() < 1e-9);
+        assert!((scores[scores.len() - 1] - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn completeness_monotonic_through_duration_sweet_spot_ramp() {
+        // Going from 5 to 10 bars, duration_score ramps from 0 → 50, so
+        // completeness must monotonically increase.
+        let scores: Vec<f64> = [5usize, 6, 7, 8, 9, 10]
+            .iter()
+            .map(|n| score_completeness(&pattern_with_trendline(1.0, 4, *n)))
+            .collect();
+        assert_non_decreasing("completeness ramp 5→10", &scores);
+    }
+
+    #[test]
+    fn completeness_monotonic_through_long_duration_decay() {
+        // Past the sweet spot (60), duration_score decays 100 → 50 over
+        // 60..=120. Completeness must monotonically decrease (touch_score
+        // held constant).
+        let scores: Vec<f64> = [60usize, 75, 90, 105, 120]
+            .iter()
+            .map(|n| score_completeness(&pattern_with_trendline(1.0, 4, *n)))
+            .collect();
+        assert_non_increasing("completeness decay 60→120", &scores);
+    }
+
+    #[test]
+    fn completeness_monotonic_in_touch_count() {
+        // Hold duration in the sweet spot; vary touch count. More touches
+        // must score no lower than fewer touches, up to the saturation
+        // point.
+        let scores: Vec<f64> = [1u8, 2, 3, 4, 5, 6, 8, 10]
+            .iter()
+            .map(|t| score_completeness(&pattern_with_trendline(1.0, *t, 30)))
+            .collect();
+        assert_non_decreasing("completeness touch count", &scores);
+    }
+
+    #[test]
+    fn composite_quality_monotonic_in_symmetry_holding_others_fixed() {
+        // Vary the symmetry component via the second peak; pin volume,
+        // trendline, completeness via fixed inputs. Composite quality must
+        // monotonically follow symmetry.
+        let close = vec![100.0; 31];
+        let high = vec![100.0; 31];
+        let low = vec![90.0; 31];
+        let volumes = ohlcv_with_flat_volume(31, 100.0);
+        let v = view(&close, &volumes, &high, &low);
+        let line = TrendLine {
+            start_index: 0,
+            end_index: 30,
+            slope: 0.0,
+            intercept: 0.0,
+            r_squared: 1.0,
+            touch_count: 5,
+        };
+        let scores: Vec<f64> = [100.0, 100.5, 101.0, 101.5, 102.0]
+            .iter()
+            .map(|p2| {
+                let mut p = double_top(100.0, *p2);
+                p.formation = (0, 30);
+                p.pivots = vec![
+                    pv(0, 100.0, PivotKind::High),
+                    pv(15, 90.0, PivotKind::Low),
+                    pv(30, *p2, PivotKind::High),
+                ];
+                p.trend_lines = vec![line.clone()];
+                GeometricScorer.score(&p, v).quality
+            })
+            .collect();
+        assert_non_increasing("composite quality vs symmetry", &scores);
     }
 }
