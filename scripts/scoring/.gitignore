@@ -1,0 +1,4 @@
+# Regeneratable artifacts — produced by sample_for_rating.py
+charts/
+charts_png/
+rating_set.parquet

@@ -253,7 +253,34 @@ detections.
 
 | Date | Sample (n) | Rater | Held-out ρ | 95% CI | Scorer version |
 |---|---|---|---|---|---|
-| _(none yet)_ | — | — | — | — | — |
+| 2026-05-05 | 60 | claude (AI) | +0.289 ± 0.154 | weights wide-open | 1.0.0 |
+
+**2026-05-05 run notes** (`scripts/scoring/calibration_interim_n60.json`):
+- This run is a *baseline*, not a production calibration — the rater
+  is Claude using vision-based judgment of the rendered charts. A
+  human-rater run is still required before deploying any scorer
+  change. Treat the ρ as indicative, not authoritative.
+- **Structural findings that don't depend on rater identity**:
+  1. `trendline_r2` is **near-constant at 0.98 ± 0.08** across all 60
+     detections — trendlines forced through anchor pivots always
+     fit r² ≈ 1.0. The 25% weight is contributing no discriminative
+     signal. Either rework the formula (e.g., measure fit on
+     intermediate bars between anchors, not the anchors themselves)
+     or drop the component.
+  2. Production weights (30/25/25/25/20) and uniform (25/25/25/25)
+     produce **identical Spearman** (0.492 vs 0.496). The current
+     weighting is not load-bearing. The fitted optimizer collapses
+     to uniform too.
+  3. CV ρ = 0.289 (below the 0.5 threshold) — the four-component
+     decomposition is **structurally incomplete**. Pushing samples
+     larger won't fix this; new sub-scores will.
+- **Recommendations before next calibration run**:
+  - Fix or replace `trendline_r2` so it actually varies across
+    detections.
+  - Consider pattern-family-specific symmetry sub-scores
+    (double-top symmetry ≠ H&S symmetry ≠ triangle symmetry).
+  - Add candidate sub-scores: pivot prominence, inter-pivot return
+    magnitude, formation tightness vs surrounding volatility.
 
 The calibration workflow lives in
 [`scripts/scoring/calibrate.py`](../../scripts/scoring/calibrate.py).
