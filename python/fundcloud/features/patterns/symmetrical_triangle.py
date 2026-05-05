@@ -54,3 +54,16 @@ class SymmetricalTriangle(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
+    detector_param_keys = (
+        "min_slope_threshold",
+        "min_touches",
+        "min_bar_count",
+        "prior_trend_window",
+    )
+    default_params = {
+        **PatternIndicator.default_params,
+        "min_slope_threshold": 0.0005,
+        "min_touches": 2,
+        "min_bar_count": 10,
+        "prior_trend_window": 10,
+    }

@@ -5,6 +5,8 @@
 //! and emits raw `Pattern` instances. The `scan` function wires pivots →
 //! detector → `GeometricScorer` and applies the `min_quality` cutoff.
 
+use std::collections::HashMap;
+
 use crate::patterns::detectors::{
     AscendingTriangleDetector, DescendingTriangleDetector, DoubleBottomDetector, DoubleTopDetector,
     HeadShouldersDetector, InverseHeadShouldersDetector, SymmetricalTriangleDetector,
@@ -13,6 +15,24 @@ use crate::patterns::detectors::{
 use crate::patterns::pivots::multi_level_pivots;
 use crate::patterns::scoring::GeometricScorer;
 use crate::patterns::types::{Detection, OhlcvView, Pattern, Pivot};
+
+/// Per-detector tunable parameters keyed by their Python-facing name.
+///
+/// Unknown keys are ignored so callers can pass a single dict to
+/// [`scan`] without per-detector branching. Each detector implementation
+/// reads only the keys it understands; missing keys fall back to the
+/// detector's `Default` impl.
+pub type DetectorParams = HashMap<String, f64>;
+
+fn get_f64(params: &DetectorParams, key: &str) -> Option<f64> {
+    params.get(key).copied()
+}
+
+fn get_usize(params: &DetectorParams, key: &str) -> Option<usize> {
+    params
+        .get(key)
+        .and_then(|v| if *v >= 0.0 { Some(*v as usize) } else { None })
+}
 
 /// A pattern detector that walks pivots looking for one specific formation.
 pub trait PatternDetector: Send + Sync {
@@ -113,17 +133,123 @@ impl std::error::Error for ScanError {}
 ///
 /// Returns `Err(ScanError::UnknownPattern)` for names not in the v1
 /// catalogue. Names match the Python `Pattern(str, Enum)` values.
-pub fn detector_for(name: &str) -> Result<Box<dyn PatternDetector>, ScanError> {
+///
+/// `params` overrides the detector's `Default` for any keys it
+/// recognises. See [`DetectorParams`] and the `knobs.md` reference for
+/// the per-pattern key list.
+pub fn detector_for(
+    name: &str,
+    params: &DetectorParams,
+) -> Result<Box<dyn PatternDetector>, ScanError> {
     match name {
-        "head_and_shoulders" => Ok(Box::new(HeadShouldersDetector::default())),
-        "inverse_head_and_shoulders" => Ok(Box::new(InverseHeadShouldersDetector::default())),
-        "double_top" => Ok(Box::new(DoubleTopDetector::default())),
-        "double_bottom" => Ok(Box::new(DoubleBottomDetector::default())),
-        "triple_top" => Ok(Box::new(TripleTopDetector::default())),
-        "triple_bottom" => Ok(Box::new(TripleBottomDetector::default())),
-        "ascending_triangle" => Ok(Box::new(AscendingTriangleDetector::default())),
-        "descending_triangle" => Ok(Box::new(DescendingTriangleDetector::default())),
-        "symmetrical_triangle" => Ok(Box::new(SymmetricalTriangleDetector::default())),
+        "head_and_shoulders" => {
+            let mut d = HeadShouldersDetector::default();
+            if let Some(v) = get_f64(params, "shoulder_tolerance") {
+                d.shoulder_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_head_prominence") {
+                d.min_head_prominence = v;
+            }
+            if let Some(v) = get_usize(params, "prior_trend_window") {
+                d.prior_trend_window = v;
+            }
+            Ok(Box::new(d))
+        }
+        "inverse_head_and_shoulders" => {
+            let mut d = InverseHeadShouldersDetector::default();
+            if let Some(v) = get_f64(params, "shoulder_tolerance") {
+                d.shoulder_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_head_prominence") {
+                d.min_head_prominence = v;
+            }
+            if let Some(v) = get_usize(params, "prior_trend_window") {
+                d.prior_trend_window = v;
+            }
+            Ok(Box::new(d))
+        }
+        "double_top" => {
+            let mut d = DoubleTopDetector::default();
+            if let Some(v) = get_f64(params, "peak_tolerance") {
+                d.peak_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_trough_depth") {
+                d.min_trough_depth = v;
+            }
+            Ok(Box::new(d))
+        }
+        "double_bottom" => {
+            let mut d = DoubleBottomDetector::default();
+            if let Some(v) = get_f64(params, "trough_tolerance") {
+                d.trough_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_peak_height") {
+                d.min_peak_height = v;
+            }
+            Ok(Box::new(d))
+        }
+        "triple_top" => {
+            let mut d = TripleTopDetector::default();
+            if let Some(v) = get_f64(params, "peak_tolerance") {
+                d.peak_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_trough_depth") {
+                d.min_trough_depth = v;
+            }
+            if let Some(v) = get_usize(params, "min_bar_count") {
+                d.min_bar_count = v;
+            }
+            Ok(Box::new(d))
+        }
+        "triple_bottom" => {
+            let mut d = TripleBottomDetector::default();
+            if let Some(v) = get_f64(params, "trough_tolerance") {
+                d.trough_tolerance = v;
+            }
+            if let Some(v) = get_f64(params, "min_peak_height") {
+                d.min_peak_height = v;
+            }
+            if let Some(v) = get_usize(params, "min_bar_count") {
+                d.min_bar_count = v;
+            }
+            Ok(Box::new(d))
+        }
+        "ascending_triangle" => {
+            let mut d = AscendingTriangleDetector::default();
+            if let Some(v) = get_f64(params, "flat_threshold") {
+                d.flat_threshold = v;
+            }
+            if let Some(v) = get_usize(params, "min_touches") {
+                d.min_touches = v;
+            }
+            Ok(Box::new(d))
+        }
+        "descending_triangle" => {
+            let mut d = DescendingTriangleDetector::default();
+            if let Some(v) = get_f64(params, "flat_threshold") {
+                d.flat_threshold = v;
+            }
+            if let Some(v) = get_usize(params, "min_touches") {
+                d.min_touches = v;
+            }
+            Ok(Box::new(d))
+        }
+        "symmetrical_triangle" => {
+            let mut d = SymmetricalTriangleDetector::default();
+            if let Some(v) = get_f64(params, "min_slope_threshold") {
+                d.min_slope_threshold = v;
+            }
+            if let Some(v) = get_usize(params, "min_touches") {
+                d.min_touches = v;
+            }
+            if let Some(v) = get_usize(params, "min_bar_count") {
+                d.min_bar_count = v;
+            }
+            if let Some(v) = get_usize(params, "prior_trend_window") {
+                d.prior_window = v;
+            }
+            Ok(Box::new(d))
+        }
         other => Err(ScanError::UnknownPattern(other.to_string())),
     }
 }
@@ -132,11 +258,13 @@ pub fn detector_for(name: &str) -> Result<Box<dyn PatternDetector>, ScanError> {
 /// filter by `min_quality`. This is the function PyO3 binds to.
 ///
 /// `pivot_orders` is the multi-level lookback set (typically `[3, 5, 8]`).
+/// `params` carries per-detector overrides; pass an empty map for defaults.
 pub fn scan(
     name: &str,
     ohlcv: OhlcvView<'_>,
     pivot_orders: &[usize],
     min_quality: f64,
+    params: &DetectorParams,
 ) -> Result<Vec<Detection>, ScanError> {
     let n = ohlcv.close.len();
     if ohlcv.high.len() != n
@@ -147,7 +275,7 @@ pub fn scan(
     {
         return Err(ScanError::LengthMismatch);
     }
-    let detector = detector_for(name)?;
+    let detector = detector_for(name, params)?;
     let pivots = multi_level_pivots(ohlcv.high, ohlcv.low, ohlcv.ts_ns, pivot_orders);
     Ok(run_detector(detector.as_ref(), &pivots, ohlcv, min_quality))
 }

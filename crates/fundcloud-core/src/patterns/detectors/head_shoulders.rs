@@ -37,6 +37,8 @@ pub struct HeadShouldersDetector {
     pub shoulder_tolerance: f64,
     /// Minimum prominence of the head above the average shoulder.
     pub min_head_prominence: f64,
+    /// Bars before the left shoulder used to verify the prior uptrend.
+    pub prior_trend_window: usize,
 }
 
 impl Default for HeadShouldersDetector {
@@ -44,6 +46,7 @@ impl Default for HeadShouldersDetector {
         Self {
             shoulder_tolerance: DEFAULT_SHOULDER_TOLERANCE,
             min_head_prominence: DEFAULT_MIN_HEAD_PROMINENCE,
+            prior_trend_window: PRIOR_TREND_WINDOW,
         }
     }
 }
@@ -95,7 +98,7 @@ impl PatternDetector for HeadShouldersDetector {
                 continue;
             }
             // Reversal gating: require a prior uptrend.
-            if prior_trend_slope(closes, h1.index, PRIOR_TREND_WINDOW) <= 0.0 {
+            if prior_trend_slope(closes, h1.index, self.prior_trend_window) <= 0.0 {
                 continue;
             }
 
@@ -139,6 +142,8 @@ pub struct InverseHeadShouldersDetector {
     pub shoulder_tolerance: f64,
     /// Minimum prominence of the head below the average shoulder.
     pub min_head_prominence: f64,
+    /// Bars before the left shoulder used to verify the prior downtrend.
+    pub prior_trend_window: usize,
 }
 
 impl Default for InverseHeadShouldersDetector {
@@ -146,6 +151,7 @@ impl Default for InverseHeadShouldersDetector {
         Self {
             shoulder_tolerance: DEFAULT_SHOULDER_TOLERANCE,
             min_head_prominence: DEFAULT_MIN_HEAD_PROMINENCE,
+            prior_trend_window: PRIOR_TREND_WINDOW,
         }
     }
 }
@@ -194,7 +200,7 @@ impl PatternDetector for InverseHeadShouldersDetector {
                 continue;
             }
             // Reversal gating: require a prior downtrend.
-            if prior_trend_slope(closes, l1.index, PRIOR_TREND_WINDOW) >= 0.0 {
+            if prior_trend_slope(closes, l1.index, self.prior_trend_window) >= 0.0 {
                 continue;
             }
 

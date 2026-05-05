@@ -45,3 +45,14 @@ class InverseHeadAndShoulders(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
+    detector_param_keys = (
+        "shoulder_tolerance",
+        "min_head_prominence",
+        "prior_trend_window",
+    )
+    default_params = {
+        **PatternIndicator.default_params,
+        "shoulder_tolerance": 0.10,
+        "min_head_prominence": 0.03,
+        "prior_trend_window": 10,
+    }

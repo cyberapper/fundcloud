@@ -20,7 +20,7 @@ pub mod scoring;
 pub mod trendline;
 pub mod types;
 
-pub use detect::{detector_for, run_detector, scan, PatternDetector, ScanError};
+pub use detect::{detector_for, run_detector, scan, DetectorParams, PatternDetector, ScanError};
 pub use detectors::{HeadShouldersDetector, InverseHeadShouldersDetector};
 pub use pivots::multi_level_pivots;
 pub use scoring::{GeometricScorer, SCORER_VERSION};

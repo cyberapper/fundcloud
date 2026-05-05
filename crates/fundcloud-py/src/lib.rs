@@ -484,7 +484,7 @@ fn multi_level_pivots<'py>(
 #[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(
-    text_signature = "(name, ts_ns, open, high, low, close, volume, pivot_orders, min_quality, /)"
+    text_signature = "(name, ts_ns, open, high, low, close, volume, pivot_orders, min_quality, detector_params, /)"
 )]
 fn scan_pattern<'py>(
     py: Python<'py>,
@@ -497,6 +497,7 @@ fn scan_pattern<'py>(
     volume: PyReadonlyArray1<'py, f64>,
     pivot_orders: Vec<usize>,
     min_quality: f64,
+    detector_params: std::collections::HashMap<String, f64>,
 ) -> Bound<'py, PyList> {
     let ts = ts_ns.as_slice().expect("ts_ns slice contiguous");
     let o = open.as_slice().expect("open slice contiguous");
@@ -513,7 +514,9 @@ fn scan_pattern<'py>(
         volume: v,
     };
     let detections = py
-        .allow_threads(|| core_patterns::scan(name, view, &pivot_orders, min_quality))
+        .allow_threads(|| {
+            core_patterns::scan(name, view, &pivot_orders, min_quality, &detector_params)
+        })
         .unwrap_or_else(|e| panic!("scan_pattern: {e}"));
     let out = PyList::empty_bound(py);
     for d in &detections {

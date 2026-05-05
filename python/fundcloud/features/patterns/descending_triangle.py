@@ -49,3 +49,9 @@ class DescendingTriangle(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
+    detector_param_keys = ("flat_threshold", "min_touches")
+    default_params = {
+        **PatternIndicator.default_params,
+        "flat_threshold": 0.0005,
+        "min_touches": 2,
+    }

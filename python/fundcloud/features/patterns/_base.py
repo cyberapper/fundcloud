@@ -69,6 +69,10 @@ class PatternIndicator(IndicatorSpec):
     pattern_name: ClassVar[str] = ""
     #: Default condition preset. Subclasses may override at the class level.
     condition: ClassVar[PatternCondition] = PatternCondition()
+    #: Names of per-detector tuning attributes that are forwarded to the
+    #: Rust detector via `_core.scan_pattern(..., detector_params=...)`.
+    #: Subclasses override; see ``docs/guides/patterns/knobs.md``.
+    detector_param_keys: ClassVar[tuple[str, ...]] = ()
 
     def __init__(self, *, condition: PatternCondition | None = None, **params: Any) -> None:
         super().__init__(**params)
@@ -164,6 +168,9 @@ class PatternIndicator(IndicatorSpec):
             params = {name: arr[finite_mask] for name, arr in params.items()}
 
         tiers = _resolve_tiers(self.pivot_tiers, self.pivot_orders)
+        detector_params = {
+            k: float(getattr(self, k)) for k in self.detector_param_keys if hasattr(self, k)
+        }
         merged: dict[tuple[int, int], dict[str, Any]] = {}
         for orders in tiers:
             raw = _core.scan_pattern(
@@ -176,6 +183,7 @@ class PatternIndicator(IndicatorSpec):
                 params["volume"],
                 list(orders),
                 float(self.min_quality),
+                detector_params,
             )
             for ev in raw:
                 key = (int(ev["formation_start"]), int(ev["formation_end"]))

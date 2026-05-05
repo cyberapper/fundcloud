@@ -44,3 +44,10 @@ class TripleTop(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
+    detector_param_keys = ("peak_tolerance", "min_trough_depth", "min_bar_count")
+    default_params = {
+        **PatternIndicator.default_params,
+        "peak_tolerance": 0.02,
+        "min_trough_depth": 0.02,
+        "min_bar_count": 10,
+    }

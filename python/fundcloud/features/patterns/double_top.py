@@ -49,3 +49,9 @@ class DoubleTop(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
+    detector_param_keys = ("peak_tolerance", "min_trough_depth")
+    default_params = {
+        **PatternIndicator.default_params,
+        "peak_tolerance": 0.015,
+        "min_trough_depth": 0.03,
+    }
