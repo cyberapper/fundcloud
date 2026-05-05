@@ -67,6 +67,62 @@ pub fn fit_trendline(pivots: &[Pivot]) -> Option<TrendLine> {
     })
 }
 
+/// Goodness-of-fit of a trend line against the bars over its span.
+///
+/// **This is not the same number as `TrendLine::r_squared`.** That field
+/// is the R² of the least-squares fit through the line's anchor pivots
+/// — and since the line is constructed *to fit* those anchors, that R²
+/// is essentially always ~1.0 by construction (1.0 exactly with two
+/// anchors, near-1.0 with three near-collinear anchors). It measures
+/// "did we draw the line through the points we said we'd draw it
+/// through?", which is trivially true.
+///
+/// What this function measures instead is how well the line describes
+/// the **intermediate bars** between the anchors — i.e., did price
+/// behave as if this line were structurally meaningful (acting as
+/// support / resistance) over the formation window?
+///
+/// Returns `0.0` when:
+/// * the line spans fewer than 2 bars in `prices`, or
+/// * the price series has zero variance over the span and the line
+///   does not predict that constant (no fit possible).
+///
+/// Returns `1.0` when prices are constant over the span *and* the line
+/// also predicts that constant (matching the rank-deficient convention
+/// of `fit_trendline`'s `s_yy == 0` branch).
+///
+/// Otherwise returns `1 - SS_res / SS_tot`, clamped to `[0.0, 1.0]`.
+pub fn trendline_fit_r2(prices: &[f64], line: &TrendLine) -> f64 {
+    let start = line.start_index;
+    let last = line.end_index.min(prices.len().saturating_sub(1));
+    if last <= start + 1 {
+        return 0.0;
+    }
+    let bars = &prices[start..=last];
+    let n_f = bars.len() as f64;
+
+    // SS_tot: variance against the mean.
+    let mean = bars.iter().sum::<f64>() / n_f;
+    let mut ss_tot = 0.0;
+    for p in bars {
+        ss_tot += (p - mean).powi(2);
+    }
+
+    // SS_res: variance against the trend line.
+    let mut ss_res = 0.0;
+    for (offset, p) in bars.iter().enumerate() {
+        let i = start + offset;
+        ss_res += (p - line.price_at(i)).powi(2);
+    }
+
+    if ss_tot == 0.0 {
+        // Bars are constant. The line is informative only if it predicts
+        // that constant; otherwise it disagrees with every bar.
+        return if ss_res < 1e-12 { 1.0 } else { 0.0 };
+    }
+    (1.0 - ss_res / ss_tot).clamp(0.0, 1.0)
+}
+
 /// Validate that all bars between `start_idx..=end_idx` stay between an
 /// `upper` and `lower` trend line, within `tolerance` of the channel
 /// width. Returns `false` on any breach.
@@ -231,6 +287,122 @@ mod tests {
         assert!(!validate_boundaries(
             &highs, &lows, &upper, &lower, 0, 4, 0.02
         ));
+    }
+
+    fn flat_line(start: usize, end: usize, price: f64) -> TrendLine {
+        TrendLine {
+            start_index: start,
+            end_index: end,
+            slope: 0.0,
+            intercept: price,
+            r_squared: 1.0,
+            touch_count: 2,
+        }
+    }
+
+    fn sloped_line(start: usize, end: usize, slope: f64, intercept: f64) -> TrendLine {
+        TrendLine {
+            start_index: start,
+            end_index: end,
+            slope,
+            intercept,
+            r_squared: 1.0,
+            touch_count: 2,
+        }
+    }
+
+    #[test]
+    fn fit_r2_is_one_when_prices_lie_exactly_on_line() {
+        // Prices follow y = 2 + x exactly across 5 bars.
+        let prices: Vec<f64> = (0..5).map(|i| 2.0 + i as f64).collect();
+        let line = sloped_line(0, 4, 1.0, 2.0);
+        assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn fit_r2_is_one_when_prices_constant_and_line_predicts_constant() {
+        // Constant prices at 100, flat line at 100 → perfect fit.
+        let prices = vec![100.0; 10];
+        let line = flat_line(0, 9, 100.0);
+        assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn fit_r2_is_zero_when_prices_constant_but_line_disagrees() {
+        // Constant prices at 100, sloped line wandering away → no fit.
+        let prices = vec![100.0; 10];
+        let line = sloped_line(0, 9, 1.0, 100.0); // y = 100 + x
+        assert_eq!(trendline_fit_r2(&prices, &line), 0.0);
+    }
+
+    #[test]
+    fn fit_r2_is_zero_when_line_predicts_constant_but_prices_vary() {
+        // Flat line at 100, prices oscillate around 100 → SS_res ≈ SS_tot.
+        let prices: Vec<f64> = (0..10)
+            .map(|i| if i % 2 == 0 { 100.0 } else { 110.0 })
+            .collect();
+        let line = flat_line(0, 9, 105.0); // mean of oscillation
+        let r2 = trendline_fit_r2(&prices, &line);
+        // Flat line at the mean is the null model — R² collapses to 0.
+        assert!(r2 < 1e-9, "expected ~0, got {r2}");
+    }
+
+    #[test]
+    fn fit_r2_decreases_as_prices_deviate_more_from_line() {
+        // Hold the line flat at 100; progressively scatter prices.
+        // R² must monotonically decrease as scatter increases.
+        let line = flat_line(0, 9, 100.0);
+        let mut prev = f64::INFINITY;
+        for &amplitude in &[0.0, 1.0, 5.0, 15.0] {
+            let prices: Vec<f64> = (0..10)
+                .map(|i| 100.0 + amplitude * (i as f64).sin())
+                .collect();
+            let r2 = trendline_fit_r2(&prices, &line);
+            assert!(
+                r2 <= prev + 1e-9,
+                "R² should not increase: amplitude {amplitude} → {r2}, prev {prev}"
+            );
+            prev = r2;
+        }
+    }
+
+    #[test]
+    fn fit_r2_returns_zero_for_too_few_bars() {
+        let prices = vec![100.0, 101.0];
+        let line = flat_line(0, 0, 100.0);
+        assert_eq!(trendline_fit_r2(&prices, &line), 0.0);
+    }
+
+    #[test]
+    fn fit_r2_clamps_end_index_to_prices_length() {
+        // Line claims it spans bars 0..=20, but prices only has 5 bars.
+        // Should not panic; should evaluate over the available 0..=4.
+        let prices: Vec<f64> = (0..5).map(|i| 2.0 + i as f64).collect();
+        let line = sloped_line(0, 20, 1.0, 2.0);
+        assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn fit_r2_distinguishes_two_lines_with_identical_anchor_r_squared() {
+        // The whole point of the fix: two TrendLines with the same
+        // anchor-only `r_squared = 1.0` should produce different
+        // `trendline_fit_r2` values when the bars between anchors
+        // differ.
+        let line = flat_line(0, 9, 100.0);
+
+        // Bars hugging the line.
+        let clean: Vec<f64> = (0..10).map(|_| 100.0).collect();
+        // Bars wandering wildly.
+        let noisy: Vec<f64> = (0..10)
+            .map(|i| 100.0 + 20.0 * (i as f64).sin())
+            .collect();
+
+        let r2_clean = trendline_fit_r2(&clean, &line);
+        let r2_noisy = trendline_fit_r2(&noisy, &line);
+        assert!(
+            r2_clean > r2_noisy,
+            "clean ({r2_clean}) must beat noisy ({r2_noisy})"
+        );
     }
 
     #[test]

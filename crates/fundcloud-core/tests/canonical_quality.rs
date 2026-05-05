@@ -99,6 +99,27 @@ impl OwnedOhlcv {
         }
     }
 
+    /// Closes scattered around `mean` with sinusoidal amplitude `amp`,
+    /// exercising the v1.1 `trendline_fit_r2` path. Use for fixtures
+    /// whose rationale claims "weak supporting structure" — flat closes
+    /// would now produce a perfect fit, hiding the very weakness the
+    /// fixture is supposed to demonstrate.
+    fn noisy_around(n: usize, mean: f64, amp: f64) -> Self {
+        let close: Vec<f64> = (0..n)
+            .map(|i| mean + amp * (i as f64 * 0.7).sin())
+            .collect();
+        let high: Vec<f64> = close.iter().map(|c| c + 0.5).collect();
+        let low: Vec<f64> = close.iter().map(|c| c - 0.5).collect();
+        Self {
+            ts_ns: (0..n as i64).map(|i| i * 60_000_000_000).collect(),
+            open: close.clone(),
+            high,
+            low,
+            close,
+            volume: vec![100.0; n],
+        }
+    }
+
     fn view(&self) -> OhlcvView<'_> {
         OhlcvView {
             ts_ns: &self.ts_ns,
@@ -264,7 +285,10 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
         breakout_price: None,
         variant: None,
     };
-    (p, OwnedOhlcv::flat(21, 100.0))
+    // Noisy closes around 92 (the neckline level) so the trendline_fit_r2
+    // path exercises the "bars wander from the line" weakness the
+    // rationale claims. Flat closes would now produce a perfect fit.
+    (p, OwnedOhlcv::noisy_around(21, 92.0, 4.0))
 }
 
 // Triple Top — excellent
@@ -329,6 +353,50 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
         variant: None,
     };
     (p, OwnedOhlcv::flat(41, 100.0))
+}
+
+// Trendline-fit demonstration pair: same anchor pivots and same
+// nominal trendline, but the closes between anchors either hug the
+// line cleanly (high score under v1.1) or wander chaotically (low
+// score under v1.1). Anchor-only R² would rate them identically;
+// `trendline_fit_r2` separates them.
+
+fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "double_top",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(15, 92.0, PivotKind::Low),
+            pv(30, 100.0, PivotKind::High),
+        ],
+        trend_lines: vec![solid_trendline(30, 5)],
+        formation: (0, 30),
+        entry_price: Some(92.0),
+        breakout_price: None,
+        variant: None,
+    };
+    // Closes hug the trendline (flat at 100) cleanly.
+    (p, OwnedOhlcv::declining_volume(31, 100.0, 30.0))
+}
+
+fn double_top_noisy_trendline_fit() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "double_top",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(15, 92.0, PivotKind::Low),
+            pv(30, 100.0, PivotKind::High),
+        ],
+        trend_lines: vec![solid_trendline(30, 5)],
+        formation: (0, 30),
+        entry_price: Some(92.0),
+        breakout_price: None,
+        variant: None,
+    };
+    // Closes scatter ±15 around 100 — bars do not respect the line.
+    (p, OwnedOhlcv::noisy_around(31, 100.0, 15.0))
 }
 
 // ---------------------------------------------------------------- adversarial
@@ -453,6 +521,24 @@ const FIXTURES: &[Fixture] = &[
                     weak symmetry but supporting structure not zero.",
         band: Band::marginal(),
         build: triangle_poor,
+    },
+    Fixture {
+        label: "double_top_clean_trendline_fit",
+        rationale: "v1.1 demonstration: identical anchor pivots to the noisy \
+                    pair, but closes hug the flat neckline cleanly — \
+                    `trendline_fit_r2` should score this near 100.",
+        band: Band::excellent(),
+        build: double_top_clean_trendline_fit,
+    },
+    Fixture {
+        label: "double_top_noisy_trendline_fit",
+        rationale: "v1.1 demonstration: same anchors as the clean pair, but \
+                    closes scatter ±15 around the line — the trendline is \
+                    cherry-picked, not structural. \
+                    `trendline_fit_r2` should drop the composite into marginal \
+                    or worse, even though anchor R² remains 1.0.",
+        band: Band::marginal(),
+        build: double_top_noisy_trendline_fit,
     },
 ];
 

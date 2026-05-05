@@ -162,15 +162,33 @@ the in-formation decline; breakout-bar volume is not part of `quality`.
 ### `trendline_r²` (25%)
 
 ```
-score = mean(tl.r_squared for tl in pattern.trend_lines) × 100
+score = mean(trendline_fit_r2(ohlcv.close, tl) for tl in pattern.trend_lines) × 100
 ```
 
 If no trend lines are attached to the pattern, returns `50.0` (neutral).
 
-This is the cleanest sub-score: it has no free parameter beyond the
-neutral-fallback. The `r_squared` values themselves are computed by the
-trend-line fitter (`crates/.../patterns/trendline.rs`) and are
-documented there.
+**Important — this is *not* the average of `TrendLine::r_squared`.**
+That field is the R² of the least-squares fit through the line's anchor
+pivots only — and since the line is constructed *to fit* those anchors,
+that R² is essentially always ~1.0 by construction (1.0 exactly with two
+anchors). It measures "did we draw the line through the points we said
+we'd draw it through?", which is trivially true.
+
+`trendline_fit_r2(prices, line)` measures the fit against the
+**intermediate bars** between the anchors — the structural question of
+whether price actually behaved as if the line were meaningful (acting
+as support / resistance) over the formation window. Cleanly-respected
+trendlines score near 1.0; cherry-picked anchors with chaotic
+intermediate behaviour score near 0.0.
+
+| Knob | Value | Source |
+|---|---|---|
+| Price series evaluated against | `ohlcv.close` | v1.1 convention. Refining to per-line price series (highs for resistance lines, lows for support lines) is a v1.2 candidate. |
+
+Introduced in `SCORER_VERSION = 1.1.0`. Prior versions read the
+anchor-only `r_squared` field directly, which produced a near-constant
+score of ~95–100 across all detections and contributed no
+discriminative signal.
 
 ### `completeness` (20%)
 
@@ -254,6 +272,7 @@ detections.
 | Date | Sample (n) | Rater | Held-out ρ | 95% CI | Scorer version |
 |---|---|---|---|---|---|
 | 2026-05-05 | 60 | claude (AI) | +0.289 ± 0.154 | weights wide-open | 1.0.0 |
+| 2026-05-05 | (rerun pending) | — | — | — | 1.1.0 |
 
 **2026-05-05 run notes** (`scripts/scoring/calibration_interim_n60.json`):
 - This run is a *baseline*, not a production calibration — the rater
@@ -275,12 +294,39 @@ detections.
      decomposition is **structurally incomplete**. Pushing samples
      larger won't fix this; new sub-scores will.
 - **Recommendations before next calibration run**:
-  - Fix or replace `trendline_r2` so it actually varies across
-    detections.
+  - ✅ Fix or replace `trendline_r2` so it actually varies across
+    detections. — **Done in `SCORER_VERSION = 1.1.0`** (see notes
+    below).
   - Consider pattern-family-specific symmetry sub-scores
     (double-top symmetry ≠ H&S symmetry ≠ triangle symmetry).
   - Add candidate sub-scores: pivot prominence, inter-pivot return
     magnitude, formation tightness vs surrounding volatility.
+
+**`SCORER_VERSION 1.0.0 → 1.1.0` change** (2026-05-05):
+- `score_trendline` now reads `trendline_fit_r2(prices, line)` —
+  the R² of the line against the **intermediate bars** between
+  anchors — rather than the anchor-only `TrendLine::r_squared`.
+  See [`crates/.../trendline.rs`](../../crates/fundcloud-core/src/patterns/trendline.rs).
+- Each line is evaluated against the maximum of `close`, `high`, and
+  `low` to auto-select the line's natural price series (a low-anchored
+  neckline naturally fits lows; a high-anchored resistance line fits
+  highs). Refining `TrendLine` to carry the anchor kind explicitly is
+  a v1.2 candidate that would let us drop the max-of-three.
+- Empirical impact across the full Mag7 + SPY + QQQ universe (4999
+  detections):
+  - `trendline_r2` distribution shifts from
+    **mean=0.98 std=0.08** (near-constant under v1.0) to
+    **mean=0.06 std=0.14, range [0.00, 0.84]** under v1.1 — i.e., the
+    component now carries real signal.
+  - Quality bands redistribute: from **74 good / 68 marginal / 36
+    poor** under v1.0 to **1 good / 91 marginal / 79 poor** under v1.1.
+    The earlier "good" tier was largely a free 25 points from the
+    constant-1.0 trendline component; v1.1 surfaces this honestly.
+- `calibration_interim_n60.json` is preserved as the v1.0 baseline.
+  A fresh v1.1 calibration requires re-rating — the prior 60 ratings
+  only overlap 19 detections with the new sample, and within that
+  overlap `trendline_r2` is constant zero so individual-component ρ is
+  undefined.
 
 The calibration workflow lives in
 [`scripts/scoring/calibrate.py`](../../scripts/scoring/calibrate.py).

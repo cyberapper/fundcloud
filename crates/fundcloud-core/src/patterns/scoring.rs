@@ -8,7 +8,9 @@
 //!   for triangles).
 //! - **25%** volume confirmation — declining volume during formation is a
 //!   bullish/bearish confirmation signal.
-//! - **25%** trend-line R²  — average across all fitted trend lines.
+//! - **25%** trend-line R² — average `trendline_fit_r2` across attached
+//!   trend lines (i.e., how well intermediate bars hug each line, NOT
+//!   the anchor-only R² stored on the line).
 //! - **20%** completeness — duration in bars + total trend-line touches.
 //!
 //! All four sub-scorers return `0.0..=100.0`; the top-level scorer rounds
@@ -16,6 +18,7 @@
 
 use std::collections::HashMap;
 
+use crate::patterns::trendline::trendline_fit_r2;
 use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 
 /// Semver-style identifier of the geometric scorer's contract.
@@ -29,7 +32,7 @@ use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 /// in this file changes. Patch for behaviour-preserving fixes; minor
 /// for additive monotonic changes; major reserved for redefinitions of
 /// what `quality` measures.
-pub const SCORER_VERSION: &str = "1.0.0";
+pub const SCORER_VERSION: &str = "1.1.0";
 
 /// Absolute percentage difference using the average magnitude as the
 /// denominator. Returns `0.0` when both values collapse to zero.
@@ -54,7 +57,7 @@ impl GeometricScorer {
     pub fn score(&self, pattern: &Pattern, ohlcv: OhlcvView<'_>) -> PatternScore {
         let symmetry = score_symmetry(pattern);
         let volume = score_volume(pattern, ohlcv);
-        let trendline = score_trendline(pattern);
+        let trendline = score_trendline(pattern, ohlcv);
         let completeness = score_completeness(pattern);
 
         let raw = symmetry * 0.30 + volume * 0.25 + trendline * 0.25 + completeness * 0.20;
@@ -165,15 +168,36 @@ fn score_volume(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     }
 }
 
-/// Trend-line fit quality: average R² across all attached trend lines.
-fn score_trendline(pattern: &Pattern) -> f64 {
+/// Trend-line fit quality.
+///
+/// Average `trendline_fit_r2` across attached trend lines, where each
+/// line's contribution is the **maximum** of its fit against `close`,
+/// `high`, and `low` over the formation. **Not** the average of
+/// `TrendLine::r_squared` — that field is the anchor-only R² and is
+/// essentially constant by construction. See
+/// `crate::patterns::trendline::trendline_fit_r2` for the rationale.
+///
+/// Why max-of-three: a structural trend line auto-selects its native
+/// price series — a neckline anchored on lows fits the lows; a triangle's
+/// upper boundary anchored on highs fits the highs; a flat consolidation
+/// line fits closes. Taking the max picks the right series without
+/// requiring `TrendLine` to carry an explicit "anchored on" tag.
+/// A spurious line that fits *none* of the three series remains correctly
+/// scored low. Refining `TrendLine` to store the anchor kind directly
+/// is a v1.2 candidate that would let us drop the max-of-three.
+fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     if pattern.trend_lines.is_empty() {
         return 50.0;
     }
     let avg_r2: f64 = pattern
         .trend_lines
         .iter()
-        .map(|tl| tl.r_squared)
+        .map(|tl| {
+            let against_close = trendline_fit_r2(ohlcv.close, tl);
+            let against_high = trendline_fit_r2(ohlcv.high, tl);
+            let against_low = trendline_fit_r2(ohlcv.low, tl);
+            against_close.max(against_high).max(against_low)
+        })
         .sum::<f64>()
         / (pattern.trend_lines.len() as f64);
     avg_r2 * 100.0
@@ -628,15 +652,53 @@ mod tests {
     }
 
     #[test]
-    fn trendline_score_monotonic_in_r_squared() {
-        // Same formation, increasing r². Score must monotonically increase.
-        let scores: Vec<f64> = [0.0, 0.25, 0.5, 0.75, 1.0]
-            .iter()
-            .map(|r2| score_trendline(&pattern_with_trendline(*r2, 4, 30)))
-            .collect();
-        assert_non_decreasing("trendline r²", &scores);
-        assert!((scores[0] - 0.0).abs() < 1e-9);
-        assert!((scores[scores.len() - 1] - 100.0).abs() < 1e-9);
+    fn trendline_score_monotonic_in_bar_deviation_from_line() {
+        // Hold a flat trend line at 100 over 30 bars. Vary how far the
+        // closes wander from the line. Score must monotonically decrease
+        // as bars deviate further.
+        //
+        // (Replaces an earlier test that varied `TrendLine::r_squared`
+        // directly — that field is no longer read by the scorer; see
+        // `score_trendline` doc.)
+        let line = TrendLine {
+            start_index: 0,
+            end_index: 29,
+            slope: 0.0,
+            intercept: 100.0,
+            r_squared: 1.0,
+            touch_count: 4,
+        };
+        let pattern = Pattern {
+            name: "double_top",
+            direction: Direction::Bearish,
+            pivots: vec![],
+            trend_lines: vec![line],
+            formation: (0, 29),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        };
+
+        let high = vec![101.0; 30];
+        let low = vec![99.0; 30];
+        let volumes = ohlcv_with_flat_volume(30, 100.0);
+
+        // Each amplitude scatters closes around 100 by ± amplitude.
+        let amplitudes = [0.0_f64, 1.0, 5.0, 15.0, 30.0];
+        let mut scores: Vec<f64> = Vec::new();
+        for amplitude in amplitudes {
+            let close: Vec<f64> = (0..30)
+                .map(|i| 100.0 + amplitude * (i as f64 * 0.5).sin())
+                .collect();
+            let v = view(&close, &volumes, &high, &low);
+            scores.push(score_trendline(&pattern, v));
+        }
+        assert_non_increasing("trendline bar-deviation", &scores);
+        assert!(
+            (scores[0] - 100.0).abs() < 1e-9,
+            "perfect hug should score 100, got {}",
+            scores[0]
+        );
     }
 
     #[test]
