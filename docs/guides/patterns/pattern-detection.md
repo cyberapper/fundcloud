@@ -11,7 +11,11 @@ the simulator, and the `.fc` accessor.
 This guide is the practical recipe book. For the contract — every
 metric definition, every Rust detector's validation rules, the exact
 output schemas — see the
-[reference](../../reference/patterns.md).
+[reference](../../reference/patterns.md). Every knob a detector
+exposes (peak tolerance, shoulder tolerance, prior-trend window,
+flat-side slope, etc.) is documented in
+[knobs](knobs.md) — start there if a default is too strict or too loose
+for your asset class.
 
 ## The four-step research workflow
 

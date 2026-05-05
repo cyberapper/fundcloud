@@ -266,102 +266,19 @@ that produced it.
      `tests/fixtures/scoring/canonical/` if expected.
   4. Note the change in `docs/CHANGELOG.md`.
 
-## Calibration record
+## Calibration history
 
-The scorer's relationship to "what a domain expert would call textbook"
-is currently **uncalibrated**. The calibration target is Spearman rank
-correlation `ρ` between scorer output and a hand-rated sample of real
-detections.
+Per-version calibration data, methodology, and the structural findings
+that drove each `SCORER_VERSION` bump have moved to
+[`docs/decisions/scorer-calibration-history.md`](../decisions/scorer-calibration-history.md).
+That's an audit trail of how the current defaults were chosen — it's
+not a workflow library users need to follow.
 
-| Date | Sample (n) | Rater | Held-out ρ | 95% CI | Scorer version |
-|---|---|---|---|---|---|
-| 2026-05-05 | 60 | claude (AI) | +0.289 ± 0.154 | weights wide-open | 1.0.0 |
-| 2026-05-05 | (skipped) | — | — | — | 1.1.0 |
-| 2026-05-05 | 69 | claude (AI) | +0.335 ± 0.126 | weights wide-open | 1.2.0 |
-
-**2026-05-05 run notes** (`scripts/scoring/calibration_interim_n60.json`):
-- This run is a *baseline*, not a production calibration — the rater
-  is Claude using vision-based judgment of the rendered charts. A
-  human-rater run is still required before deploying any scorer
-  change. Treat the ρ as indicative, not authoritative.
-- **Structural findings that don't depend on rater identity**:
-  1. `trendline_r2` is **near-constant at 0.98 ± 0.08** across all 60
-     detections — trendlines forced through anchor pivots always
-     fit r² ≈ 1.0. The 25% weight is contributing no discriminative
-     signal. Either rework the formula (e.g., measure fit on
-     intermediate bars between anchors, not the anchors themselves)
-     or drop the component.
-  2. Production weights (30/25/25/25/20) and uniform (25/25/25/25)
-     produce **identical Spearman** (0.492 vs 0.496). The current
-     weighting is not load-bearing. The fitted optimizer collapses
-     to uniform too.
-  3. CV ρ = 0.289 (below the 0.5 threshold) — the four-component
-     decomposition is **structurally incomplete**. Pushing samples
-     larger won't fix this; new sub-scores will.
-- **Recommendations before next calibration run**:
-  - ✅ Fix or replace `trendline_r2` so it actually varies across
-    detections. — **Done in `SCORER_VERSION = 1.1.0`** (see notes
-    below).
-  - Consider pattern-family-specific symmetry sub-scores
-    (double-top symmetry ≠ H&S symmetry ≠ triangle symmetry).
-  - Add candidate sub-scores: pivot prominence, inter-pivot return
-    magnitude, formation tightness vs surrounding volatility.
-
-**`SCORER_VERSION 1.0.0 → 1.1.0` change** (2026-05-05):
-- `score_trendline` now reads `trendline_fit_r2(prices, line)` —
-  the R² of the line against the **intermediate bars** between
-  anchors — rather than the anchor-only `TrendLine::r_squared`.
-  See [`crates/.../trendline.rs`](../../crates/fundcloud-core/src/patterns/trendline.rs).
-- Each line is evaluated against the maximum of `close`, `high`, and
-  `low` to auto-select the line's natural price series (a low-anchored
-  neckline naturally fits lows; a high-anchored resistance line fits
-  highs). Refining `TrendLine` to carry the anchor kind explicitly is
-  a v1.2 candidate that would let us drop the max-of-three.
-- Empirical impact across the full Mag7 + SPY + QQQ universe (4999
-  detections):
-  - `trendline_r2` distribution shifts from
-    **mean=0.98 std=0.08** (near-constant under v1.0) to
-    **mean=0.06 std=0.14, range [0.00, 0.84]** under v1.1 — i.e., the
-    component now carries real signal.
-  - Quality bands redistribute: from **74 good / 68 marginal / 36
-    poor** under v1.0 to **1 good / 91 marginal / 79 poor** under v1.1.
-    The earlier "good" tier was largely a free 25 points from the
-    constant-1.0 trendline component; v1.1 surfaces this honestly.
-- `calibration_interim_n60.json` is preserved as the v1.0 baseline.
-  A fresh v1.1 calibration requires re-rating — the prior 60 ratings
-  only overlap 19 detections with the new sample, and within that
-  overlap `trendline_r2` is constant zero so individual-component ρ is
-  undefined.
-
-**`SCORER_VERSION 1.1.0 → 1.2.0` change** (2026-05-05):
-- `score_completeness` removes the long-formation duration penalty.
-  Previously `bar_count > 60` decayed 100 → 50 over 60..120 and
-  floored at 50 past 120. v1.2 saturates at 100 once `bar_count >= 10`,
-  consistent with the philosophy that quality measures geometric
-  textbookness only — not a preferred timeframe (see
-  `feedback_quality_geometric_only`). The 5-bar minimum and 5..10 ramp
-  are unchanged.
-- Companion change in the **Python detection layer** (not in the
-  scorer): `PatternIndicator` now defaults to **multi-tier pivot
-  scanning** (`pivot_tiers=((3,5,8), (13,21), (34,55))`). The detector
-  windows over the merged alternating pivot sequence; with all orders
-  in one sweep, small-order pivots clutter that sequence and hide
-  major swings. Running disjoint tiers exposes patterns at three
-  scales — short, intermediate, multi-month. Empirical impact on AAPL
-  full history (1980–2026, daily, 11.4k bars):
-
-  | min_quality | OLD detections | NEW detections | NEW long-window (>60 bars) | NEW multi-quarter (>120 bars) |
-  |---|---|---|---|---|
-  | 50 | 182 | 206 (+13%) | 22 | 8 |
-  | 30 | 648 | 751 (+16%) | 99 | 53 |
-
-  The largest H&S formation under min_quality=30 spans 604 bars
-  (~2.4 years on dailies). Whether it's a *good* H&S is a quality
-  question — the detector now sees it instead of fragmenting it.
-
-The calibration workflow lives in
-[`scripts/scoring/calibrate.py`](../../scripts/scoring/calibrate.py).
-Add a row to this table on every new calibration run.
+The library ships with the v1.2.0 defaults; the four sub-score weights
+(30 / 25 / 25 / 20) reflect the audit. If you want different
+behaviour, pair the geometric scorer with your own outcome-based
+filtering or replace it entirely (subclass / `ReliabilityScorer` /
+`MLScorer`).
 
 ## Anti-patterns
 
