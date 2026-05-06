@@ -8,7 +8,7 @@
 
 ## Source of truth
 
-- Implementation: [`crates/fundcloud-core/src/patterns/scoring.rs`](../../crates/fundcloud-core/src/patterns/scoring.rs)
+- Implementation: [`crates/fundcloud-core/src/patterns/scoring.rs`](https://github.com/cyberapper/fundcloud/blob/main/crates/fundcloud-core/src/patterns/scoring.rs)
 - Public API: `GeometricScorer.score(pattern, ohlcv) -> PatternScore { quality, features }`
 - Per-event surface: each event in the events frame carries
   - `quality` (the composite score, `f64` in `0..=100`),
@@ -221,7 +221,7 @@ propose a new scorer (`ReliabilityScorer`, `MLScorer`, etc.).
 ## Canonical fixture set
 
 The fixture set in
-[`crates/fundcloud-core/tests/canonical_quality.rs`](../../crates/fundcloud-core/tests/canonical_quality.rs)
+[`crates/fundcloud-core/tests/canonical_quality.rs`](https://github.com/cyberapper/fundcloud/blob/main/crates/fundcloud-core/tests/canonical_quality.rs)
 is the executable contract for what `quality` should produce on
 hand-crafted formations across the documented bands.
 
@@ -237,7 +237,7 @@ hand-crafted formations across the documented bands.
 ## Monotonicity tests
 
 The monotonicity tests in
-[`scoring.rs#tests`](../../crates/fundcloud-core/src/patterns/scoring.rs)
+[`scoring.rs#tests`](https://github.com/cyberapper/fundcloud/blob/main/crates/fundcloud-core/src/patterns/scoring.rs)
 (prefix `*_monotonic_*`) lock in the *shape* of the scorer's response
 on each axis: perturbing one geometric attribute toward "more textbook"
 must never decrease the relevant score.
