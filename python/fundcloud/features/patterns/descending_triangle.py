@@ -52,6 +52,6 @@ class DescendingTriangle(PatternIndicator):
     detector_param_keys = ("flat_threshold", "min_touches")
     default_params = {
         **PatternIndicator.default_params,
-        "flat_threshold": 0.0005,
+        "flat_threshold": 0.005,
         "min_touches": 2,
     }

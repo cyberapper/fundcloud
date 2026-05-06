@@ -18,10 +18,12 @@ use crate::patterns::trendline::{fit_trendline, validate_boundaries};
 use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, TrendLine};
 
 /// Default normalised-slope tolerance for the "flat" leg of asc/desc.
-const DEFAULT_FLAT_THRESHOLD: f64 = 0.0005;
-/// Asymmetric multiplier — in the "wrong direction" only 70% of the
-/// flat_threshold is allowed (rising-by-2.3% lows on a descending
-/// triangle, etc.).
+/// 0.0005 was unrealistically tight (≈ 0.05% drift) and produced near-zero
+/// detections on real-world data; 0.005 (≈ 0.5% drift) is the level at which
+/// detection counts plateau on a 6-year mega-cap universe.
+const DEFAULT_FLAT_THRESHOLD: f64 = 0.005;
+/// Asymmetric multiplier — in the "wrong direction" only 70% of
+/// flat_threshold is allowed (e.g. rising lows on a descending triangle).
 const WRONG_DIR_FRACTION: f64 = 0.7;
 /// Default minimum touches per trend line.
 const DEFAULT_MIN_TOUCHES: usize = 2;
