@@ -68,7 +68,7 @@ fn deduplicate(mut patterns: Vec<Pattern>) -> Vec<Pattern> {
     if patterns.len() <= 1 {
         return patterns;
     }
-    patterns.sort_by(|a, b| b.pivots.len().cmp(&a.pivots.len()));
+    patterns.sort_by_key(|p| std::cmp::Reverse(p.pivots.len()));
     let mut kept: Vec<Pattern> = Vec::with_capacity(patterns.len());
     for pat in patterns {
         let (a_start, a_end) = pat.formation;
