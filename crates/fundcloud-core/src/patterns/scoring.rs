@@ -568,7 +568,10 @@ mod tests {
             .map(|p2| score_symmetry(&double_top(100.0, *p2)))
             .collect();
         assert_non_increasing("double-top peak skew", &scores);
-        assert!((scores[0] - 100.0).abs() < 1e-9, "perfect match should be 100");
+        assert!(
+            (scores[0] - 100.0).abs() < 1e-9,
+            "perfect match should be 100"
+        );
     }
 
     #[test]
@@ -599,15 +602,12 @@ mod tests {
         // spacing. Perfectly regular spacing should score highest;
         // increasingly irregular sequences must score no higher.
         let cases: Vec<Vec<usize>> = vec![
-            vec![10, 10, 10, 10],     // uniform
-            vec![9, 10, 11, 10],      // mild variance
-            vec![5, 12, 8, 15],       // moderate variance
-            vec![3, 18, 6, 13],       // high variance
+            vec![10, 10, 10, 10], // uniform
+            vec![9, 10, 11, 10],  // mild variance
+            vec![5, 12, 8, 15],   // moderate variance
+            vec![3, 18, 6, 13],   // high variance
         ];
-        let scores: Vec<f64> = cases
-            .iter()
-            .map(|c| score_symmetry(&triangle(c)))
-            .collect();
+        let scores: Vec<f64> = cases.iter().map(|c| score_symmetry(&triangle(c))).collect();
         assert_non_increasing("triangle spacing variance", &scores);
     }
 

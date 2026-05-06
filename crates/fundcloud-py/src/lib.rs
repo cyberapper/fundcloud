@@ -397,7 +397,7 @@ fn sim_run_signals<'py>(
 // ----------------------------------------------------------------- patterns
 
 fn pivot_to_dict<'py>(py: Python<'py>, p: &core_patterns::Pivot) -> Bound<'py, PyDict> {
-    let d = PyDict::new_bound(py);
+    let d = PyDict::new(py);
     d.set_item("index", p.index).expect("set index");
     d.set_item("ts_ns", p.ts_ns).expect("set ts_ns");
     d.set_item("price", p.price).expect("set price");
@@ -407,7 +407,7 @@ fn pivot_to_dict<'py>(py: Python<'py>, p: &core_patterns::Pivot) -> Bound<'py, P
 }
 
 fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bound<'py, PyDict> {
-    let d = PyDict::new_bound(py);
+    let d = PyDict::new(py);
     d.set_item("start_index", tl.start_index)
         .expect("set start_index");
     d.set_item("end_index", tl.end_index)
@@ -423,16 +423,16 @@ fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bou
 }
 
 fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Bound<'py, PyDict> {
-    let out = PyDict::new_bound(py);
+    let out = PyDict::new(py);
     out.set_item("name", d.pattern.name).expect("set name");
     out.set_item("direction", d.pattern.direction.as_str())
         .expect("set direction");
-    let pivots = PyList::empty_bound(py);
+    let pivots = PyList::empty(py);
     for p in &d.pattern.pivots {
         pivots.append(pivot_to_dict(py, p)).expect("append pivot");
     }
     out.set_item("pivots", pivots).expect("set pivots");
-    let lines = PyList::empty_bound(py);
+    let lines = PyList::empty(py);
     for tl in &d.pattern.trend_lines {
         lines
             .append(trendline_to_dict(py, tl))
@@ -451,7 +451,7 @@ fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Boun
         .expect("set variant");
     out.set_item("quality", d.score.quality)
         .expect("set quality");
-    let features = PyDict::new_bound(py);
+    let features = PyDict::new(py);
     for (k, v) in &d.score.features {
         features.set_item(k, v).expect("set feature");
     }
@@ -471,8 +471,8 @@ fn multi_level_pivots<'py>(
     let h = highs.as_slice().expect("highs slice contiguous");
     let l = lows.as_slice().expect("lows slice contiguous");
     let t = ts_ns.as_slice().expect("ts_ns slice contiguous");
-    let pivots = py.allow_threads(|| core_patterns::multi_level_pivots(h, l, t, &orders));
-    let out = PyList::empty_bound(py);
+    let pivots = py.detach(|| core_patterns::multi_level_pivots(h, l, t, &orders));
+    let out = PyList::empty(py);
     for p in &pivots {
         out.append(pivot_to_dict(py, p)).expect("append pivot");
     }
@@ -512,11 +512,9 @@ fn scan_pattern<'py>(
         volume: v,
     };
     let detections = py
-        .allow_threads(|| {
-            core_patterns::scan(name, view, &pivot_orders, min_quality, &detector_params)
-        })
+        .detach(|| core_patterns::scan(name, view, &pivot_orders, min_quality, &detector_params))
         .unwrap_or_else(|e| panic!("scan_pattern: {e}"));
-    let out = PyList::empty_bound(py);
+    let out = PyList::empty(py);
     for d in &detections {
         out.append(detection_to_dict(py, d)).expect("append");
     }

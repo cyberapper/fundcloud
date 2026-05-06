@@ -31,7 +31,10 @@ struct Band {
 
 impl Band {
     const fn excellent() -> Self {
-        Self { lo: 95.0, hi: 100.0 }
+        Self {
+            lo: 95.0,
+            hi: 100.0,
+        }
     }
     const fn good() -> Self {
         Self { lo: 70.0, hi: 94.0 }
@@ -252,7 +255,7 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
             pv(20, 110.0, PivotKind::High),
-            pv(30, 93.0, PivotKind::Low), // 1% neckline tilt
+            pv(30, 93.0, PivotKind::Low),   // 1% neckline tilt
             pv(40, 102.0, PivotKind::High), // 2% shoulder asymmetry
         ],
         trend_lines: vec![solid_trendline(40, 4)],
@@ -273,7 +276,7 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
             pv(0, 100.0, PivotKind::High),
             pv(5, 93.0, PivotKind::Low),
             pv(10, 110.0, PivotKind::High),
-            pv(15, 91.0, PivotKind::Low), // 2% neckline tilt
+            pv(15, 91.0, PivotKind::Low),   // 2% neckline tilt
             pv(20, 105.0, PivotKind::High), // 5% shoulder asymmetry
         ],
         trend_lines: vec![weak_trendline(20, 2)],

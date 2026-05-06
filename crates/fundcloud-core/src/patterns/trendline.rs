@@ -393,9 +393,7 @@ mod tests {
         // Bars hugging the line.
         let clean: Vec<f64> = (0..10).map(|_| 100.0).collect();
         // Bars wandering wildly.
-        let noisy: Vec<f64> = (0..10)
-            .map(|i| 100.0 + 20.0 * (i as f64).sin())
-            .collect();
+        let noisy: Vec<f64> = (0..10).map(|i| 100.0 + 20.0 * (i as f64).sin()).collect();
 
         let r2_clean = trendline_fit_r2(&clean, &line);
         let r2_noisy = trendline_fit_r2(&noisy, &line);
