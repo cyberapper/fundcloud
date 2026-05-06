@@ -188,8 +188,7 @@ nav:
           - Bracket orders (stop-loss + take-profit): guides/sim/bracket-orders.md
           - Simulator performance (Rust kernel): guides/sim/performance.md
       - Chart Patterns:
-          - Overview: guides/patterns/overview.md
-          - Pattern detection workflow: guides/patterns/pattern-detection.md
+          - Pattern detection: guides/patterns/pattern-detection.md
           - Detector & scorer knobs: guides/patterns/knobs.md
           - Geometric quality score: scoring/quality.md
       - Portfolio Optimisation:
