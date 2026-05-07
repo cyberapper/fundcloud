@@ -95,6 +95,8 @@ dev = [
   "openpyxl>=3.1",        # read-side (tests verify the workbook we wrote)
   "ipython>=8.39.0",
   "backtrader>=1.9.78.123",
+  "streamlit>=1.57.0",
+  "pandas-datareader>=0.10.0",
 ]
 
 [build-system]

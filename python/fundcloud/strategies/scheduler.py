@@ -16,7 +16,7 @@ import pandas as pd
 __all__ = ["Cadence", "Scheduler"]
 
 
-HorizonName = Literal["daily", "weekly", "monthly"]
+HorizonName = Literal["daily", "weekly", "monthly", "quarterly"]
 
 
 @dataclass(slots=True)
@@ -80,6 +80,7 @@ class Scheduler:
           (**not** ISO weekday 1 — matches PRD's "(7 days)" wording).
         * ``"monthly"`` → same day-of-month as ``anchor`` each month,
           falling back to the last trading day of the month if missing.
+        * ``"quarterly"`` → same rule as monthly, stepping every 3 months.
         * a :class:`Cadence` is returned as-is (with ``anchor`` merged in).
         * any pandas offset string (e.g. ``"30D"``, ``"3W"``) → :class:`Cadence`.
         """
@@ -91,6 +92,8 @@ class Scheduler:
             return Cadence(step="7D", anchor=anchor)
         if horizon == "monthly":
             return _MonthlyCadence(anchor=anchor)  # type: ignore[return-value]
+        if horizon == "quarterly":
+            return _QuarterlyCadence(anchor=anchor)  # type: ignore[return-value]
         # Treat anything else as a pandas-parseable offset.
         try:
             pd.Timedelta(horizon)
@@ -108,7 +111,12 @@ class _MonthlyCadence(Cadence):
     most recent trading day ≤ the anchor day within the same month,
     falling back to the latest bar of the month only when every bar in
     the month is strictly after the anchor day.
+
+    Subclasses override :attr:`_MONTH_STEP` to fire every N months
+    (e.g. quarterly = 3) while reusing the same snap-to-day logic.
     """
+
+    _MONTH_STEP: int = 1
 
     def triggers(
         self,
@@ -144,5 +152,11 @@ class _MonthlyCadence(Cadence):
                     not fires or snapped > fires[-1]
                 ):
                     fires.append(snapped)
-            cursor = cursor + pd.offsets.MonthBegin(1)
+            cursor = cursor + pd.offsets.MonthBegin(self._MONTH_STEP)
         return pd.DatetimeIndex(fires)
+
+
+class _QuarterlyCadence(_MonthlyCadence):
+    """Quarterly cadence — same snap rule as monthly, stepping 3 months."""
+
+    _MONTH_STEP: int = 3
