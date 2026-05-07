@@ -15,9 +15,47 @@ concurrency:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.release.outputs.pr }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      - id: release
+        uses: googleapis/release-please-action@v5
         with:
           token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  sync-lockfiles:
+    needs: release-please
+    if: needs.release-please.outputs.pr != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release PR branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+          ref: ${{ fromJson(needs.release-please.outputs.pr).headBranchName }}
+
+      - name: Install Rust toolchain (nightly for `cargo update --workspace`)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Refresh Cargo.lock workspace entries
+        run: cargo update --workspace -Z unstable-options
+
+      - name: Refresh uv.lock
+        run: uv lock
+
+      - name: Commit lockfile updates
+        run: |
+          if [[ -z "$(git status --porcelain Cargo.lock uv.lock)" ]]; then
+            echo "Lockfiles already in sync."
+            exit 0
+          fi
+          git config user.name "algo724-release[bot]"
+          git config user.email "159674694+algo724-release@users.noreply.github.com"
+          git add Cargo.lock uv.lock
+          git commit -m "chore: sync lockfiles to release version"
+          git push --force-with-lease

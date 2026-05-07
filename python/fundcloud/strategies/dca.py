@@ -18,7 +18,7 @@ from fundcloud.strategies.scheduler import Cadence, Scheduler
 __all__ = ["DCA"]
 
 
-HorizonName = Literal["daily", "weekly", "monthly"]
+HorizonName = Literal["daily", "weekly", "monthly", "quarterly"]
 
 
 class DCA(BaseStrategy):
@@ -49,7 +49,8 @@ class DCA(BaseStrategy):
         ``asset -> fraction``. Mutually exclusive with ``amount``.
     horizon
         Cadence — ``"daily"``, ``"weekly"`` (7 calendar days),
-        ``"monthly"``, or a :class:`Cadence` for arbitrary steps.
+        ``"monthly"``, ``"quarterly"`` (every 3 months, same-day-of-month
+        snap rule as monthly), or a :class:`Cadence` for arbitrary steps.
     weights
         Optional. When omitted with a scalar ``amount`` / ``amount_pct``,
         DCA spreads the deposit equally across every asset in the
