@@ -1,8 +1,8 @@
 """``Cadence`` + ``Scheduler`` — when does a strategy fire?
 
 Strategies driven by the simulator express their rebalance / investment
-rhythm through a :class:`Cadence`. Three named presets — ``daily`` /
-``weekly`` / ``monthly`` — ship today, plus arbitrary
+rhythm through a :class:`Cadence`. Four named presets — ``daily`` /
+``weekly`` / ``monthly`` / ``quarterly`` — ship today, plus arbitrary
 ``pandas.Timedelta``-compatible step strings.
 """
 
@@ -138,9 +138,8 @@ class _MonthlyCadence(Cadence):
             month_end = cursor + pd.offsets.MonthEnd(0)
             try:
                 target = pd.Timestamp(year=cursor.year, month=cursor.month, day=day)
-                if target > month_end:
-                    target = month_end
             except ValueError:
+                # Anchor day doesn't exist this month (e.g. day=31 in February).
                 target = month_end
 
             month_mask = (index >= cursor) & (index <= month_end)
