@@ -95,10 +95,11 @@ class TestEventsToSignal:
         idx = _index()
         events = _events_frame(index=idx, formation_start=2, formation_end=4)
         out = events_to_signal(events, index=idx, mode=SignalMode.DECAY, decay_bars=4)
-        # breakout_ts == formation_end == idx[4]; decay over 4 bars.
+        # breakout_ts == formation_end == idx[4]; decay over 4 bars,
+        # last bar reaches 0.0 — span = decay_bars - 1.
         expected = np.zeros(len(idx))
         for k in range(4):
-            expected[4 + k] = 1.0 - k / 4
+            expected[4 + k] = 1.0 - k / 3
         np.testing.assert_allclose(out.to_numpy(), expected)
 
     def test_decay_mode_truncates_at_index_end(self) -> None:
@@ -145,7 +146,7 @@ class TestEventsToSignal:
         events = build_events_frame(raw, asset="AAA", index=idx)
         out = events_to_signal(events, index=idx, mode=SignalMode.DECAY, decay_bars=4)
         # Bar 4 should be the second event's start (1.0), not the first
-        # event's decayed tail (0.5).
+        # event's decayed tail (~0.333).
         assert out.iloc[4] == pytest.approx(1.0)
 
     def test_decay_mode_rejects_nonpositive_window(self) -> None:
