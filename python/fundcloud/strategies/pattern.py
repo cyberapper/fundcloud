@@ -17,6 +17,15 @@ This is a research-grade strategy: no slippage / fees / sizing logic
 beyond a fixed fraction-of-equity ``size``. For a production engine
 you'd subclass and override the ``decide`` method to add execution
 realism.
+
+Known limitations
+-----------------
+* Only :attr:`EntryRule.ON_BREAKOUT` and :attr:`ExitRule.TARGET_OR_STOP`
+  are wired into ``decide``. Other enum values raise at construction.
+* Target / stop levels are anchored to the detector's pre-fill
+  ``entry_price`` rather than the actual market-order fill — gaps
+  between breakout bar and fill bar will misalign thresholds. Same
+  bucket as the no-slippage assumption above.
 """
 
 from __future__ import annotations
@@ -30,6 +39,7 @@ from fundcloud.features.patterns import (
     PatternIndicator,
     apply_condition,
 )
+from fundcloud.features.patterns._enums import EntryRule, ExitRule
 from fundcloud.portfolio import Portfolio
 from fundcloud.sim.orders import Order
 from fundcloud.strategies.base import BaseStrategy, Context, register_strategy
@@ -79,6 +89,18 @@ class PatternStrategy(BaseStrategy):
             raise ValueError(msg)
         self.indicator = indicator
         self.condition = condition if condition is not None else indicator.effective_condition
+        if self.condition.entry_rule is not EntryRule.ON_BREAKOUT:
+            msg = (
+                f"PatternStrategy currently supports only EntryRule.ON_BREAKOUT; "
+                f"got {self.condition.entry_rule!r}"
+            )
+            raise NotImplementedError(msg)
+        if self.condition.exit_rule is not ExitRule.TARGET_OR_STOP:
+            msg = (
+                f"PatternStrategy currently supports only ExitRule.TARGET_OR_STOP; "
+                f"got {self.condition.exit_rule!r}"
+            )
+            raise NotImplementedError(msg)
         self.size = size
         self.inverse = inverse
         # Filled in init():

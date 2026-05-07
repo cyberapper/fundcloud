@@ -496,7 +496,7 @@ fn scan_pattern<'py>(
     pivot_orders: Vec<usize>,
     min_quality: f64,
     detector_params: std::collections::HashMap<String, f64>,
-) -> Bound<'py, PyList> {
+) -> PyResult<Bound<'py, PyList>> {
     let ts = ts_ns.as_slice().expect("ts_ns slice contiguous");
     let o = open.as_slice().expect("open slice contiguous");
     let h = high.as_slice().expect("high slice contiguous");
@@ -513,12 +513,12 @@ fn scan_pattern<'py>(
     };
     let detections = py
         .detach(|| core_patterns::scan(name, view, &pivot_orders, min_quality, &detector_params))
-        .unwrap_or_else(|e| panic!("scan_pattern: {e}"));
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("scan_pattern: {e}")))?;
     let out = PyList::empty(py);
     for d in &detections {
         out.append(detection_to_dict(py, d)).expect("append");
     }
-    out
+    Ok(out)
 }
 
 #[pyfunction]

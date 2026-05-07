@@ -177,7 +177,8 @@ impl PatternDetector for AscendingTriangleDetector {
                     continue;
                 }
 
-                if range_end.saturating_sub(range_start) < ASC_DESC_MIN_BAR_COUNT {
+                if range_end.saturating_sub(range_start).saturating_add(1) < ASC_DESC_MIN_BAR_COUNT
+                {
                     continue;
                 }
 
@@ -296,7 +297,8 @@ impl PatternDetector for DescendingTriangleDetector {
                     continue;
                 }
 
-                if range_end.saturating_sub(range_start) < ASC_DESC_MIN_BAR_COUNT {
+                if range_end.saturating_sub(range_start).saturating_add(1) < ASC_DESC_MIN_BAR_COUNT
+                {
                     continue;
                 }
 
@@ -428,7 +430,7 @@ impl PatternDetector for SymmetricalTriangleDetector {
                     continue;
                 }
 
-                if range_end.saturating_sub(range_start) < self.min_bar_count {
+                if range_end.saturating_sub(range_start).saturating_add(1) < self.min_bar_count {
                     continue;
                 }
 
@@ -498,23 +500,22 @@ fn validate_boundaries_abs(
     end: usize,
     tol_price: f64,
 ) -> bool {
-    let last = end.min(highs.len().saturating_sub(1));
-    for (i, (h, l)) in highs
-        .iter()
-        .zip(lows.iter())
-        .enumerate()
-        .take(last + 1)
-        .skip(start)
-    {
+    if start > end || end >= highs.len() || end >= lows.len() {
+        return false;
+    }
+
+    for i in start..=end {
+        let h = highs[i];
+        let l = lows[i];
         let up = upper.price_at(i);
         let lo = lower.price_at(i);
         if up <= lo {
             return false;
         }
-        if *h > up + tol_price {
+        if h > up + tol_price {
             return false;
         }
-        if *l < lo - tol_price {
+        if l < lo - tol_price {
             return false;
         }
     }

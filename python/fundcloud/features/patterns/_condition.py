@@ -47,6 +47,18 @@ class PatternCondition:
     #: Used by ``TargetMethod.FIB_1_618`` — multiplier of pattern_height.
     fib_target_multiple: float = 1.618
 
+    def __post_init__(self) -> None:
+        if self.time_stop_bars is not None and self.time_stop_bars <= 0:
+            raise ValueError("time_stop_bars must be positive when set")
+        if self.atr_window < 1:
+            raise ValueError("atr_window must be >= 1")
+        if self.atr_multiple <= 0:
+            raise ValueError("atr_multiple must be > 0")
+        if self.fixed_pct <= 0:
+            raise ValueError("fixed_pct must be > 0")
+        if self.fib_target_multiple <= 0:
+            raise ValueError("fib_target_multiple must be > 0")
+
     def override(self, **kwargs: Any) -> PatternCondition:
         """Return a new ``PatternCondition`` with the given fields replaced.
 

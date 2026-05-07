@@ -153,6 +153,7 @@ def events_to_signal(
         msg = "decay_bars must be positive when mode == SignalMode.DECAY"
         raise ValueError(msg)
     n = len(index)
+    span = max(decay_bars - 1, 1)
     for ts in events["breakout_ts"]:
         if pd.isna(ts) or ts not in pos.index:
             continue
@@ -161,7 +162,7 @@ def events_to_signal(
             j = i0 + k
             if j >= n:
                 break
-            value = 1.0 - (k / decay_bars)
+            value = 1.0 - (k / span)
             if value > out.iloc[j]:
                 out.iloc[j] = value  # type: ignore[call-overload]
     return out

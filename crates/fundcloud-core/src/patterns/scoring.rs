@@ -194,7 +194,7 @@ fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
 /// Completeness: duration in bars + cumulative trend-line touch count.
 fn score_completeness(pattern: &Pattern) -> f64 {
     let (start, end) = pattern.formation;
-    let bar_count = end.saturating_sub(start);
+    let bar_count = end.saturating_sub(start).saturating_add(1);
     // Duration is a quality floor (need enough bars for the formation to be
     // visually identifiable), not a quality ceiling. A textbook 6-month double
     // top is no less geometrically clean than a 30-bar one — they're just

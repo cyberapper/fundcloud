@@ -68,7 +68,7 @@ the default `condition` it ships with.
 |---|---|---|---|
 | Reversal — top | `HeadAndShoulders` | bearish | `MEASURED_MOVE`, `ABOVE_NECKLINE_PEAK` stop |
 | Reversal — top | `DoubleTop` | bearish | `MEASURED_MOVE`, `ABOVE_PIVOT` stop |
-| Reversal — top | `TripleTop` | bearish | `MEASURED_MOVE`, `ABOVE_PIVOT` stop |
+| Reversal — top | `TripleTop` | bearish | `MEASURED_MOVE`, `BELOW_PIVOT` stop (resolver flips to recent high for bearish) |
 | Reversal — bottom | `InverseHeadAndShoulders` | bullish | `MEASURED_MOVE`, `BELOW_NECKLINE_TROUGH` stop |
 | Reversal — bottom | `DoubleBottom` | bullish | `MEASURED_MOVE`, `BELOW_PIVOT` stop |
 | Reversal — bottom | `TripleBottom` | bullish | `MEASURED_MOVE`, `BELOW_PIVOT` stop |

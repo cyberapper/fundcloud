@@ -76,7 +76,7 @@ kwargs on any concrete pattern class (`DoubleTop`, `HeadAndShoulders`, …).
 |---|---|---|---|
 | `flat_threshold` | `0.0005` | exposed | Maximum slope (per-bar fraction) for the "flat" side. 0.05% per bar ≈ tight. Loosen if your asset's volatility makes pure flatness unrealistic. |
 | `min_touches` | `2` | exposed | Minimum number of pivots touching the flat side. 2 = "two highs at the same price"; raise to 3 for stricter formations. |
-| `WRONG_DIR_FRACTION` | `0.7` | keep | Guardrail rejecting patterns where ≥70% of intermediate bars violate the trendline. Triangle filter, not a tunable. |
+| `WRONG_DIR_FRACTION` | `0.7` | keep | Slope-asymmetry multiplier. The flat side may drift in the "wrong" direction by at most `flat_threshold × 0.7` (per-bar slope), so unfavourable drift is tolerated less than favourable drift. Structural filter, not a tunable. |
 | `ASC_DESC_MIN_BAR_COUNT` | `8` | keep | Structural minimum. |
 | `CHANNEL_TOLERANCE` | `0.02` | future | Currently used to reject formations that look more like a channel than a triangle. Could be exposed if users hit false negatives. |
 
@@ -88,7 +88,7 @@ kwargs on any concrete pattern class (`DoubleTop`, `HeadAndShoulders`, …).
 |---|---|---|---|
 | `min_touches` | `2` | exposed | Same as ascending/descending. |
 | `min_slope_threshold` | `0.0005` | exposed | Minimum absolute slope (in either direction) for a side to count as sloped. Below this, the side is treated as flat — and a flat side disqualifies the pattern from being "symmetrical". |
-| `prior_trend_window` | `10` | exposed | Sets the bull/bear directional label only — does not gate detection. |
+| `prior_trend_window` | `20` | exposed | Sets the bull/bear directional label only — does not gate detection. |
 | `SYM_ABS_TOLERANCE_FRACTION` | `0.05` | keep | Apex tolerance — structural. |
 | `SYM_MIN_BAR_COUNT` | `10` | keep | Structural minimum. |
 

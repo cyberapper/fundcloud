@@ -172,14 +172,18 @@ class TestBarFieldHelper:
 
     def test_equity_includes_open_position_value(self) -> None:
         bars = _bars()
-        portfolio = Portfolio(cash=10_000.0)
-        # Open a synthetic long via the portfolio's apply path is invasive;
-        # the public equity helper is exercised here through a context that
-        # sees a NaN bar (so the position-value branch is skipped) and a
-        # context that sees a finite price.
+        qty = 5.0
+        portfolio = Portfolio(cash=10_000.0, positions={"AAA": qty})
         strat = PatternStrategy(DoubleBottom())
         ctx = _ctx(bars, 50, portfolio=portfolio)
-        # Empty positions → equity == cash.
+        close = float(bars.iloc[50][("close", "AAA")])
+        assert strat._equity(ctx) == pytest.approx(10_000.0 + qty * close)
+
+    def test_equity_cash_only_when_no_positions(self) -> None:
+        bars = _bars()
+        portfolio = Portfolio(cash=10_000.0)
+        strat = PatternStrategy(DoubleBottom())
+        ctx = _ctx(bars, 50, portfolio=portfolio)
         assert strat._equity(ctx) == pytest.approx(10_000.0)
 
 

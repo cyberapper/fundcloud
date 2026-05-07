@@ -19,7 +19,7 @@ the same commit**.
 
 ## Composite
 
-```
+```text
 quality = round(
       0.30 × symmetry
     + 0.25 × volume
@@ -52,7 +52,7 @@ Pattern-specific. The formula dispatches on `pattern.name`. All return
 
 #### Double top / Double bottom
 
-```
+```text
 diff = pct_diff(pivot[0].price, pivot[2].price)
 score = max(0, 100 × (1 − diff / 0.015))
 ```
@@ -63,7 +63,7 @@ Returns `0.0` if fewer than 3 pivots — defensive guard.
 
 #### Triple top / Triple bottom
 
-```
+```text
 trio = (pivot[0].price, pivot[2].price, pivot[4].price)
 mean = avg(trio)
 worst_diff = max(pct_diff(p, mean) for p in trio)
@@ -74,7 +74,7 @@ Returns `0.0` if fewer than 5 pivots.
 
 #### Head & shoulders / Inverse head & shoulders
 
-```
+```text
 shoulder_diff = pct_diff(pivot[0].price, pivot[4].price)   # left vs right shoulder
 neckline_diff = pct_diff(pivot[1].price, pivot[3].price)   # neckline left vs right
 shoulder_score = max(0, 100 × (1 − shoulder_diff / 0.10))
@@ -89,7 +89,7 @@ in the detector.
 
 #### Ascending / Descending / Symmetrical triangle
 
-```
+```text
 spacings = [pivot[i+1].index − pivot[i].index for i in 0..n-1]
 mean_spacing = avg(spacings)
 cv = std(spacings) / mean_spacing      # coefficient of variation
@@ -109,7 +109,7 @@ detector without adding a `symmetry` branch silently caps it at neutral.
 
 ### `volume` (25%)
 
-```
+```text
 volumes = ohlcv.volume[formation_start..=formation_end]
 mid = len(volumes) / 2          # integer division
 front = mean(volumes[..mid])
@@ -129,7 +129,7 @@ the in-formation decline; breakout-bar volume is not part of `quality`.
 
 ### `trendline_r²` (25%)
 
-```
+```text
 score = mean(
     max(
         trendline_fit_r2(ohlcv.close, tl),
@@ -164,7 +164,7 @@ correctly scored low.
 
 ### `completeness` (20%)
 
-```
+```text
 completeness = (duration_score + touch_score) / 2
 ```
 
@@ -183,7 +183,7 @@ just different timeframes. Anything past the 10-bar floor scores 100.
 
 #### Touch score (cumulative trend-line touch count)
 
-```
+```text
 total = sum(tl.touch_count for tl in pattern.trend_lines)
 
 if total <= 2:  score = 30
