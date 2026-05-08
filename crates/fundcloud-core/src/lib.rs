@@ -11,6 +11,7 @@ use thiserror::Error;
 
 pub mod drawdown;
 pub mod moments;
+pub mod patterns;
 pub mod returns;
 pub mod rolling;
 pub mod sim;

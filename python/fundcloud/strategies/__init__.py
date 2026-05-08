@@ -16,6 +16,7 @@ from fundcloud.strategies.base import (
 )
 from fundcloud.strategies.dca import DCA
 from fundcloud.strategies.hold import Hold, RebalanceSpec
+from fundcloud.strategies.pattern import PatternStrategy
 from fundcloud.strategies.scheduler import Cadence, Scheduler
 
 __all__ = [
@@ -24,6 +25,7 @@ __all__ = [
     "Cadence",
     "Context",
     "Hold",
+    "PatternStrategy",
     "RebalanceSpec",
     "Scheduler",
     "register_strategy",

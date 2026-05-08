@@ -168,6 +168,10 @@ ignore = [
 "python/fundcloud/data/sources/csv.py" = ["N812"]
 "python/fundcloud/data/stores/duckdb.py" = ["N812"]
 "python/fundcloud/data/stores/parquet.py" = ["N812"]
+# PatternIndicator subclasses extend the base class's ClassVar[dict] via
+# `default_params = {**base, ...}`. The base typing already protects against
+# the mutable-default footgun; ruff doesn't follow that across inheritance.
+"python/fundcloud/features/patterns/*.py" = ["RUF012"]
 
 [tool.ruff.format]
 preview = true

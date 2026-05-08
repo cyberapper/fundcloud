@@ -17,6 +17,11 @@ all canonical panels into a single Figure ready to write to HTML / PNG.
 from __future__ import annotations
 
 from fundcloud.plots.aggregated import summary
+from fundcloud.plots.patterns import (
+    plot_asset_patterns,
+    plot_pattern_event,
+    plot_patterns_overview,
+)
 from fundcloud.plots.plotly import (
     composition,
     cumulative,
@@ -34,6 +39,9 @@ __all__ = [
     "drawdown",
     "get_theme",
     "monthly_heatmap",
+    "plot_asset_patterns",
+    "plot_pattern_event",
+    "plot_patterns_overview",
     "return_distribution",
     "rolling_sharpe",
     "set_theme",

@@ -9,8 +9,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 
 use fundcloud_core::{
-    drawdown as core_drawdown, moments as core_moments, returns as core_returns,
-    rolling as core_rolling, sim as core_sim, tail_risk as core_tail,
+    drawdown as core_drawdown, moments as core_moments, patterns as core_patterns,
+    returns as core_returns, rolling as core_rolling, sim as core_sim, tail_risk as core_tail,
 };
 
 #[pyfunction]
@@ -394,6 +394,148 @@ fn sim_run_signals<'py>(
     sim_output_to_dict(py, out)
 }
 
+// ----------------------------------------------------------------- patterns
+
+fn pivot_to_dict<'py>(py: Python<'py>, p: &core_patterns::Pivot) -> Bound<'py, PyDict> {
+    let d = PyDict::new(py);
+    d.set_item("index", p.index).expect("set index");
+    d.set_item("ts_ns", p.ts_ns).expect("set ts_ns");
+    d.set_item("price", p.price).expect("set price");
+    d.set_item("kind", p.kind.as_str()).expect("set kind");
+    d.set_item("order", p.order).expect("set order");
+    d
+}
+
+fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bound<'py, PyDict> {
+    let d = PyDict::new(py);
+    d.set_item("start_index", tl.start_index)
+        .expect("set start_index");
+    d.set_item("end_index", tl.end_index)
+        .expect("set end_index");
+    d.set_item("slope", tl.slope).expect("set slope");
+    d.set_item("intercept", tl.intercept)
+        .expect("set intercept");
+    d.set_item("r_squared", tl.r_squared)
+        .expect("set r_squared");
+    d.set_item("touch_count", tl.touch_count)
+        .expect("set touch_count");
+    d
+}
+
+fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Bound<'py, PyDict> {
+    let out = PyDict::new(py);
+    out.set_item("name", d.pattern.name).expect("set name");
+    out.set_item("direction", d.pattern.direction.as_str())
+        .expect("set direction");
+    let pivots = PyList::empty(py);
+    for p in &d.pattern.pivots {
+        pivots.append(pivot_to_dict(py, p)).expect("append pivot");
+    }
+    out.set_item("pivots", pivots).expect("set pivots");
+    let lines = PyList::empty(py);
+    for tl in &d.pattern.trend_lines {
+        lines
+            .append(trendline_to_dict(py, tl))
+            .expect("append trendline");
+    }
+    out.set_item("trend_lines", lines).expect("set trend_lines");
+    out.set_item("formation_start", d.pattern.formation.0)
+        .expect("set formation_start");
+    out.set_item("formation_end", d.pattern.formation.1)
+        .expect("set formation_end");
+    out.set_item("entry_price", d.pattern.entry_price)
+        .expect("set entry_price");
+    out.set_item("breakout_price", d.pattern.breakout_price)
+        .expect("set breakout_price");
+    out.set_item("variant", d.pattern.variant.as_deref())
+        .expect("set variant");
+    out.set_item("quality", d.score.quality)
+        .expect("set quality");
+    let features = PyDict::new(py);
+    for (k, v) in &d.score.features {
+        features.set_item(k, v).expect("set feature");
+    }
+    out.set_item("features", features).expect("set features");
+    out
+}
+
+#[pyfunction]
+#[pyo3(text_signature = "(highs, lows, ts_ns, orders, /)")]
+fn multi_level_pivots<'py>(
+    py: Python<'py>,
+    highs: PyReadonlyArray1<'py, f64>,
+    lows: PyReadonlyArray1<'py, f64>,
+    ts_ns: PyReadonlyArray1<'py, i64>,
+    orders: Vec<usize>,
+) -> Bound<'py, PyList> {
+    let h = highs.as_slice().expect("highs slice contiguous");
+    let l = lows.as_slice().expect("lows slice contiguous");
+    let t = ts_ns.as_slice().expect("ts_ns slice contiguous");
+    let pivots = py.detach(|| core_patterns::multi_level_pivots(h, l, t, &orders));
+    let out = PyList::empty(py);
+    for p in &pivots {
+        out.append(pivot_to_dict(py, p)).expect("append pivot");
+    }
+    out
+}
+
+#[allow(clippy::too_many_arguments)]
+#[pyfunction]
+#[pyo3(
+    text_signature = "(name, ts_ns, open, high, low, close, volume, pivot_orders, min_quality, detector_params, /)"
+)]
+fn scan_pattern<'py>(
+    py: Python<'py>,
+    name: &str,
+    ts_ns: PyReadonlyArray1<'py, i64>,
+    open: PyReadonlyArray1<'py, f64>,
+    high: PyReadonlyArray1<'py, f64>,
+    low: PyReadonlyArray1<'py, f64>,
+    close: PyReadonlyArray1<'py, f64>,
+    volume: PyReadonlyArray1<'py, f64>,
+    pivot_orders: Vec<usize>,
+    min_quality: f64,
+    detector_params: std::collections::HashMap<String, f64>,
+) -> PyResult<Bound<'py, PyList>> {
+    let ts = ts_ns.as_slice().expect("ts_ns slice contiguous");
+    let o = open.as_slice().expect("open slice contiguous");
+    let h = high.as_slice().expect("high slice contiguous");
+    let l = low.as_slice().expect("low slice contiguous");
+    let c = close.as_slice().expect("close slice contiguous");
+    let v = volume.as_slice().expect("volume slice contiguous");
+    let view = core_patterns::OhlcvView {
+        ts_ns: ts,
+        open: o,
+        high: h,
+        low: l,
+        close: c,
+        volume: v,
+    };
+    let detections = py
+        .detach(|| core_patterns::scan(name, view, &pivot_orders, min_quality, &detector_params))
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("scan_pattern: {e}")))?;
+    let out = PyList::empty(py);
+    for d in &detections {
+        out.append(detection_to_dict(py, d)).expect("append");
+    }
+    Ok(out)
+}
+
+#[pyfunction]
+fn list_pattern_names() -> Vec<&'static str> {
+    vec![
+        "head_and_shoulders",
+        "inverse_head_and_shoulders",
+        "double_top",
+        "double_bottom",
+        "triple_top",
+        "triple_bottom",
+        "ascending_triangle",
+        "descending_triangle",
+        "symmetrical_triangle",
+    ]
+}
+
 // ---------------------------------------------------------------------- module
 
 #[pymodule]
@@ -413,5 +555,8 @@ fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sim_run_weights, m)?)?;
     m.add_function(wrap_pyfunction!(sim_run_orders, m)?)?;
     m.add_function(wrap_pyfunction!(sim_run_signals, m)?)?;
+    m.add_function(wrap_pyfunction!(scan_pattern, m)?)?;
+    m.add_function(wrap_pyfunction!(multi_level_pivots, m)?)?;
+    m.add_function(wrap_pyfunction!(list_pattern_names, m)?)?;
     Ok(())
 }
