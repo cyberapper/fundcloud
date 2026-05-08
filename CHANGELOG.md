@@ -2,6 +2,44 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/cyberapper/fundcloud/compare/v0.4.0...v0.5.0) (2026-05-08)
+
+
+### ### Added
+
+* add quarterly cadence support and enhance monthly cadence handling ([a879d80](https://github.com/cyberapper/fundcloud/commit/a879d8071605c44011786b6e58bd3641460df0b1))
+* enhance GitHub Actions workflow by adding a new job to sync lockfiles ([72b5352](https://github.com/cyberapper/fundcloud/commit/72b5352ebae6c2a740d5c38f7fcf1c93a853f11d))
+* introduce quarter cadence for DCA strategy ([8c56541](https://github.com/cyberapper/fundcloud/commit/8c56541d31edfb4ddfedac2848b6ed4ec82e54a2))
+* **patterns:** expose per-detector tunable knobs as constructor kwargs ([dc9a2d4](https://github.com/cyberapper/fundcloud/commit/dc9a2d42de803196c0a41a63adc03b88cac06cbe))
+* **patterns:** integrate chart-pattern recognition as a fundcloud feature ([2515ce0](https://github.com/cyberapper/fundcloud/commit/2515ce0f8555cc1ad97820cdd06068bb5c0844fc))
+* **patterns:** v1.2.0 scorer + tiered pivot scan to surface long-window patterns ([39e5c59](https://github.com/cyberapper/fundcloud/commit/39e5c592123788d3da72214968978bdc82f9cf57))
+* **scoring:** v1.1.0 — trendline_r2 now measures intermediate-bar fit ([9c158e1](https://github.com/cyberapper/fundcloud/commit/9c158e14457971e51f2b58351208f3e93f114803))
+* **scoring:** version, audit-trail, and calibration scaffold for quality ([4854fc4](https://github.com/cyberapper/fundcloud/commit/4854fc4511ecb75c1381e6191b07a8bab37fb6bf))
+
+
+### ### Fixed
+
+* **patterns:** address CodeRabbit review on PR [#21](https://github.com/cyberapper/fundcloud/issues/21) ([e2ef7c5](https://github.com/cyberapper/fundcloud/commit/e2ef7c512ac06eec7f3dc24871e96734e2b952e1))
+* **patterns:** address remaining CodeRabbit threads on PR [#21](https://github.com/cyberapper/fundcloud/issues/21) ([38a2895](https://github.com/cyberapper/fundcloud/commit/38a2895f24d93f260431a87d3d2647b69d6fa154))
+* **patterns:** clear all CI gate failures (cargo fmt, clippy, mypy) ([51b7fdf](https://github.com/cyberapper/fundcloud/commit/51b7fdfd022905580e98d4014a0d326a49035bd4))
+* **patterns:** clippy sort_by_key + raise PR diff coverage ([a1fa542](https://github.com/cyberapper/fundcloud/commit/a1fa542bfd0f742d3fa27f660ee42417b9a235d8))
+* **patterns:** loosen triangle flat_threshold default 0.0005 → 0.005 ([cba73fc](https://github.com/cyberapper/fundcloud/commit/cba73fc77b71a9a561e36101a5ebbd6cc4b8b078))
+* **rust:** complete pyo3 0.28 API migration in patterns bindings ([2e5bdda](https://github.com/cyberapper/fundcloud/commit/2e5bdda4bd1d2594e0cd83fd1378975330fafae3))
+* **tests:** update DECAY-mode test to match decay-to-zero contract ([c7fd10a](https://github.com/cyberapper/fundcloud/commit/c7fd10ac851b343f3817765b95d3ecc28caf16f1))
+
+
+### ### Changed
+
+* **patterns:** single-version library, drop calibration scaffolding ([906c82d](https://github.com/cyberapper/fundcloud/commit/906c82de87d2e9f0822831d5d284a7e2835a78c9))
+
+
+### ### Documentation
+
+* **patterns:** add end-to-end overview, wire orphan pages, fix mkdocs strict ([c036c74](https://github.com/cyberapper/fundcloud/commit/c036c74f2fd33580f8f52ca89e07ea219a35cc36))
+* **patterns:** add visualization section, fix step-4 imports, link examples ([ffea3ab](https://github.com/cyberapper/fundcloud/commit/ffea3abb0e224188e489c164202df6d33673a7c6))
+* **patterns:** consolidate overview into pattern-detection guide ([5b42986](https://github.com/cyberapper/fundcloud/commit/5b42986daff1ad7c11dcd28954b205876a939835))
+* **patterns:** demote calibration record + add configurable-scan example ([bf1ad45](https://github.com/cyberapper/fundcloud/commit/bf1ad4574783fd0623fb54e02532f872a492bd14))
+
 ## [0.4.0](https://github.com/cyberapper/fundcloud/compare/v0.3.0...v0.4.0) (2026-05-04)
 
 
