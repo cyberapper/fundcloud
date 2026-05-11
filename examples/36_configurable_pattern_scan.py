@@ -74,12 +74,12 @@ def section_1_tiered_vs_single(bars: pd.DataFrame) -> None:
 
     single_tier = DoubleTop(min_quality=50, pivot_tiers=()).events(bars)
     multi_tier = DoubleTop(min_quality=50).events(bars)
-    long_only = DoubleTop(min_quality=50, pivot_tiers=((34, 55),)).events(bars)
+    long_only = DoubleTop(min_quality=50, pivot_tiers=((34,),)).events(bars)
 
     print("DoubleTop, min_quality=50:")
-    _print_row("single-tier (3,5,8)", _summarize(single_tier))
-    _print_row("default tiered", _summarize(multi_tier))
-    _print_row("large-tier only (34, 55)", _summarize(long_only))
+    _print_row("single-tier (3,)", _summarize(single_tier))
+    _print_row("default tiered (3, 13, 34)", _summarize(multi_tier))
+    _print_row("large-tier only (34,)", _summarize(long_only))
 
     print(
         "\n  Tiered scanning surfaces formations that the small-order pivots\n"

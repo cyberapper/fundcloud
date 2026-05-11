@@ -12,7 +12,6 @@ import pandas as pd
 import pytest
 from fundcloud.features.patterns import (
     EVENTS_COLUMNS,
-    Direction,
     Pattern,
     PatternCondition,
     StopMethod,
@@ -53,12 +52,11 @@ def _double_bottom_event(
     return {
         "pattern": Pattern.DOUBLE_BOTTOM,
         "asset": asset,
-        "direction": Direction.BULLISH,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
-        "entry_price": entry,
-        "breakout_price": entry,
+        "breakout_level": entry,
+        "formation_height": entry - min(pivot_lows),
         "target_price": float("nan"),
         "stop_price": float("nan"),
         "quality": 75.0,
@@ -185,12 +183,11 @@ def _double_top_event(
     return {
         "pattern": Pattern.DOUBLE_TOP,
         "asset": asset,
-        "direction": Direction.BEARISH,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
-        "entry_price": entry,
-        "breakout_price": entry,
+        "breakout_level": entry,
+        "formation_height": max(pivot_highs) - entry,
         "target_price": float("nan"),
         "stop_price": float("nan"),
         "quality": 75.0,
@@ -241,9 +238,10 @@ def test_pattern_strategy_runs_end_to_end_with_synthetic_events() -> None:
     assert len(result.trades) >= 1
 
 
-def test_pattern_strategy_inverse_flips_bearish_to_long() -> None:
-    """With ``inverse=True``, a bearish events panel produces long entries
-    (each event's sign flips from -1 to +1)."""
+def test_pattern_strategy_default_long_keeps_double_top_events() -> None:
+    """Default ``direction=Direction.BULLISH`` keeps a Double Top events
+    panel as long entries — replaces the pre-FLG-1015 ``inverse=True``
+    behavior, which is now expressed as the default direction."""
     from fundcloud.features.patterns import DoubleTop
     from fundcloud.strategies import PatternStrategy
 
@@ -266,10 +264,10 @@ def test_pattern_strategy_inverse_flips_bearish_to_long() -> None:
     indicator = DoubleTop(min_quality=0.0)
     indicator.events = lambda _bars: stub_events  # type: ignore[method-assign]
 
-    strat = PatternStrategy(indicator, inverse=True, size=0.1)
+    strat = PatternStrategy(indicator, size=0.1)  # direction defaults to BULLISH
     strat.init(bars, _NullPortfolio())
 
-    assert strat._events_by_asset, "inverse flip should retain bearish events as longs"
+    assert strat._events_by_asset, "default LONG should keep events as longs"
     for recs in strat._events_by_asset.values():
         assert recs, "expected at least one cached entry"
         assert all(r["sign"] == 1 for r in recs)

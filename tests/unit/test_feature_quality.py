@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from fundcloud.features.patterns import EVENTS_COLUMNS, Direction, Pattern
+from fundcloud.features.patterns import EVENTS_COLUMNS, Pattern
 from fundcloud.metrics import feature_quality as fq
 
 
@@ -41,17 +41,28 @@ def _build_bars(asset: str, n: int, *, drift_per_bar: float, seed: int) -> pd.Da
     return df
 
 
-def _empty_event(asset: str, ts: pd.Timestamp, direction: Direction, entry: float) -> dict:
-    """Construct a minimal event row matching ``EVENTS_COLUMNS``."""
+def _empty_event(
+    asset: str,
+    ts: pd.Timestamp,
+    entry: float,
+    *,
+    pattern: Pattern = Pattern.DOUBLE_BOTTOM,
+) -> dict:
+    """Construct a minimal event row matching ``EVENTS_COLUMNS``.
+
+    Detection is direction-agnostic post-FLG-1015; callers force the
+    direction via ``trade_direction="long"`` / ``"short"`` /
+    ``"inverse"`` on :func:`evaluate` instead of baking it into the
+    event row.
+    """
     return {
-        "pattern": Pattern.DOUBLE_TOP if direction is Direction.BEARISH else Pattern.DOUBLE_BOTTOM,
+        "pattern": pattern,
         "asset": asset,
-        "direction": direction,
         "formation_start": ts - pd.Timedelta(days=10),
         "formation_end": ts,
         "breakout_ts": ts,
-        "entry_price": entry,
-        "breakout_price": entry,
+        "breakout_level": entry,
+        "formation_height": 1.0,
         "target_price": float("nan"),
         "stop_price": float("nan"),
         "quality": 75.0,
@@ -69,7 +80,7 @@ def test_evaluate_bullish_event_in_uptrend_hits_mfe_positive() -> None:
     breakout_ts = bars.index[100]
     entry = float(bars[("close", "AAA")].iloc[100])
     events = pd.DataFrame(
-        [_empty_event("AAA", breakout_ts, Direction.BULLISH, entry)],
+        [_empty_event("AAA", breakout_ts, entry)],
         columns=EVENTS_COLUMNS,
     )
 
@@ -89,19 +100,20 @@ def test_evaluate_bullish_event_in_uptrend_hits_mfe_positive() -> None:
     assert panel.loc[20, "mae_p95_atr"] >= panel.loc[20, "mae_atr"]
 
 
-def test_evaluate_bearish_event_in_uptrend_hits_zero() -> None:
-    """A bearish event in an uptrend should be wrong on every horizon —
-    locks the directional-sign handling.
+def test_evaluate_short_event_in_uptrend_hits_zero() -> None:
+    """A short-side trade in an uptrend should be wrong on every horizon —
+    locks the trade_direction sign handling now that detection is
+    direction-agnostic and the sign comes from ``trade_direction``.
     """
     bars = _build_bars("BBB", n=300, drift_per_bar=0.005, seed=7)
     breakout_ts = bars.index[100]
     entry = float(bars[("close", "BBB")].iloc[100])
     events = pd.DataFrame(
-        [_empty_event("BBB", breakout_ts, Direction.BEARISH, entry)],
+        [_empty_event("BBB", breakout_ts, entry)],
         columns=EVENTS_COLUMNS,
     )
 
-    panel = fq.evaluate(events, bars, horizons=(5, 10, 20))
+    panel = fq.evaluate(events, bars, horizons=(5, 10, 20), trade_direction="short")
 
     assert panel.loc[5, "n_events"] == 1
     assert panel.loc[5, "hit_rate"] == 0.0
@@ -112,27 +124,24 @@ def test_evaluate_bearish_event_in_uptrend_hits_zero() -> None:
 
 
 def test_evaluate_baseline_reflects_asset_drift() -> None:
-    """Baseline for a bullish event in a heavy uptrend should be > 0.5;
-    for a bearish event in the same series, < 0.5.
+    """Baseline for a long event in a heavy uptrend should be > 0.5;
+    for the same event evaluated short, < 0.5. Same events frame, two
+    ``trade_direction`` values — direction now comes from the knob, not
+    the events.
     """
     bars = _build_bars("CCC", n=400, drift_per_bar=0.008, seed=1)
     ts = bars.index[100]
     entry = float(bars[("close", "CCC")].iloc[100])
-    bullish = pd.DataFrame(
-        [_empty_event("CCC", ts, Direction.BULLISH, entry)], columns=EVENTS_COLUMNS
-    )
-    bearish = pd.DataFrame(
-        [_empty_event("CCC", ts, Direction.BEARISH, entry)], columns=EVENTS_COLUMNS
-    )
+    events = pd.DataFrame([_empty_event("CCC", ts, entry)], columns=EVENTS_COLUMNS)
 
-    bull_panel = fq.evaluate(bullish, bars, horizons=(20,))
-    bear_panel = fq.evaluate(bearish, bars, horizons=(20,))
+    bull_panel = fq.evaluate(events, bars, horizons=(20,), trade_direction="long")
+    bear_panel = fq.evaluate(events, bars, horizons=(20,), trade_direction="short")
 
     # Heavy uptrend → most random 20-bar windows close higher.
     assert bull_panel.loc[20, "baseline_hit"] > 0.6
-    # Mirror: bearish baseline should be roughly 1 - bullish baseline.
+    # Mirror: short baseline should be roughly 1 - long baseline.
     assert bear_panel.loc[20, "baseline_hit"] < 0.4
-    # Bullish + bearish baselines on the same series sum to ~1 (modulo
+    # Long + short baselines on the same series sum to ~1 (modulo
     # zero-return bars, which are vanishingly rare with continuous noise).
     total = bull_panel.loc[20, "baseline_hit"] + bear_panel.loc[20, "baseline_hit"]
     assert abs(total - 1.0) < 0.05
@@ -146,9 +155,7 @@ def test_evaluate_drops_horizons_beyond_lookahead() -> None:
     # Place the event 15 bars from the end — h=10 fits, h=60 doesn't.
     ts = bars.index[-15]
     entry = float(bars[("close", "DDD")].iloc[-15])
-    events = pd.DataFrame(
-        [_empty_event("DDD", ts, Direction.BULLISH, entry)], columns=EVENTS_COLUMNS
-    )
+    events = pd.DataFrame([_empty_event("DDD", ts, entry)], columns=EVENTS_COLUMNS)
 
     panel = fq.evaluate(events, bars, horizons=(5, 10, 60))
 
@@ -171,36 +178,34 @@ def test_evaluate_empty_events_returns_zero_row_panel() -> None:
 
 
 def test_evaluate_trade_direction_inverse_mirrors_natural() -> None:
-    """trade_direction='inverse' should flip per-event hit (and the
-    baseline tracks it) so natural+inverse hits sum to ~1 modulo zero
-    returns. Locks the baseline-honesty invariant.
+    """trade_direction='inverse' (≡ short) should flip per-event hit and
+    the baseline tracks it, so long+short hits sum to ~1 modulo zero
+    returns. Locks the baseline-honesty invariant under the
+    direction-agnostic-detection model.
     """
     bars = _build_bars("FFF", n=300, drift_per_bar=0.005, seed=23)
     ts = bars.index[100]
     entry = float(bars[("close", "FFF")].iloc[100])
-    events = pd.DataFrame(
-        [_empty_event("FFF", ts, Direction.BEARISH, entry)], columns=EVENTS_COLUMNS
-    )
+    events = pd.DataFrame([_empty_event("FFF", ts, entry)], columns=EVENTS_COLUMNS)
 
     natural = fq.evaluate(events, bars, horizons=(20,), trade_direction="natural")
     inverse = fq.evaluate(events, bars, horizons=(20,), trade_direction="inverse")
 
-    # Single bearish event in an uptrend — natural hit_rate=0, inverse hit_rate=1.
-    assert natural.loc[20, "hit_rate"] == 0.0
-    assert inverse.loc[20, "hit_rate"] == 1.0
-    # Baseline must flip in lockstep — natural baseline (bearish) below 0.5;
-    # inverse baseline (long) above 0.5; their sum ≈ 1.
+    # Single event in an uptrend — natural≡long hits (hit_rate=1),
+    # inverse≡short misses (hit_rate=0).
+    assert natural.loc[20, "hit_rate"] == 1.0
+    assert inverse.loc[20, "hit_rate"] == 0.0
+    # Baseline flips in lockstep — long > 0.5, short < 0.5, sum ≈ 1.
     total = natural.loc[20, "baseline_hit"] + inverse.loc[20, "baseline_hit"]
     assert abs(total - 1.0) < 0.05
-    # Expectancies are exact mirrors of each other (signed move flipped,
-    # stop distance unchanged).
+    # Expectancies are exact mirrors (signed move flipped, stop unchanged).
     assert abs(natural.loc[20, "expectancy"] + inverse.loc[20, "expectancy"]) < 1e-9
 
 
 def test_evaluate_rejects_unknown_trade_direction() -> None:
     bars = _build_bars("GGG", n=100, drift_per_bar=0.001, seed=5)
     events = pd.DataFrame(
-        [_empty_event("GGG", bars.index[50], Direction.BULLISH, 100.0)],
+        [_empty_event("GGG", bars.index[50], 100.0)],
         columns=EVENTS_COLUMNS,
     )
     import pytest
@@ -225,7 +230,7 @@ def test_quality_buckets_monotonic_when_quality_drives_outcome() -> None:
     close = bars[("close", "HHH")]
     for idx in ev_indices:
         signed_fwd = float(close.iloc[idx + 20]) - float(close.iloc[idx])
-        ev = _empty_event("HHH", bars.index[idx], Direction.BULLISH, float(close.iloc[idx]))
+        ev = _empty_event("HHH", bars.index[idx], float(close.iloc[idx]))
         ev["quality"] = float(signed_fwd * 100)
         rows.append(ev)
     events = pd.DataFrame(rows, columns=EVENTS_COLUMNS)
@@ -259,12 +264,8 @@ def test_per_asset_separates_by_asset() -> None:
     df_b = _build_bars("BBB", n=300, drift_per_bar=-0.008, seed=2)
     bars = pd.concat([df_a, df_b], axis=1)
     rows = [
-        _empty_event(
-            "AAA", df_a.index[100], Direction.BULLISH, float(df_a[("close", "AAA")].iloc[100])
-        ),
-        _empty_event(
-            "BBB", df_b.index[100], Direction.BULLISH, float(df_b[("close", "BBB")].iloc[100])
-        ),
+        _empty_event("AAA", df_a.index[100], float(df_a[("close", "AAA")].iloc[100])),
+        _empty_event("BBB", df_b.index[100], float(df_b[("close", "BBB")].iloc[100])),
     ]
     events = pd.DataFrame(rows, columns=EVENTS_COLUMNS)
 
@@ -283,8 +284,7 @@ def test_time_stability_assigns_events_to_chronological_folds() -> None:
     bars = _build_bars("JJJ", n=500, drift_per_bar=0.001, seed=33)
     ev_bars = [50, 150, 250, 350, 450]
     rows = [
-        _empty_event("JJJ", bars.index[b], Direction.BULLISH, float(bars[("close", "JJJ")].iloc[b]))
-        for b in ev_bars
+        _empty_event("JJJ", bars.index[b], float(bars[("close", "JJJ")].iloc[b])) for b in ev_bars
     ]
     events = pd.DataFrame(rows, columns=EVENTS_COLUMNS)
 

@@ -34,7 +34,35 @@ from fundcloud.features.patterns._events import (
     events_to_signal,
 )
 
-__all__ = ["PatternIndicator"]
+__all__ = [
+    "DEFAULT_PIVOT_TIERS",
+    "PIVOT_TIER_LONG",
+    "PIVOT_TIER_MEDIUM",
+    "PIVOT_TIER_SHORT",
+    "PatternIndicator",
+]
+
+# Pivot scales — one effective ``order`` per timeframe tier.
+#
+# ``argrel`` pivots at a smaller order are a strict superset of those at
+# a larger order, so multi-element tiers like ``(3, 5, 8)`` collapse to
+# ``(3,)`` after the multi-level dedup step — orders 5 and 8 contribute
+# nothing inside the same tier. Keep one integer per tier; rely on the
+# *tiers themselves* (run as independent scans, then unioned) to expose
+# patterns at multiple horizons.
+#
+# Rough mental model on dailies:
+#   SHORT  (order=3)  → ~weekly swings
+#   MEDIUM (order=13) → ~monthly swings
+#   LONG   (order=34) → multi-month swings
+PIVOT_TIER_SHORT: tuple[int, ...] = (3,)
+PIVOT_TIER_MEDIUM: tuple[int, ...] = (13,)
+PIVOT_TIER_LONG: tuple[int, ...] = (34,)
+DEFAULT_PIVOT_TIERS: tuple[tuple[int, ...], ...] = (
+    PIVOT_TIER_SHORT,
+    PIVOT_TIER_MEDIUM,
+    PIVOT_TIER_LONG,
+)
 
 
 class PatternIndicator(IndicatorSpec):
@@ -49,18 +77,26 @@ class PatternIndicator(IndicatorSpec):
     inputs: ClassVar[tuple[str, ...]] = ("open", "high", "low", "close", "volume")
     outputs: ClassVar[tuple[str, ...]] = ("signal",)
     default_params: ClassVar[dict[str, Any]] = {
-        "min_quality": 50.0,
-        # Single-tier orders. Used when `pivot_tiers` is empty/None or when
-        # callers explicitly override (backward-compat). For most users,
-        # `pivot_tiers` (below) is what determines scan behaviour.
-        "pivot_orders": (3, 5, 8),
-        # Multi-tier scan: each inner tuple runs a separate scan and the
-        # detections are unioned. Small-order pivots (3,5,8) dominate the
-        # alternating sequence and prevent the windowing logic from seeing
-        # major swings as consecutive peaks; running disjoint tiers exposes
-        # patterns at multiple scales — short, intermediate, multi-month.
-        # Set to () or None to disable tiering and use `pivot_orders` only.
-        "pivot_tiers": ((3, 5, 8), (13, 21), (34, 55)),
+        # 0.0 = surface every detection that passes the geometric gates;
+        # callers filter by quality themselves when they have a reason to.
+        # Quality is a "textbookness" score — its correlation to forward
+        # returns is empirical, so we don't pre-filter on it.
+        "min_quality": 0.0,
+        # Single-tier order. Used when ``pivot_tiers`` is empty/None or
+        # when callers explicitly override. Multi-element tuples
+        # (e.g. ``(3, 5, 8)``) collapse to the smallest order after dedup,
+        # so a single integer is the canonical form — see the module-level
+        # ``PIVOT_TIER_*`` constants for the timeframe nomenclature.
+        "pivot_orders": PIVOT_TIER_SHORT,
+        # Multi-tier scan: each inner sequence is one tier, runs an
+        # independent scan, and the detections are unioned. Tiers exist
+        # so disjoint scales surface patterns at multiple horizons —
+        # without tiering, small-scale pivots dominate the alternating
+        # sequence and the windowing logic never sees major swings as
+        # consecutive peaks. Defaults to short / medium / long.
+        # Set to ``()`` or ``None`` to disable tiering and fall back to
+        # ``pivot_orders``.
+        "pivot_tiers": DEFAULT_PIVOT_TIERS,
         "signal_mode": SignalMode.BREAKOUT,
         "decay_bars": 5,
     }

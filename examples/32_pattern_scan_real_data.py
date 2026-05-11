@@ -1,14 +1,20 @@
-"""32 — Chart-pattern scan on real market data (QQQ + SPY + Mag7).
+"""32 — Chart-pattern scan on real market data (equities + crypto).
 
-Pulls daily OHLCV for QQQ, SPY, and the Mag7 (AAPL, MSFT, GOOGL, AMZN,
-NVDA, META, TSLA) from inception to today via ``yfinance``. Caches the
-download to ``examples/out/pattern_scan_bars.parquet`` so re-runs are
-instant. Then runs both Head & Shoulders detectors on the full history
-of each ticker and prints:
+Pulls daily OHLCV for QQQ, SPY, the Mag7 (AAPL, MSFT, GOOGL, AMZN,
+NVDA, META, TSLA), and three crypto pairs (BTC-USD, ETH-USD, SOL-USD)
+from inception to today via ``yfinance``. Caches the download to
+``examples/out/pattern_scan_bars.parquet`` so re-runs are instant.
+Then runs both Head & Shoulders detectors on the full history of each
+ticker and prints:
 
 * a per-ticker summary (how many bars, how many detections, mean quality)
 * the top 10 highest-quality detections across the whole universe
 * the most-recent detection per ticker (useful for "is this set up now?")
+
+A note on crypto symbols: ``yfinance`` uses ``BTC-USD`` / ``ETH-USD`` /
+``SOL-USD``, not the Binance-style ``BTCUSDT`` / ``ETHUSDT`` /
+``SOLUSDT``. The data is the same daily OHLCV; the rename is purely
+yfinance's convention.
 
 Run:
     uv run python examples/32_pattern_scan_real_data.py
@@ -17,6 +23,8 @@ Optional flags:
     --refresh                  re-download even if the cache exists
     --min-quality 70           override the default 60.0 quality cutoff
     --tickers AAPL MSFT NVDA   restrict the universe
+    --crypto-only              shortcut for --tickers BTC-USD ETH-USD SOL-USD
+    --equities-only            shortcut for SPY/QQQ/Mag7 universe
     --start 2010-01-01         override per-ticker inception fetch
 """
 
@@ -40,8 +48,8 @@ OUT.mkdir(exist_ok=True)
 CACHE = OUT / "pattern_scan_bars.parquet"
 
 
-# Default universe: QQQ + SPY + Mag7. Easily edited in --tickers.
-DEFAULT_TICKERS: tuple[str, ...] = (
+# Equities universe: QQQ + SPY + Mag7.
+EQUITIES_TICKERS: tuple[str, ...] = (
     "SPY",
     "QQQ",
     "AAPL",
@@ -52,6 +60,17 @@ DEFAULT_TICKERS: tuple[str, ...] = (
     "META",
     "TSLA",
 )
+
+# Crypto universe (yfinance symbol convention; Binance equivalents in
+# parens): BTC-USD (BTCUSDT), ETH-USD (ETHUSDT), SOL-USD (SOLUSDT).
+CRYPTO_TICKERS: tuple[str, ...] = (
+    "BTC-USD",
+    "ETH-USD",
+    "SOL-USD",
+)
+
+# Default: equities + crypto. Easily edited in --tickers.
+DEFAULT_TICKERS: tuple[str, ...] = EQUITIES_TICKERS + CRYPTO_TICKERS
 
 
 # --------------------------------------------------------------------- data
@@ -186,8 +205,10 @@ def _per_ticker_summary(events: pd.DataFrame, bars: pd.DataFrame) -> pd.DataFram
             "n_detections": n_events,
             "mean_quality": (round(per_asset["quality"].mean(), 1) if n_events else float("nan")),
             "max_quality": (round(per_asset["quality"].max(), 1) if n_events else float("nan")),
-            "n_bullish": (int((per_asset["pattern"] == Pattern.INVERSE_HEAD_AND_SHOULDERS).sum())),
-            "n_bearish": (int((per_asset["pattern"] == Pattern.HEAD_AND_SHOULDERS).sum())),
+            # Pattern-name counts. Direction is no longer baked into the
+            # detector — see example 36 for the empirical direction map.
+            "n_inv_hns": (int((per_asset["pattern"] == Pattern.INVERSE_HEAD_AND_SHOULDERS).sum())),
+            "n_hns": (int((per_asset["pattern"] == Pattern.HEAD_AND_SHOULDERS).sum())),
         })
     return pd.DataFrame(rows).set_index("asset")
 
@@ -196,16 +217,15 @@ def _top_n(events: pd.DataFrame, n: int) -> pd.DataFrame:
     if events.empty:
         return events
     return (
-        events
-        .sort_values("quality", ascending=False)
+        events.sort_values("quality", ascending=False)
         .head(n)[
             [
                 "asset",
                 "pattern",
-                "direction",
                 "formation_start",
                 "formation_end",
-                "entry_price",
+                "breakout_level",
+                "formation_height",
                 "quality",
             ]
         ]
@@ -221,9 +241,9 @@ def _most_recent_per_ticker(events: pd.DataFrame) -> pd.DataFrame:
         [
             "asset",
             "pattern",
-            "direction",
             "breakout_ts",
-            "entry_price",
+            "breakout_level",
+            "formation_height",
             "quality",
         ]
     ].reset_index(drop=True)
@@ -238,8 +258,19 @@ def main() -> None:
     )
     ap.add_argument("--refresh", action="store_true", help="re-download bypass the cache")
     ap.add_argument("--min-quality", type=float, default=60.0, help="quality cutoff (0–100)")
-    ap.add_argument(
-        "--tickers", nargs="+", default=list(DEFAULT_TICKERS), help="override the universe"
+    universe = ap.add_mutually_exclusive_group()
+    universe.add_argument(
+        "--tickers", nargs="+", default=None, help="override the universe (yfinance symbols)"
+    )
+    universe.add_argument(
+        "--crypto-only",
+        action="store_true",
+        help=f"shortcut for --tickers {' '.join(CRYPTO_TICKERS)}",
+    )
+    universe.add_argument(
+        "--equities-only",
+        action="store_true",
+        help="shortcut for SPY / QQQ / Mag7",
     )
     ap.add_argument(
         "--start",
@@ -248,7 +279,14 @@ def main() -> None:
     )
     ap.add_argument("--top", type=int, default=10, help="how many top-quality events to print")
     args = ap.parse_args()
-    tickers = tuple(args.tickers)
+    if args.crypto_only:
+        tickers = CRYPTO_TICKERS
+    elif args.equities_only:
+        tickers = EQUITIES_TICKERS
+    elif args.tickers:
+        tickers = tuple(args.tickers)
+    else:
+        tickers = DEFAULT_TICKERS
 
     print(f"\n{'─' * 8} 1. Universe + data {'─' * 8}")
     print(f"  tickers       : {list(tickers)}")
@@ -258,7 +296,7 @@ def main() -> None:
     print(f"\n{'─' * 8} 2. Scan settings {'─' * 8}")
     print("  detectors     : HeadAndShoulders, InverseHeadAndShoulders")
     print(f"  min_quality   : {args.min_quality}")
-    print("  pivot_orders  : (3, 5, 8)  (default)")
+    print("  pivot_tiers   : ((3,), (13,), (34,))  (default — short / medium / long)")
 
     print(f"\n{'─' * 8} 3. Running scan {'─' * 8}")
     bear = _scan_one(HeadAndShoulders, bars, min_quality=args.min_quality)
@@ -281,10 +319,10 @@ def main() -> None:
         # Pretty-format dates and prices for the table.
         view = top.copy()
         view["pattern"] = view["pattern"].map(lambda p: p.value)
-        view["direction"] = view["direction"].map(lambda d: d.value)
         view["formation_start"] = view["formation_start"].dt.date
         view["formation_end"] = view["formation_end"].dt.date
-        view["entry_price"] = view["entry_price"].round(2)
+        view["breakout_level"] = view["breakout_level"].round(2)
+        view["formation_height"] = view["formation_height"].round(2)
         view["quality"] = view["quality"].round(1)
         print(view.to_string(index=False))
 
@@ -295,9 +333,9 @@ def main() -> None:
     else:
         view = recent.copy()
         view["pattern"] = view["pattern"].map(lambda p: p.value)
-        view["direction"] = view["direction"].map(lambda d: d.value)
         view["breakout_ts"] = view["breakout_ts"].dt.date
-        view["entry_price"] = view["entry_price"].round(2)
+        view["breakout_level"] = view["breakout_level"].round(2)
+        view["formation_height"] = view["formation_height"].round(2)
         view["quality"] = view["quality"].round(1)
         print(view.to_string(index=False))
 

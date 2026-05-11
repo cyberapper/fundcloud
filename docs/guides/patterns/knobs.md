@@ -25,9 +25,9 @@ kwargs on any concrete pattern class (`DoubleTop`, `HeadAndShoulders`, …).
 
 | Knob | Type | Default | Decision | What it does |
 |---|---|---|---|---|
-| `min_quality` | `float` | `50.0` | exposed | Drop detections whose quality score is below this. |
-| `pivot_orders` | `tuple[int, ...]` | `(3, 5, 8)` | exposed | Single-tier pivot orders. Ignored when `pivot_tiers` is set. |
-| `pivot_tiers` | `tuple[tuple[int, ...], ...]` | `((3,5,8), (13,21), (34,55))` | exposed | Disjoint pivot scales — each tier runs a separate scan and the union surfaces patterns at multiple horizons. Set to `()` to fall back to single-tier `pivot_orders`. |
+| `min_quality` | `float` | `0.0` | exposed | Drop detections whose quality score is below this. Default is `0.0` (no filter) — quality is a "textbookness" score and its correlation to forward returns is empirical, so the library doesn't pre-filter. |
+| `pivot_orders` | `tuple[int, ...]` | `(3,)` | exposed | Single-tier pivot order. Ignored when `pivot_tiers` is set. Multi-element tuples reduce to the smallest order after the multi-level dedup step, so prefer one integer per tier. |
+| `pivot_tiers` | `tuple[tuple[int, ...], ...]` | `((3,), (13,), (34,))` | exposed | Disjoint pivot scales — each tier runs a separate scan and the union surfaces patterns at multiple horizons. Module-level constants `PIVOT_TIER_SHORT` (3), `PIVOT_TIER_MEDIUM` (13), `PIVOT_TIER_LONG` (34), and `DEFAULT_PIVOT_TIERS` aggregate are exported from `fundcloud.features.patterns`. Set to `()` to fall back to `pivot_orders`. |
 | `signal_mode` | `SignalMode` | `BREAKOUT` | exposed | How `transform()` projects events to a per-bar signal: `BREAKOUT` (1.0 on the breakout bar), `FORMATION` (1.0 over the whole formation), or `DECAY` (linear decay from breakout). |
 | `decay_bars` | `int` | `5` | exposed | Decay window length when `signal_mode == DECAY`. |
 | `condition` | `PatternCondition` | per-pattern preset | exposed | Entry/exit/target/stop rules consumed by `PatternStrategy`. Each pattern class ships a sensible default. |

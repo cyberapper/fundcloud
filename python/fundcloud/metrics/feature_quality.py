@@ -17,8 +17,7 @@ the feature's effectiveness.
 
 * **Forward path** = bars ``[breakout_ts + 1, breakout_ts + h]``. The
   breakout bar itself is excluded so we don't double-count its move
-  into the realised return. Entry price = ``events["breakout_price"]``
-  with a fallback to ``events["entry_price"]`` if the former is NaN.
+  into the realised return. Entry price = ``events["breakout_level"]``.
 * **Hit rate** is *close-based*: a bar at horizon ``h`` is a "hit" if
   the directional close-to-entry return is positive. Path-based
   outcomes (target-hit before stop-hit) are reported separately when
@@ -53,7 +52,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from fundcloud.features.patterns._enums import Direction
+# `Direction` import removed — events are direction-agnostic; the
+# ``trade_direction`` knob below resolves the per-event sign explicitly.
 
 __all__ = [
     "avg_mae_atr",
@@ -67,6 +67,7 @@ __all__ = [
     "information_coefficient",
     "mae_p95_atr",
     "per_asset",
+    "per_pattern",
     "quality_buckets",
     "throwback_rate",
     "time_stability",
@@ -79,44 +80,32 @@ DEFAULT_ATR_WINDOW: int = 14
 # Throwback look-ahead — Bulkowski's standard.
 DEFAULT_THROWBACK_WINDOW: int = 10
 # Allowed values for the trade_direction knob.
+#
+# Detection is direction-agnostic, so ``"natural"`` now means the same
+# thing as ``"long"``: every event is treated as a long entry. ``"inverse"``
+# is the "flip everything" override (every event becomes short);
+# ``"long"`` / ``"short"`` force the same sign explicitly. The four
+# values are kept distinct for backwards-compat with the old
+# detector-emits-direction world.
 _TRADE_DIRECTIONS = ("natural", "inverse", "long", "short")
 
 
-def _resolve_sign(natural_sign: float, trade_direction: str) -> float:
-    """Apply the trade_direction transform to an event's natural sign.
+def _resolve_sign(trade_direction: str) -> float:
+    """Pick the per-event direction sign from the ``trade_direction`` knob.
 
-    * ``"natural"`` → keep the sign the detector emitted.
-    * ``"inverse"`` → flip it (test the "fade the pattern" hypothesis).
-    * ``"long"`` / ``"short"`` → force +1 / −1 regardless of detector.
-
-    Returns ``0.0`` only if the input was already neutral; callers
-    treat ``0.0`` as "skip this event".
+    Returns ``+1.0`` for long, ``-1.0`` for short. ``"natural"`` maps to
+    long; the detector no longer emits a direction so there's no other
+    sensible default.
     """
-    if trade_direction == "natural":
-        return natural_sign
-    if trade_direction == "inverse":
-        return -natural_sign
-    if trade_direction == "long":
-        return 1.0 if natural_sign != 0.0 else 0.0
-    if trade_direction == "short":
-        return -1.0 if natural_sign != 0.0 else 0.0
+    if trade_direction in ("natural", "long"):
+        return 1.0
+    if trade_direction in ("inverse", "short"):
+        return -1.0
     msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
     raise ValueError(msg)
 
 
 # ----------------------------------------------------------------------- helpers
-
-
-def _direction_sign(direction: Any) -> float:
-    """Map a Direction (enum or string) to ``+1.0`` for bullish, ``-1.0``
-    for bearish, ``0.0`` for neutral / unknown.
-    """
-    value = direction.value if isinstance(direction, Direction) else str(direction).lower()
-    if value == "bullish":
-        return 1.0
-    if value == "bearish":
-        return -1.0
-    return 0.0
 
 
 def _wilder_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, window: int) -> np.ndarray:
@@ -262,9 +251,7 @@ def _build_event_paths(
         end_pos = min(pos + max_horizon, len(ab) - 1)
         forward = ab.iloc[pos + 1 : end_pos + 1]
 
-        entry_raw = ev.get("breakout_price")
-        if entry_raw is None or pd.isna(entry_raw):
-            entry_raw = ev.get("entry_price")
+        entry_raw = ev.get("breakout_level")
         if entry_raw is None or pd.isna(entry_raw):
             continue
         entry = float(entry_raw)
@@ -279,12 +266,7 @@ def _build_event_paths(
             # ±inf R-multiples that contaminate aggregates.
             continue
 
-        natural_sign = _direction_sign(ev["direction"])
-        if natural_sign == 0.0:
-            continue
-        sign = _resolve_sign(natural_sign, trade_direction)
-        if sign == 0.0:
-            continue
+        sign = _resolve_sign(trade_direction)
 
         quality = ev.get("quality")
         quality_f = float(quality) if quality is not None and not pd.isna(quality) else np.nan
@@ -556,30 +538,23 @@ def baseline_hit_rate(
         msg = "bars must have MultiIndex (field, asset) columns"
         raise TypeError(msg)
 
-    # Per-asset directional-sign mode: pick the most common direction
-    # among the events on that asset. Most pattern indicators are
-    # uni-directional, so this collapses to the obvious choice.
-    asset_dir: dict[str, float] = {}
+    # Per-asset event count for the weighted average. Detection is
+    # direction-agnostic, so every event uses the global trade_direction
+    # sign — no per-asset majority vote needed.
     weights: dict[str, int] = {}
     for asset, group in events.groupby("asset"):
-        signs = [_direction_sign(d) for d in group["direction"]]
-        signs = [s for s in signs if s != 0.0]
-        if not signs:
+        if group.empty:
             continue
-        bullish = sum(1 for s in signs if s > 0)
-        bearish = sum(1 for s in signs if s < 0)
-        asset_dir[str(asset)] = 1.0 if bullish >= bearish else -1.0
         weights[str(asset)] = len(group)
 
-    if not asset_dir:
+    if not weights:
         return float("nan")
+
+    sign = _resolve_sign(trade_direction)
 
     weighted_sum = 0.0
     weight_total = 0
-    for asset, natural_sign in asset_dir.items():
-        sign = _resolve_sign(natural_sign, trade_direction)
-        if sign == 0.0:
-            continue
+    for asset in weights:
         try:
             close = _select_asset(bars, asset)["close"].to_numpy(np.float64)
         except KeyError:
@@ -896,6 +871,97 @@ def per_asset(
             "mae_atr": avg_mae_atr(ap, horizon),
         }
     return pd.DataFrame.from_dict(rows, orient="index")[columns].rename_axis("asset")
+
+
+def per_pattern(
+    events: pd.DataFrame,
+    bars: pd.DataFrame,
+    *,
+    horizon: int = 20,
+    atr_window: int = DEFAULT_ATR_WINDOW,
+    trade_direction: str = "natural",
+) -> pd.DataFrame:
+    """Stratified view: one row per pattern, same metrics as :func:`evaluate`.
+
+    Mirrors :func:`per_asset`. Useful as the third leg of the TA-Lib-style
+    bulk workflow:
+
+    >>> from fundcloud.features.patterns import scan_all_patterns        # doctest: +SKIP
+    >>> from fundcloud.metrics import feature_quality as fq              # doctest: +SKIP
+    >>> events = scan_all_patterns(bars)                                 # doctest: +SKIP
+    >>> ranking = fq.per_pattern(events, bars, horizon=20)               # doctest: +SKIP
+
+    Returns a frame indexed by pattern name (alphabetical), columns:
+    ``n_events``, ``hit_rate``, ``baseline_hit``, ``expectancy``,
+    ``edge_ratio``, ``mfe_atr``, ``mae_atr``. Empty events → empty
+    frame with the right columns.
+    """
+    if trade_direction not in _TRADE_DIRECTIONS:
+        msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
+        raise ValueError(msg)
+    if horizon <= 0:
+        msg = "horizon must be > 0"
+        raise ValueError(msg)
+
+    columns = [
+        "n_events",
+        "hit_rate",
+        "baseline_hit",
+        "expectancy",
+        "edge_ratio",
+        "mfe_atr",
+        "mae_atr",
+    ]
+    if events.empty:
+        return pd.DataFrame(columns=columns)
+
+    paths = _build_event_paths(
+        events,
+        bars,
+        max_horizon=horizon,
+        atr_window=atr_window,
+        trade_direction=trade_direction,
+    )
+    keep = _truncate_to_horizon(paths, horizon)
+    if not keep:
+        return pd.DataFrame(columns=columns)
+
+    # `_EventPath` doesn't carry the pattern name, so re-key by
+    # (asset, breakout_ts) lookup against the events frame. The breakout
+    # timestamp is unique per (asset, pattern) by detector contract.
+    pattern_by_key: dict[tuple[str, Any], str] = {}
+    for _, ev in events.iterrows():
+        key = (ev["asset"], ev["breakout_ts"])
+        pattern_by_key[key] = _pattern_value(ev["pattern"])
+
+    paths_by_pattern: dict[str, list[_EventPath]] = {}
+    for p in keep:
+        name = pattern_by_key.get((p.asset, p.ts))
+        if name is None:
+            continue
+        paths_by_pattern.setdefault(name, []).append(p)
+
+    rows: dict[str, dict[str, Any]] = {}
+    for name in sorted(paths_by_pattern):
+        pp = paths_by_pattern[name]
+        events_pat = events[events["pattern"].map(_pattern_value) == name]
+        rows[name] = {
+            "n_events": len(pp),
+            "hit_rate": hit_rate(pp, horizon),
+            "baseline_hit": baseline_hit_rate(
+                events_pat, bars, horizon, trade_direction=trade_direction
+            ),
+            "expectancy": expectancy(pp, horizon),
+            "edge_ratio": edge_ratio(pp, horizon),
+            "mfe_atr": avg_mfe_atr(pp, horizon),
+            "mae_atr": avg_mae_atr(pp, horizon),
+        }
+    return pd.DataFrame.from_dict(rows, orient="index")[columns].rename_axis("pattern")
+
+
+def _pattern_value(value: Any) -> str:
+    """Stringify a pattern cell — accepts the :class:`Pattern` enum or a raw string."""
+    return value.value if hasattr(value, "value") else str(value)
 
 
 def time_stability(

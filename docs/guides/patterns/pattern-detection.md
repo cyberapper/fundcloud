@@ -34,9 +34,10 @@ flowchart LR
 A scan is one function call, but five things happen:
 
 1. **Pivots.** For each asset, the Rust core finds local minima and
-   maxima at multiple `pivot_orders`. The default is *three disjoint
-   tiers* — `(3,5,8)`, `(13,21)`, `(34,55)` — unioned, so short and
-   long formations both surface in one pass.
+   maxima at the configured `pivot_orders`. The default is *three
+   disjoint tiers* — short `(3,)`, medium `(13,)`, long `(34,)` —
+   each scanned independently and unioned, so short and long
+   formations both surface in one pass.
 2. **Detect.** Each detector slides a fixed-shape pivot window
    (3 pivots for double tops, 5 for H&S, etc.) over the merged pivot
    list, applies its structural rules (peak symmetry, neckline slope,
@@ -204,8 +205,9 @@ the optional `time_stop_bars` deadline.
 
 Three sizing knobs that move performance in our experience:
 
-- **`min_quality`** — usually 50 (the events table default) is too low.
-  Step 3's quality buckets show the cutoff that earns its keep.
+- **`min_quality`** — defaults to `0.0` so every detection that passes
+  the geometric gates surfaces. Use Step 3's quality buckets to find a
+  cutoff that earns its keep on your assets.
 - **`time_stop_bars`** — without it, losing trades drift forever.
   Default `None` (no time stop) is rarely the right choice.
 - **`size`** — fraction-of-equity per trade. `0.1` is a reasonable
@@ -254,11 +256,12 @@ fig.write_html("aapl_all_patterns.html")
 Single candlestick chart, every pattern overlaid in its own colour,
 legend toggle per pattern. The "what's been happening on AAPL?" view.
 
-A note on what you'll see: the default `pivot_orders=(3, 5, 8)` runs
-detection at **three pivot scales** simultaneously, and the sliding
-3-pivot windows over the merged pivot list can produce overlapping
-detections that share endpoints. On a busy ticker, the polylines stitch
-together into a zigzag rather than discrete Ms / Ws — that's expected.
+A note on what you'll see: the default `pivot_tiers=((3,), (13,), (34,))`
+runs detection at **three disjoint pivot scales** simultaneously, and
+the sliding 3-pivot windows over each merged pivot list can produce
+overlapping detections that share endpoints. On a busy ticker, the
+polylines stitch together into a zigzag rather than discrete Ms / Ws —
+that's expected.
 To see clean individual formations, use `plot_pattern_event` (above) or
 narrow the scope:
 
@@ -339,6 +342,87 @@ panel = pipe.fit_transform(bars)
 The feature pipeline's hash includes the indicator's serialized
 configuration, so swapping a `min_quality` knob produces a different
 cache key — useful when grid-searching parameters via `PurgedKFold`.
+
+## Adding your own pattern
+
+Pattern detection is plugin-friendly out of the box. The registry
+mechanism (`@register_indicator`) treats built-in and third-party
+detectors identically — anything you register lights up automatically
+in `scan_all_patterns`, `per_pattern`, and the direction map.
+
+There are three tiers, picked by how integrated you want the custom
+pattern to be:
+
+### Tier 1 — pure-Python signal indicator
+
+Cheapest. Subclass `IndicatorSpec` directly; emit a per-bar signal
+column. You get TA-Lib parity (composes with `FeaturePipeline`) but
+not the rich events frame.
+
+```python
+from fundcloud.features.indicators.base import IndicatorSpec, register_indicator
+import pandas as pd
+
+@register_indicator("my_custom_pattern")
+class MyCustomPattern(IndicatorSpec):
+    inputs = ("open", "high", "low", "close", "volume")
+    outputs = ("signal",)
+    default_params = {"lookback": 20, "threshold": 0.02}
+
+    def _compute(self, series_by_field, index):
+        close = series_by_field["close"]
+        signal = (close.pct_change(self.lookback) > self.threshold).astype(int)
+        return pd.DataFrame({"signal": signal}, index=index)
+```
+
+### Tier 2 — pure-Python with rich events
+
+For when you want pivots, breakout level, formation height, and a
+quality score in the events frame, but don't want to touch Rust.
+Subclass `PatternIndicator` and override `_scan` to build events
+directly.
+
+```python
+from fundcloud.features.patterns._base import PatternIndicator
+from fundcloud.features.patterns._events import EVENTS_COLUMNS, build_events_frame
+from fundcloud.features.indicators.base import register_indicator
+
+@register_indicator("my_python_pattern")
+class MyPythonPattern(PatternIndicator):
+    pattern_name = "my_python_pattern"
+
+    def _scan(self, fields, index, *, asset):
+        raw_events: list[dict] = self._detect(fields, index)
+        return build_events_frame(raw_events, asset=asset, index=index)
+```
+
+The dicts emitted by your detector should match the schema documented
+in `_events.py` (`name`, `formation_start`, `formation_end`,
+`breakout_level`, `formation_height`, optional `pivots`, optional
+`variant`, optional `quality`). Your indicator slots into
+`scan_all_patterns` and `per_pattern` like any built-in detector.
+
+### Tier 3 — Rust-backed detector
+
+For when you genuinely need Rust speed. Add a detector struct in
+`crates/fundcloud-core/src/patterns/detectors/`, register its name in
+`detect.rs`'s dispatch, and subclass `PatternIndicator` on the Python
+side with just `pattern_name` set — exactly the shape every built-in
+detector uses (see `python/fundcloud/features/patterns/double_top.py`
+for a 12-line example).
+
+This tier is the largest commitment. Reserve it for hot loops over
+thousands of symbols where the per-FFI-call overhead would dominate.
+
+## Direction is empirical, not textbook
+
+Detection emits **pure geometry** — `breakout_level` and unsigned
+`formation_height`, no signed direction. Whether a pattern resolves
+long or short is decided downstream, either by passing
+`direction=Direction.BULLISH` / `Direction.BEARISH` to
+`PatternStrategy` or by computing an empirical map from past
+outcomes. The full machinery is in
+[`direction-map.md`](direction-map.md).
 
 ## Reading hit rate vs expectancy together
 

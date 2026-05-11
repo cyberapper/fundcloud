@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind};
 
 /// Default maximum `pct_diff` between the two peaks (or troughs).
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.015;
@@ -137,14 +137,16 @@ impl PatternDetector for DoubleTopDetector {
             let right_tag = tag_pivot(highs, &p3);
             let variant = build_variant(strict, left_tag, right_tag);
 
+            // Unsigned measured-move: peaks above the trough.
+            let formation_height = (avg_peak - p2.price).abs();
+
             out.push(Pattern {
                 name: "double_top",
-                direction: Direction::Bearish,
                 pivots: vec![p1, p2, p3],
                 trend_lines,
                 formation: (p1.index, p3.index),
-                entry_price: Some(p2.price),
-                breakout_price: Some(p2.price),
+                breakout_level: p2.price,
+                formation_height,
                 variant: Some(variant),
             });
         }
@@ -216,14 +218,16 @@ impl PatternDetector for DoubleBottomDetector {
             let right_tag = tag_pivot(lows, &p3);
             let variant = build_variant(strict, left_tag, right_tag);
 
+            // Unsigned measured-move: peak above the troughs.
+            let formation_height = (p2.price - avg_trough).abs();
+
             out.push(Pattern {
                 name: "double_bottom",
-                direction: Direction::Bullish,
                 pivots: vec![p1, p2, p3],
                 trend_lines,
                 formation: (p1.index, p3.index),
-                entry_price: Some(p2.price),
-                breakout_price: Some(p2.price),
+                breakout_level: p2.price,
+                formation_height,
                 variant: Some(variant),
             });
         }
@@ -294,10 +298,10 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "double_top");
-        assert_eq!(det.direction, Direction::Bearish);
         assert_eq!(det.formation, (2, 12));
         assert!(det.variant.as_deref().unwrap().starts_with("STRICT_"));
-        assert_eq!(det.entry_price, Some(95.0));
+        assert_eq!(det.breakout_level, 95.0);
+        assert!(det.formation_height > 0.0);
     }
 
     #[test]
@@ -350,7 +354,7 @@ mod tests {
         let raw = DoubleBottomDetector::default().detect(&pivots, v);
         assert_eq!(raw.len(), 1);
         assert_eq!(raw[0].name, "double_bottom");
-        assert_eq!(raw[0].direction, Direction::Bullish);
+        assert!(raw[0].formation_height > 0.0);
         assert_eq!(raw[0].formation, (2, 12));
         assert!(raw[0].variant.as_deref().unwrap().starts_with("STRICT_"));
     }

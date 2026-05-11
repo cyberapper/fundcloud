@@ -18,7 +18,7 @@
 //! (revert).
 
 use fundcloud_core::patterns::{
-    Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, TrendLine,
+    GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, TrendLine,
 };
 
 #[derive(Clone, Copy)]
@@ -170,7 +170,6 @@ fn weak_trendline(end: usize, touches: u8) -> TrendLine {
 fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -178,8 +177,8 @@ fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5)],
         formation: (0, 30),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(31, 100.0, 30.0))
@@ -189,7 +188,6 @@ fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
 fn double_top_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -198,8 +196,8 @@ fn double_top_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 4)],
         formation: (0, 30),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(31, 100.0, 80.0))
@@ -209,7 +207,6 @@ fn double_top_good() -> (Pattern, OwnedOhlcv) {
 fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(7, 92.0, PivotKind::Low),
@@ -218,8 +215,8 @@ fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(14, 2)],
         formation: (0, 14),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::flat(15, 100.0))
@@ -229,7 +226,6 @@ fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),  // left shoulder
             pv(10, 92.0, PivotKind::Low),   // neckline left
@@ -239,8 +235,8 @@ fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 5)],
         formation: (0, 40),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(41, 100.0, 30.0))
@@ -250,7 +246,6 @@ fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -260,8 +255,8 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 4)],
         formation: (0, 40),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(41, 100.0, 60.0))
@@ -271,7 +266,6 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(5, 93.0, PivotKind::Low),
@@ -281,8 +275,8 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(20, 2)],
         formation: (0, 20),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     // Noisy closes around 92 (the neckline level) so the trendline_fit_r2
@@ -295,7 +289,6 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
 fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -305,8 +298,8 @@ fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 6)],
         formation: (0, 40),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(41, 100.0, 30.0))
@@ -316,7 +309,6 @@ fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
 fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "symmetrical_triangle",
-        direction: Direction::Neutral,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 95.0, PivotKind::Low),
@@ -326,8 +318,8 @@ fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 5), solid_trendline(40, 5)],
         formation: (0, 40),
-        entry_price: Some(98.0),
-        breakout_price: None,
+        breakout_level: 98.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(41, 100.0, 50.0))
@@ -337,7 +329,6 @@ fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
 fn triangle_poor() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "symmetrical_triangle",
-        direction: Direction::Neutral,
         // Spacings 3, 18, 5, 14 → high coefficient of variation.
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
@@ -348,8 +339,8 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(40, 2)],
         formation: (0, 40),
-        entry_price: Some(98.0),
-        breakout_price: None,
+        breakout_level: 98.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::flat(41, 100.0))
@@ -363,7 +354,6 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
 fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -371,8 +361,8 @@ fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5)],
         formation: (0, 30),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     // Closes hug the trendline (flat at 100) cleanly.
@@ -382,7 +372,6 @@ fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
 fn double_top_noisy_trendline_fit() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -390,8 +379,8 @@ fn double_top_noisy_trendline_fit() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5)],
         formation: (0, 30),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     // Closes scatter ±15 around 100 — bars do not respect the line.
@@ -405,7 +394,6 @@ fn double_top_noisy_trendline_fit() -> (Pattern, OwnedOhlcv) {
 fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 80.0, PivotKind::Low),
@@ -414,8 +402,8 @@ fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5)],
         formation: (0, 30),
-        entry_price: Some(80.0),
-        breakout_price: None,
+        breakout_level: 80.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(31, 100.0, 30.0))
@@ -426,7 +414,6 @@ fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
 fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(2, 92.0, PivotKind::Low),
@@ -434,8 +421,8 @@ fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(4, 3)],
         formation: (0, 4),
-        entry_price: Some(92.0),
-        breakout_price: None,
+        breakout_level: 92.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::declining_volume(5, 100.0, 50.0))
@@ -446,7 +433,6 @@ fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_degenerate_head() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(2, 95.0, PivotKind::Low),
@@ -456,8 +442,8 @@ fn h_and_s_degenerate_head() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(8, 2)],
         formation: (0, 8),
-        entry_price: Some(95.0),
-        breakout_price: None,
+        breakout_level: 95.0,
+        formation_height: 0.0,
         variant: None,
     };
     (p, OwnedOhlcv::flat(9, 100.0))

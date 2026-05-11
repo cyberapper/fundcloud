@@ -7,9 +7,11 @@ What this script demonstrates:
 2. Building the headline feature-quality panel via
    ``bars.fc.evaluate_pattern(...)`` — hit rate, expectancy, edge ratio,
    MFE/MAE in ATR, IC, ICIR, baseline comparison.
-3. The ``trade_direction='inverse'`` knob — empirically test the
-   "fade the bearish pattern" hypothesis, with the baseline transformed
-   in lockstep so the comparison stays honest.
+3. The ``trade_direction='long'`` vs ``'short'`` knob — detection is
+   direction-agnostic, so the same events frame can be evaluated either
+   way to test the "trade with the textbook" vs "fade the textbook"
+   hypotheses, with the baseline transformed in lockstep so the
+   comparison stays honest.
 4. ``quality_buckets`` — the diagnostic that validates the geometric
    scorer. If Q5 outperforms Q1 monotonically, the scorer is doing
    useful work; flat buckets are a recalibration signal.
@@ -18,6 +20,10 @@ What this script demonstrates:
    policy.
 6. ``bars.fc.run_pattern(...)`` — full backtest via ``PatternStrategy``
    on a configured indicator + condition.
+7. ``pattern_direction.direction_map_from_outcomes`` — close the loop
+   by inferring the direction empirically and re-running the backtest
+   under the data's preferred sign. See example 36 for the full
+   four-step flow.
 
 Run:
     uv run python examples/33_pattern_strategy_backtest.py
@@ -31,12 +37,15 @@ from pathlib import Path
 import fundcloud  # noqa: F401  — registers the .fc accessor
 import pandas as pd
 from fundcloud.features.patterns import (
+    Direction,
     Pattern,
     PatternCondition,
     StopMethod,
     TargetMethod,
+    scan_all_patterns,
 )
 from fundcloud.metrics import feature_quality as fq
+from fundcloud.metrics import pattern_direction as pd_
 
 PARQUET = Path("examples/out/pattern_scan_bars.parquet")
 
@@ -74,24 +83,28 @@ def main() -> None:
         .to_string()
     )
 
-    # ----------------------------------------------- 2. Inverse-direction test
-    print("\n=== trade_direction='inverse' on DoubleTop (fade the pattern) ===")
-    natural = bars.fc.evaluate_pattern(Pattern.DOUBLE_TOP, horizons=(20, 60))
-    inverse = bars.fc.evaluate_pattern(
-        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="inverse"
+    # ----------------------------------------------- 2. Long vs short test
+    print("\n=== trade_direction='long' vs 'short' on DoubleTop ===")
+    print("(Detection is direction-agnostic. Same events frame, two signs —")
+    print(" picks up which one matches the data without committing in advance.)")
+    long_panel = bars.fc.evaluate_pattern(
+        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="long"
+    )
+    short_panel = bars.fc.evaluate_pattern(
+        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="short"
     )
     pair = pd.concat(
         [
-            natural[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("nat_"),
-            inverse[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("inv_"),
+            long_panel[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("long_"),
+            short_panel[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("short_"),
         ],
         axis=1,
     )
     print(pair.round(3).to_string())
-    edge_natural = (natural["hit_rate"] - natural["baseline_hit"]).round(3)
-    edge_inverse = (inverse["hit_rate"] - inverse["baseline_hit"]).round(3)
-    print(f"\nedge over baseline — natural: {edge_natural.to_dict()}")
-    print(f"edge over baseline — inverse: {edge_inverse.to_dict()}")
+    edge_long = (long_panel["hit_rate"] - long_panel["baseline_hit"]).round(3)
+    edge_short = (short_panel["hit_rate"] - short_panel["baseline_hit"]).round(3)
+    print(f"\nedge over baseline — long : {edge_long.to_dict()}")
+    print(f"edge over baseline — short: {edge_short.to_dict()}")
 
     # ----------------------------------------------- 3. Quality buckets
     print("\n=== quality_buckets (h=20): InverseHeadAndShoulders ===")
@@ -127,6 +140,32 @@ def main() -> None:
         "\n(R-multiples shrink vs the no-condition panel because real stops are"
         "\n further from entry than 1×ATR for confirmed double bottoms.)"
     )
+
+    # --------------------------------------------- 5. Empirical direction map
+    print("\n=== Empirical direction map across all registered patterns ===")
+    print("(Replaces the textbook prior baked into the old `direction` column.)")
+    events = scan_all_patterns(bars)
+    dmap = pd_.direction_map_from_outcomes(events, bars, horizon=20, min_samples=30)
+    if not dmap:
+        print("  (no pattern reached min_samples=30 on this universe)")
+    else:
+        for pat in sorted(dmap):
+            print(f"  {pat:<28} → {dmap[pat].value}")
+        print(
+            "\nFeed this dict to PatternStrategy(..., direction_map=dmap) to backtest"
+            "\neach pattern with its data-implied sign. Full demo: example 36."
+        )
+
+    # Default-direction tweak as a sanity-check: bullish-as-default vs
+    # bearish-as-default on patterns below the sample floor.
+    short_default = pd_.direction_map_from_outcomes(
+        events, bars, horizon=20, min_samples=30, default=Direction.BEARISH
+    )
+    diffs = sorted(p for p in short_default if dmap.get(p) != short_default.get(p))
+    if diffs:
+        print(
+            f"\n  patterns affected by --default Direction.BEARISH (below min_samples): {diffs}"
+        )
 
 
 if __name__ == "__main__":

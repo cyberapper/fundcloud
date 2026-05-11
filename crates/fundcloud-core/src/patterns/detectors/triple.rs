@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind};
 
 /// Default maximum `pct_diff` between any peak/trough and the trio's mean.
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.02;
@@ -109,12 +109,11 @@ impl PatternDetector for TripleTopDetector {
 
             out.push(Pattern {
                 name: "triple_top",
-                direction: Direction::Bearish,
                 pivots: vec![p1, p2, p3, p4, p5],
                 trend_lines,
                 formation: (p1.index, p5.index),
-                entry_price: Some(neckline),
-                breakout_price: Some(neckline),
+                breakout_level: neckline,
+                formation_height: pattern_height.abs(),
                 variant: None,
             });
         }
@@ -199,12 +198,11 @@ impl PatternDetector for TripleBottomDetector {
 
             out.push(Pattern {
                 name: "triple_bottom",
-                direction: Direction::Bullish,
                 pivots: vec![p1, p2, p3, p4, p5],
                 trend_lines,
                 formation: (p1.index, p5.index),
-                entry_price: Some(neckline),
-                breakout_price: Some(neckline),
+                breakout_level: neckline,
+                formation_height: pattern_height.abs(),
                 variant: None,
             });
         }
@@ -276,10 +274,9 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "triple_top");
-        assert_eq!(det.direction, Direction::Bearish);
         assert_eq!(det.formation, (2, 30));
-        assert_eq!(det.entry_price, Some(95.0));
-        assert_eq!(det.breakout_price, Some(95.0));
+        assert_eq!(det.breakout_level, 95.0);
+        assert!(det.formation_height > 0.0);
     }
 
     #[test]
@@ -320,8 +317,8 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "triple_bottom");
-        assert_eq!(det.direction, Direction::Bullish);
-        assert_eq!(det.entry_price, Some(105.0));
+        assert_eq!(det.breakout_level, 105.0);
+        assert!(det.formation_height > 0.0);
     }
 
     #[test]

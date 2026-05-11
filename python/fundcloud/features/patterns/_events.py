@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from fundcloud.features.patterns._enums import Direction, Pattern, SignalMode, coerce
+from fundcloud.features.patterns._enums import Pattern, SignalMode, coerce
 
 __all__ = [
     "EVENTS_COLUMNS",
@@ -33,15 +33,22 @@ __all__ = [
 
 #: Canonical column order for the events table. Every detector returns the
 #: same shape; only the row content differs.
+#:
+#: ``breakout_level`` is the neckline / support / resistance line crossed at
+#: confirmation; ``formation_height`` is the unsigned textbook measured-move
+#: magnitude. Detection emits pure geometry — direction is inferred
+#: downstream by an empirical direction map (see
+#: :mod:`fundcloud.metrics.pattern_direction`). ``target_price`` and
+#: ``stop_price`` are filled in by :func:`apply_condition` once a direction
+#: is supplied.
 EVENTS_COLUMNS: tuple[str, ...] = (
     "pattern",
     "asset",
-    "direction",
     "formation_start",
     "formation_end",
     "breakout_ts",
-    "entry_price",
-    "breakout_price",
+    "breakout_level",
+    "formation_height",
     "target_price",
     "stop_price",
     "quality",
@@ -73,12 +80,11 @@ def build_events_frame(
         rows.append({
             "pattern": Pattern(ev["name"] if "name" in ev else ev["pattern"]),
             "asset": asset,
-            "direction": Direction(ev["direction"]),
             "formation_start": index[formation_start_idx],
             "formation_end": index[formation_end_idx],
             "breakout_ts": index[formation_end_idx],  # v1: breakout = right edge
-            "entry_price": _nan_or_float(ev.get("entry_price")),
-            "breakout_price": _nan_or_float(ev.get("breakout_price")),
+            "breakout_level": _nan_or_float(ev.get("breakout_level")),
+            "formation_height": _nan_or_float(ev.get("formation_height")),
             "target_price": float("nan"),
             "stop_price": float("nan"),
             "quality": float(ev.get("quality", float("nan"))),

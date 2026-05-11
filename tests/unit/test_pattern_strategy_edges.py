@@ -51,17 +51,16 @@ def _double_bottom_event(
     entry: float = 100.0,
     target: float = 105.0,
     stop: float = 95.0,
-    direction: Direction = Direction.BULLISH,
+    pattern: Pattern = Pattern.DOUBLE_BOTTOM,
 ) -> dict:
     return {
-        "pattern": Pattern.DOUBLE_BOTTOM,
+        "pattern": pattern,
         "asset": asset,
-        "direction": direction,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
-        "entry_price": entry,
-        "breakout_price": entry,
+        "breakout_level": entry,
+        "formation_height": abs(target - entry),
         "target_price": target,
         "stop_price": stop,
         "quality": 75.0,
@@ -96,7 +95,8 @@ class TestInit:
         assert strat._events_by_asset == {}
         assert strat._open == {}
 
-    def test_bearish_without_inverse_is_skipped(self) -> None:
+    def test_bearish_direction_skips_long_only_execution(self) -> None:
+        """Strategy is long-only by design; events resolved short are dropped."""
         bars = _bars()
         ts = bars.index[120]
         fs = bars.index[100]
@@ -109,12 +109,11 @@ class TestInit:
                     entry=100.0,
                     target=95.0,
                     stop=105.0,
-                    direction=Direction.BEARISH,
                 )
             ],
             columns=EVENTS_COLUMNS,
         )
-        strat = PatternStrategy(DoubleTop(), inverse=False)
+        strat = PatternStrategy(DoubleTop(), direction=Direction.BEARISH)
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         strat.init(bars, _NullPortfolio())  # type: ignore[arg-type]
         assert strat._events_by_asset == {}

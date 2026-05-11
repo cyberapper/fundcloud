@@ -6,28 +6,6 @@
 
 use std::collections::HashMap;
 
-/// Direction a pattern resolves to once confirmed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Direction {
-    /// Bullish breakout / target above breakout level.
-    Bullish,
-    /// Bearish breakout / target below breakout level.
-    Bearish,
-    /// Continuation / undecided. Reserved for triangles before breakout.
-    Neutral,
-}
-
-impl Direction {
-    /// Lowercase string form used by the Python `Direction(str, Enum)`.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Direction::Bullish => "bullish",
-            Direction::Bearish => "bearish",
-            Direction::Neutral => "neutral",
-        }
-    }
-}
-
 /// Whether a pivot is a swing high or swing low.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PivotKind {
@@ -89,13 +67,16 @@ impl TrendLine {
 }
 
 /// A detected pattern *before* quality scoring.
+///
+/// Detection emits **pure geometry** — no textbook direction. Whether the
+/// formation resolves long or short is decided downstream by an
+/// empirical direction map (see :mod:`fundcloud.metrics.pattern_direction`)
+/// or a per-strategy override.
 #[derive(Debug, Clone)]
 pub struct Pattern {
     /// Stable identifier (e.g. `"head_and_shoulders"`, `"double_top"`).
     /// Lowercase `snake_case`; matches the Python `Pattern` enum value.
     pub name: &'static str,
-    /// Resolved direction.
-    pub direction: Direction,
     /// Pivots that anchor the formation, in chronological order.
     pub pivots: Vec<Pivot>,
     /// Trend lines (necklines, channels, triangle sides) — empty for
@@ -103,11 +84,13 @@ pub struct Pattern {
     pub trend_lines: Vec<TrendLine>,
     /// First and last bar index of the formation, inclusive.
     pub formation: (usize, usize),
-    /// Reference price the detector calls "entry" — usually the breakout
-    /// pivot or the neckline level.
-    pub entry_price: Option<f64>,
-    /// Price at which the breakout occurred (None if not yet confirmed).
-    pub breakout_price: Option<f64>,
+    /// Reference price at the right edge of the formation. The neckline
+    /// for reversal patterns; the dominant flat side for ascending /
+    /// descending triangles; the mid-line for symmetrical triangles.
+    pub breakout_level: f64,
+    /// Unsigned magnitude of the formation — the textbook measured-move
+    /// target distance from `breakout_level`. Always non-negative.
+    pub formation_height: f64,
     /// Optional sub-classification (e.g. `"STRICT_ADAM_ADAM"` for double
     /// tops). `None` when the pattern family has no variants.
     pub variant: Option<String>,

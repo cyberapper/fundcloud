@@ -224,8 +224,7 @@ def _add_levels(fig: go.Figure, event: dict[str, Any], x_range: tuple[Any, Any])
     formation+padding range only, not the whole chart.
     """
     levels = [
-        ("entry", event.get("entry_price"), _ENTRY_COLOR, "solid"),
-        ("breakout", event.get("breakout_price"), _ENTRY_COLOR, "solid"),
+        ("breakout", event.get("breakout_level"), _ENTRY_COLOR, "solid"),
         ("target", event.get("target_price"), _TARGET_COLOR, "dash"),
         ("stop", event.get("stop_price"), _STOP_COLOR, "dash"),
     ]
@@ -266,18 +265,21 @@ def _shade_formation(
 
 
 def _build_title(event: dict[str, Any]) -> str:
-    """Single-line title: 'DOUBLE_TOP / SPY / Bearish / 1995-04-12 / Q=68'."""
+    """Single-line title: 'DOUBLE_TOP / SPY / 1995-04-12 / Q=68'.
+
+    Direction is no longer included — events are direction-agnostic by
+    detection contract; the strategy / direction-map decides direction
+    elsewhere.
+    """
     pattern = event.get("pattern")
     pattern_str = pattern.value if hasattr(pattern, "value") else str(pattern)
-    direction = event.get("direction")
-    direction_str = direction.value if hasattr(direction, "value") else str(direction)
     asset = event.get("asset", "?")
     breakout = event.get("breakout_ts")
     breakout_str = pd.Timestamp(breakout).strftime("%Y-%m-%d") if breakout is not None else ""
     quality = event.get("quality")
     q_str = f"Q={quality:.0f}" if quality is not None and not pd.isna(quality) else ""
     variant = event.get("variant")
-    bits = [pattern_str, asset, direction_str, breakout_str, q_str]
+    bits = [pattern_str, asset, breakout_str, q_str]
     if variant:
         bits.append(str(variant))
     return " · ".join(b for b in bits if b)
@@ -293,7 +295,16 @@ def _event_to_dict(event: pd.Series | dict[str, Any]) -> dict[str, Any]:
 
 
 def _direction_str(event: dict[str, Any]) -> str:
+    """Lowercase direction string for plot colouring.
+
+    Detection emits no direction; this falls back to ``"bullish"`` so the
+    horizon shading defaults to the long-side colour. Plot consumers
+    that want bearish colouring can synthesise a ``direction`` field on
+    the event dict before passing it in.
+    """
     d = event.get("direction")
+    if d is None:
+        return "bullish"
     return d.value if hasattr(d, "value") else str(d).lower()
 
 
@@ -483,7 +494,7 @@ def plot_pattern_event(
         Increased automatically when ``horizon`` exceeds it so the
         horizon-end marker stays visible.
     show_levels
-        If True, overlay horizontal lines for ``entry_price`` /
+        If True, overlay horizontal lines for ``breakout_level`` /
         ``target_price`` / ``stop_price`` (when filled).
     horizon
         If set, mark ``breakout_ts`` with a solid vertical line and

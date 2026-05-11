@@ -41,11 +41,17 @@ class Pattern(str, Enum):
 
 
 class Direction(str, Enum):
-    """Direction a confirmed pattern resolves to."""
+    """Direction a strategy takes when a pattern resolves.
+
+    Detection itself is direction-agnostic — every formation is pure
+    geometry. ``Direction`` describes the *output* of the empirical
+    direction-inference step (see
+    :mod:`fundcloud.metrics.pattern_direction`) or a per-strategy
+    override. ``BULLISH`` ≡ go long, ``BEARISH`` ≡ go short.
+    """
 
     BULLISH = "bullish"
     BEARISH = "bearish"
-    NEUTRAL = "neutral"
 
 
 class SignalMode(str, Enum):

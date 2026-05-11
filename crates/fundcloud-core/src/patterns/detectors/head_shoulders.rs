@@ -7,7 +7,7 @@
 
 use crate::patterns::detect::{prior_trend_slope, PatternDetector};
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind};
 
 /// Window (in bars) used to infer the pre-formation trend. 20 bars
 /// (≈ one trading month on dailies) is wide enough to detect a real
@@ -122,14 +122,16 @@ impl PatternDetector for HeadShouldersDetector {
                 trend_lines.push(tl);
             }
 
+            // Unsigned measured-move: head sits above the neckline.
+            let formation_height = (h2.price - neckline_price).abs();
+
             out.push(Pattern {
                 name: "head_and_shoulders",
-                direction: Direction::Bearish,
                 pivots: vec![h1, l1, h2, l2, h3],
                 trend_lines,
                 formation: (h1.index, h3.index),
-                entry_price: Some(neckline_price),
-                breakout_price: Some(neckline_price),
+                breakout_level: neckline_price,
+                formation_height,
                 variant: None,
             });
         }
@@ -224,14 +226,16 @@ impl PatternDetector for InverseHeadShouldersDetector {
                 trend_lines.push(tl);
             }
 
+            // Unsigned measured-move: head sits below the neckline.
+            let formation_height = (neckline_price - l2.price).abs();
+
             out.push(Pattern {
                 name: "inverse_head_and_shoulders",
-                direction: Direction::Bullish,
                 pivots: vec![l1, h1, l2, h2, l3],
                 trend_lines,
                 formation: (l1.index, l3.index),
-                entry_price: Some(neckline_price),
-                breakout_price: Some(neckline_price),
+                breakout_level: neckline_price,
+                formation_height,
                 variant: None,
             });
         }
@@ -335,9 +339,8 @@ mod tests {
         assert_eq!(raw.len(), 1, "expected exactly one H&S detection");
         let p = &raw[0];
         assert_eq!(p.name, "head_and_shoulders");
-        assert_eq!(p.direction, Direction::Bearish);
         assert_eq!(p.formation, (10, 30));
-        assert!(p.entry_price.is_some());
+        assert!(p.formation_height > 0.0);
     }
 
     #[test]
@@ -483,6 +486,6 @@ mod tests {
         let raw = InverseHeadShouldersDetector::default().detect(&pivots, view);
         assert_eq!(raw.len(), 1);
         assert_eq!(raw[0].name, "inverse_head_and_shoulders");
-        assert_eq!(raw[0].direction, Direction::Bullish);
+        assert!(raw[0].formation_height > 0.0);
     }
 }

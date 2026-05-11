@@ -7,11 +7,17 @@ and caches the events table; ``decide`` walks the per-bar context,
 opens trades on event timestamps, and closes them on intraday target /
 stop hits (or on the optional ``time_stop_bars`` deadline).
 
-**Long-only by default.** The simulator's broker-style position model
-does not assume naked short capability, so bearish pattern events are
-*skipped* unless ``inverse=True`` is set — in which case every event's
-sign is flipped (the "fade the pattern" trade) so a Double Top fires a
-long entry instead of being skipped.
+**Direction model.** Detection is direction-agnostic — every formation
+is pure geometry. The strategy decides direction at trade time via
+``direction`` (default :attr:`Direction.BULLISH`) and the optional
+per-pattern ``direction_map`` (e.g. as produced by the empirical
+:mod:`fundcloud.metrics.pattern_direction` lookup once it lands).
+
+**Long-only execution.** The simulator's broker-style position model
+does not assume naked short capability, so events that resolve short
+are skipped. Use a direction map to flip a known-bearish pattern
+(``Pattern.HEAD_AND_SHOULDERS → Direction.BEARISH``) to a fade-the-
+pattern long by inverting it (``→ Direction.BULLISH``).
 
 This is a research-grade strategy: no slippage / fees / sizing logic
 beyond a fixed fraction-of-equity ``size``. For a production engine
@@ -30,11 +36,14 @@ Known limitations
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import pandas as pd
 
 from fundcloud.features.patterns import (
+    Direction,
+    Pattern,
     PatternCondition,
     PatternIndicator,
     apply_condition,
@@ -62,11 +71,14 @@ class PatternStrategy(BaseStrategy):
     size
         Per-trade fraction of equity, ``0..=1``. ``0.1`` (default) means
         each open trade uses 10 % of current equity.
-    inverse
-        ``False`` (default) — trade in the natural direction, skip
-        bearish events. ``True`` — flip every event's direction so
-        bearish events fire long entries (test the fade-the-pattern
-        hypothesis end-to-end).
+    direction
+        Default trade direction for events whose pattern isn't found in
+        ``direction_map``. Defaults to :attr:`Direction.BULLISH` (go
+        long); the simulator skips short events.
+    direction_map
+        Optional per-pattern override (typically the empirical map
+        produced by :mod:`fundcloud.metrics.pattern_direction`). Keys
+        may be :class:`Pattern` enum values or their string names.
 
     Examples
     --------
@@ -82,7 +94,8 @@ class PatternStrategy(BaseStrategy):
         *,
         condition: PatternCondition | None = None,
         size: float = 0.1,
-        inverse: bool = False,
+        direction: Direction = Direction.BULLISH,
+        direction_map: Mapping[Pattern | str, Direction] | None = None,
     ) -> None:
         if not 0.0 < size <= 1.0:
             msg = f"size must be in (0, 1]; got {size}"
@@ -102,7 +115,8 @@ class PatternStrategy(BaseStrategy):
             )
             raise NotImplementedError(msg)
         self.size = size
-        self.inverse = inverse
+        self.direction = direction
+        self.direction_map = direction_map
         # Filled in init():
         self._events_by_asset: dict[str, list[dict[str, Any]]] = {}
         # Open trades: asset → {sign, entry, target, stop, entry_ts, entry_pos}
@@ -122,17 +136,27 @@ class PatternStrategy(BaseStrategy):
         events = self.indicator.events(bars)
         if events.empty:
             return
-        events = apply_condition(events, self.condition, bars)
+        events = apply_condition(
+            events,
+            self.condition,
+            bars,
+            direction=self.direction,
+            direction_map=self.direction_map,
+        )
         for asset, group in events.groupby("asset"):
             recs: list[dict[str, Any]] = []
             for _, ev in group.sort_values("breakout_ts").iterrows():
-                natural_sign = 1 if ev["direction"].value == "bullish" else -1
-                sign = -natural_sign if self.inverse else natural_sign
+                resolved = _resolve_event_direction(
+                    ev["pattern"],
+                    default=self.direction,
+                    direction_map=self.direction_map,
+                )
+                sign = 1 if resolved is Direction.BULLISH else -1
                 if sign <= 0:
-                    # Long-only: skip bearish events that didn't get flipped.
+                    # Long-only execution model: skip events resolved short.
                     continue
                 if (
-                    pd.isna(ev["entry_price"])
+                    pd.isna(ev["breakout_level"])
                     or pd.isna(ev["target_price"])
                     or pd.isna(ev["stop_price"])
                 ):
@@ -140,7 +164,7 @@ class PatternStrategy(BaseStrategy):
                 recs.append({
                     "sign": sign,
                     "ts": ev["breakout_ts"],
-                    "entry": float(ev["entry_price"]),
+                    "entry": float(ev["breakout_level"]),
                     "target": float(ev["target_price"]),
                     "stop": float(ev["stop_price"]),
                 })
@@ -267,3 +291,24 @@ class _ZeroPosition:
 
 
 _ZERO_POSITION = _ZeroPosition()
+
+
+def _resolve_event_direction(
+    pattern: Any,
+    *,
+    default: Direction,
+    direction_map: Mapping[Pattern | str, Direction] | None,
+) -> Direction:
+    """Pick the trade direction for one event.
+
+    Mirrors the helper in :mod:`fundcloud.features.patterns._apply_condition`
+    so the two layers agree byte-for-byte on direction resolution.
+    """
+    if direction_map is None:
+        return default
+    if pattern in direction_map:
+        return direction_map[pattern]
+    pattern_str = pattern.value if isinstance(pattern, Pattern) else str(pattern)
+    if pattern_str in direction_map:
+        return direction_map[pattern_str]
+    return default

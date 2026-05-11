@@ -1,8 +1,8 @@
 """34 — Cross-asset / cross-pattern leaderboard.
 
-Sweep all 9 patterns × 2 trade directions (natural + inverse) on all 9
-assets in the bundled parquet (QQQ + SPY + AAPL + AMZN + GOOGL + META +
-MSFT + NVDA + TSLA — daily bars since the early 1990s). Produces:
+Sweep all 9 patterns × 2 trade directions (long + short) on every
+asset in the bundled parquet (equities — SPY, QQQ, Mag7 — plus crypto
+— BTC-USD, ETH-USD, SOL-USD by default). Produces:
 
 1. **Per-asset leaderboard** — for each asset, the top patterns ranked
    by edge-over-baseline at h=20 with expectancy and edge_ratio.
@@ -11,6 +11,12 @@ MSFT + NVDA + TSLA — daily bars since the early 1990s). Produces:
    baseline by ≥ 5pp, expectancy > 0), sorted by edge.
 3. **Pattern × asset matrix** — wide compact view of edge-over-baseline,
    so you can scan for "where does pattern X work" at a glance.
+
+Detection is direction-agnostic post-FLG-1015 — every pattern's events
+are evaluated under both `trade_direction='long'` and `'short'`, and
+the "best of" direction is what the matrix surfaces. For an
+empirical-direction-driven view (one direction per pattern, picked from
+the data), see example 36.
 
 Run:
     uv run python examples/34_pattern_leaderboard.py
@@ -33,7 +39,7 @@ PARQUET = Path("examples/out/pattern_scan_bars.parquet")
 HORIZON = 20
 MIN_EVENTS = 30
 EDGE_THRESHOLD = 0.05  # 5 percentage points
-MIN_QUALITY = 50.0
+MIN_QUALITY = 0.0
 
 
 def _load_bars() -> pd.DataFrame:
@@ -112,7 +118,7 @@ def _build_leaderboard(bars: pd.DataFrame) -> pd.DataFrame:
         # patterns whose detector emits nothing for some assets.
         events = events.reindex(columns=list(EVENTS_COLUMNS))
         for asset in assets:
-            for direction in ("natural", "inverse"):
+            for direction in ("long", "short"):
                 row = _evaluate_one(events, bars, pattern, asset, direction)
                 if row is not None:
                     rows.append(row)
@@ -186,17 +192,16 @@ def _print_tradeable(lb: pd.DataFrame) -> None:
 
 def _print_matrix(lb: pd.DataFrame) -> None:
     """Wide pattern × asset matrix of edge over baseline. Picks the
-    better of natural / inverse for each cell.
+    better of long / short for each cell.
     """
     best = (
-        lb
-        .sort_values("edge", ascending=False)
+        lb.sort_values("edge", ascending=False)
         .groupby(["asset", "pattern"], as_index=False)
         .first()
     )
     matrix = best.pivot(index="pattern", columns="asset", values="edge")
     print(f"\n{'=' * 78}")
-    print(f"Edge-over-baseline matrix (best of natural/inverse) at h={HORIZON}")
+    print(f"Edge-over-baseline matrix (best of long/short) at h={HORIZON}")
     print("Cells are hit_rate − baseline_hit (positive = pattern beats random)")
     print(f"{'=' * 78}\n")
     print(matrix.round(3).to_string(na_rep=" — "))

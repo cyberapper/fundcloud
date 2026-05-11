@@ -1,36 +1,34 @@
 """Fill the events table's ``target_price`` and ``stop_price`` columns.
 
-The detector emits geometric pivots and an entry / breakout level. Those
-are sufficient to grade the *feature*, but a *strategy* needs explicit
-target and stop levels — and those depend on user choice
-(:class:`PatternCondition`'s :class:`TargetMethod` and
+The detector emits pure geometry — a ``breakout_level`` and an unsigned
+``formation_height``. A *strategy* needs explicit signed target / stop
+levels, which depend on (a) the supplied direction (long vs. short) and
+(b) the user's :class:`PatternCondition` (:class:`TargetMethod` and
 :class:`StopMethod`).
 
-``apply_condition(events, condition, bars)`` returns a copy of the
-events table with the target / stop columns filled per the condition,
-ready for downstream backtesting via :class:`PatternStrategy` or
-target-aware grading via :func:`feature_quality.evaluate`.
+``apply_condition(events, condition, bars, *, direction)`` returns a
+copy of the events table with the target / stop columns filled per the
+condition, ready for downstream backtesting via
+:class:`PatternStrategy` or target-aware grading via
+:func:`feature_quality.evaluate`.
 
-**Pattern height** is the load-bearing measurement. We compute it as:
-
-* Bullish events: ``entry - min(low_pivot_prices)``
-* Bearish events: ``max(high_pivot_prices) - entry``
-
-The pivot list is read from the events table's ``pivots`` column (a
-``list[dict]`` populated by :func:`build_events_frame`). When that list
-lacks usable extremes for the direction (e.g., a malformed event), we
-fall back to ``1 × ATR`` as the height — keeps the pipeline robust.
+The default direction is :attr:`Direction.BULLISH` (go long), which
+matches the "assume long until the empirical direction map says
+otherwise" rule the rest of the library follows. Pass
+:attr:`Direction.BEARISH` for short, or supply a per-event mapping via
+the ``direction_map`` keyword.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from fundcloud.features.patterns._condition import PatternCondition
-from fundcloud.features.patterns._enums import Direction, StopMethod, TargetMethod
+from fundcloud.features.patterns._enums import Direction, Pattern, StopMethod, TargetMethod
 
 __all__ = ["apply_condition"]
 
@@ -76,14 +74,31 @@ def _select_asset(bars: pd.DataFrame, asset: str) -> pd.DataFrame:
     return bars.xs(asset, level=-1, axis=1).dropna(subset=["open", "high", "low", "close"])  # type: ignore[call-overload, no-any-return]
 
 
-def _direction_sign(direction: Direction | str) -> int:
-    """+1 for bullish, -1 for bearish, 0 otherwise."""
-    value = direction.value if isinstance(direction, Direction) else str(direction).lower()
-    if value == "bullish":
-        return 1
-    if value == "bearish":
-        return -1
-    return 0
+def _direction_sign(direction: Direction) -> int:
+    """+1 for bullish (long), -1 for bearish (short)."""
+    return 1 if direction is Direction.BULLISH else -1
+
+
+def _resolve_event_direction(
+    pattern: Any,
+    *,
+    default: Direction,
+    direction_map: Mapping[Pattern | str, Direction] | None,
+) -> Direction:
+    """Pick the direction for one event.
+
+    Per-pattern lookup wins over the default. ``pattern`` is whatever the
+    events frame carries — typically a :class:`Pattern` enum but the
+    accessor accepts strings for convenience.
+    """
+    if direction_map is None:
+        return default
+    if pattern in direction_map:
+        return direction_map[pattern]
+    pattern_str = pattern.value if isinstance(pattern, Pattern) else str(pattern)
+    if pattern_str in direction_map:
+        return direction_map[pattern_str]
+    return default
 
 
 def _pivot_prices(pivots: list[dict[str, Any]], kind: str) -> list[float]:
@@ -110,36 +125,21 @@ def _pivot_prices(pivots: list[dict[str, Any]], kind: str) -> list[float]:
     return out
 
 
-def _pattern_height(
-    pivots: list[dict[str, Any]],
-    entry: float,
-    sign: int,
+def _resolve_height(
+    formation_height: Any,
     fallback: float,
 ) -> float:
-    """Distance from entry to the most adverse pivot in the formation.
+    """Pick the unsigned formation height, with a fallback for malformed events.
 
-    Bullish: ``entry - min(low_pivot_prices)`` — how far below entry
-    the support reached.
-
-    Bearish: ``max(high_pivot_prices) - entry`` — how far above entry
-    the resistance reached.
-
-    ``fallback`` (typically 1×ATR) is returned when the pivot list
-    lacks usable extremes — e.g., an event that survived dedup with no
-    pivots of the relevant kind.
+    Detectors emit ``formation_height`` directly as part of the pure
+    geometry contract, so this is just a finite-positive guard with the
+    ATR-based fallback for the rare case where a stale events frame is
+    missing the column or carries NaN.
     """
-    if not pivots or sign == 0:
+    try:
+        height = float(formation_height)
+    except (TypeError, ValueError):
         return fallback
-    if sign > 0:
-        lows = _pivot_prices(pivots, "LOW")
-        if not lows:
-            return fallback
-        height = entry - min(lows)
-    else:
-        highs = _pivot_prices(pivots, "HIGH")
-        if not highs:
-            return fallback
-        height = max(highs) - entry
     if not np.isfinite(height) or height <= 0:
         return fallback
     return height
@@ -199,6 +199,9 @@ def apply_condition(
     events: pd.DataFrame,
     condition: PatternCondition,
     bars: pd.DataFrame,
+    *,
+    direction: Direction = Direction.BULLISH,
+    direction_map: Mapping[Pattern | str, Direction] | None = None,
 ) -> pd.DataFrame:
     """Return a copy of ``events`` with ``target_price`` and ``stop_price``
     filled per the supplied :class:`PatternCondition`.
@@ -206,14 +209,22 @@ def apply_condition(
     Parameters
     ----------
     events
-        Canonical events table (see :data:`EVENTS_COLUMNS`).
+        Canonical events table (see :data:`EVENTS_COLUMNS`). Detection
+        is direction-agnostic; this function applies the direction.
     condition
         Entry / exit / target / stop rules.
     bars
         OHLCV MultiIndex frame the events came from. Used to compute
-        ATR at the breakout bar for ATR-relative target / stop methods,
-        and to provide a fallback when the events table is missing
-        useful pivots.
+        ATR at the breakout bar for ATR-relative target / stop methods.
+    direction
+        Default trade direction applied to every event whose pattern
+        isn't found in ``direction_map``. Defaults to
+        :attr:`Direction.BULLISH` (go long).
+    direction_map
+        Optional per-pattern lookup. Keys may be :class:`Pattern` enum
+        values or their string names; the value picks the direction
+        used for that pattern's events. Missing patterns fall back to
+        ``direction``.
 
     Notes
     -----
@@ -234,11 +245,10 @@ def apply_condition(
     stops: list[float] = []
     for _, ev in out.iterrows():
         asset = str(ev["asset"])
-        sign = _direction_sign(ev["direction"])
-        if sign == 0:
-            targets.append(float("nan"))
-            stops.append(float("nan"))
-            continue
+        ev_direction = _resolve_event_direction(
+            ev["pattern"], default=direction, direction_map=direction_map
+        )
+        sign = _direction_sign(ev_direction)
 
         if asset not in asset_cache:
             try:
@@ -282,9 +292,7 @@ def apply_condition(
             stops.append(float("nan"))
             continue
 
-        entry_raw = ev.get("breakout_price")
-        if entry_raw is None or pd.isna(entry_raw):
-            entry_raw = ev.get("entry_price")
+        entry_raw = ev.get("breakout_level")
         if entry_raw is None or pd.isna(entry_raw):
             targets.append(float("nan"))
             stops.append(float("nan"))
@@ -293,7 +301,7 @@ def apply_condition(
 
         pivots = ev.get("pivots") or []
         fallback_height = atr if atr_valid else float("nan")
-        height = _pattern_height(pivots, entry, sign, fallback=fallback_height)
+        height = _resolve_height(ev.get("formation_height"), fallback=fallback_height)
         if not np.isfinite(height) or height <= 0:
             targets.append(float("nan"))
             stops.append(float("nan"))

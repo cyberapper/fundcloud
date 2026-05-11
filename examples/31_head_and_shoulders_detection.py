@@ -144,19 +144,23 @@ def main() -> None:
     if not events.empty:
         ev = events.iloc[0]
         print(f"\nFirst event ({ev['asset']}):")
-        print(f"  pattern        : {ev['pattern']}")
-        print(f"  direction      : {ev['direction']}")
-        print(f"  formation      : {ev['formation_start'].date()} → {ev['formation_end'].date()}")
-        print(f"  breakout_ts    : {ev['breakout_ts'].date()}")
-        print(f"  entry_price    : {ev['entry_price']:.2f}")
-        print(f"  breakout_price : {ev['breakout_price']:.2f}")
-        print(f"  quality        : {ev['quality']:.1f} / 100")
-        print(f"  variant        : {ev['variant']}")
-        print(f"  pivots         : {len(ev['pivots'])}")
+        print(f"  pattern          : {ev['pattern']}")
+        print(f"  formation        : {ev['formation_start'].date()} → {ev['formation_end'].date()}")
+        print(f"  breakout_ts      : {ev['breakout_ts'].date()}")
+        print(f"  breakout_level   : {ev['breakout_level']:.2f}")
+        print(f"  formation_height : {ev['formation_height']:.2f}  (unsigned, for measured-move)")
+        print(f"  quality          : {ev['quality']:.1f} / 100")
+        print(f"  variant          : {ev['variant']}")
+        print(f"  pivots           : {len(ev['pivots'])}")
         for piv in ev["pivots"]:
             print(f"    {piv['ts'].date()} {piv['kind']:<5} @ {piv['price']:.2f}")
-        print(f"  meta keys      : {sorted(ev['meta'].keys())}")
-        print(f"  features       : {ev['meta']['features']}")
+        print(f"  meta keys        : {sorted(ev['meta'].keys())}")
+        print(f"  features         : {ev['meta']['features']}")
+        print(
+            "  (no `direction` column — detection is geometry-only; "
+            "direction comes from `direction_map_from_outcomes` "
+            "or a strategy-time override. See example 36.)"
+        )
 
     _print_section("4. SignalMode swap (FORMATION marks the whole window)")
     formation_signals = HeadAndShoulders(signal_mode=SignalMode.FORMATION).fit_transform(bars)

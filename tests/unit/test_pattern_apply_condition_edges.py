@@ -1,9 +1,12 @@
 """Edge-case coverage for ``apply_condition`` and its private helpers.
 
 The happy-path geometry tests live in ``test_pattern_condition.py``; this
-file fills the degenerate-input branches that codecov flagged as
-uncovered on the FLG-1015 PR (NaN inputs, missing pivots, unknown
-assets, ATR-failure fallbacks, NEUTRAL direction, etc.).
+file fills the degenerate-input branches (NaN inputs, missing pivots,
+unknown assets, ATR-failure fallbacks, etc.) under the post-FLG-1015
+schema where detection is direction-agnostic and the events frame
+carries unsigned ``breakout_level`` / ``formation_height`` instead of
+the old signed ``entry_price`` / ``breakout_price`` / ``direction``
+trio.
 
 We also pin the ``PatternCondition.override`` validation paths because
 they share the same enum/coercion surface and were under-covered.
@@ -27,8 +30,9 @@ from fundcloud.features.patterns import (
 )
 from fundcloud.features.patterns._apply_condition import (
     _direction_sign,
-    _pattern_height,
     _pivot_prices,
+    _resolve_event_direction,
+    _resolve_height,
     _resolve_stop,
     _resolve_target,
     _select_asset,
@@ -56,22 +60,21 @@ def _bars(n: int = 100, asset: str = "AAA") -> pd.DataFrame:
 def _event_row(
     *,
     asset: str,
-    direction: Direction,
     formation_start: pd.Timestamp,
     breakout_ts: pd.Timestamp,
-    entry_price: float | None,
-    breakout_price: float | None,
+    breakout_level: float | None,
+    formation_height: float | None,
     pivots: list[dict],
+    pattern: Pattern = Pattern.DOUBLE_BOTTOM,
 ) -> dict:
     return {
-        "pattern": Pattern.DOUBLE_BOTTOM,
+        "pattern": pattern,
         "asset": asset,
-        "direction": direction,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
-        "entry_price": entry_price,
-        "breakout_price": breakout_price,
+        "breakout_level": breakout_level,
+        "formation_height": formation_height,
         "target_price": float("nan"),
         "stop_price": float("nan"),
         "quality": 50.0,
@@ -96,13 +99,11 @@ class TestWilderATR:
         assert np.isnan(out).all()
 
     def test_short_input_returns_all_nan(self) -> None:
-        # n < window → atr stays NaN.
         out = _wilder_atr(np.array([1.0, 2.0]), np.array([0.5, 1.0]), np.array([0.7, 1.5]), 14)
         assert np.isnan(out).all()
 
     def test_single_bar_skips_recursion_branch(self) -> None:
         out = _wilder_atr(np.array([2.0]), np.array([1.0]), np.array([1.5]), 1)
-        # Only TR[0] = high - low = 1.0 → ATR[0] = mean(TR[:1]) = 1.0.
         assert out[0] == pytest.approx(1.0)
 
 
@@ -114,15 +115,40 @@ class TestSelectAsset:
 
 
 class TestDirectionSign:
-    def test_neutral_returns_zero(self) -> None:
-        assert _direction_sign(Direction.NEUTRAL) == 0
+    def test_bullish_is_long(self) -> None:
+        assert _direction_sign(Direction.BULLISH) == 1
 
-    def test_string_aliases(self) -> None:
-        assert _direction_sign("BULLISH") == 1
-        assert _direction_sign("Bearish") == -1
+    def test_bearish_is_short(self) -> None:
+        assert _direction_sign(Direction.BEARISH) == -1
 
-    def test_unknown_string_returns_zero(self) -> None:
-        assert _direction_sign("sideways") == 0
+
+class TestResolveEventDirection:
+    def test_no_map_returns_default(self) -> None:
+        out = _resolve_event_direction(
+            Pattern.DOUBLE_TOP, default=Direction.BULLISH, direction_map=None
+        )
+        assert out is Direction.BULLISH
+
+    def test_enum_key_lookup(self) -> None:
+        dmap = {Pattern.DOUBLE_TOP: Direction.BEARISH}
+        out = _resolve_event_direction(
+            Pattern.DOUBLE_TOP, default=Direction.BULLISH, direction_map=dmap
+        )
+        assert out is Direction.BEARISH
+
+    def test_string_key_lookup(self) -> None:
+        dmap = {"double_top": Direction.BEARISH}
+        out = _resolve_event_direction(
+            Pattern.DOUBLE_TOP, default=Direction.BULLISH, direction_map=dmap
+        )
+        assert out is Direction.BEARISH
+
+    def test_missing_pattern_falls_back_to_default(self) -> None:
+        dmap = {Pattern.HEAD_AND_SHOULDERS: Direction.BEARISH}
+        out = _resolve_event_direction(
+            Pattern.DOUBLE_TOP, default=Direction.BULLISH, direction_map=dmap
+        )
+        assert out is Direction.BULLISH
 
 
 class TestPivotPrices:
@@ -143,26 +169,25 @@ class TestPivotPrices:
         assert _pivot_prices(pivots, "LOW") == [3.0]
 
 
-class TestPatternHeight:
-    def test_empty_pivots_returns_fallback(self) -> None:
-        assert _pattern_height([], 100.0, 1, fallback=2.0) == 2.0
+class TestResolveHeight:
+    def test_finite_positive_passthrough(self) -> None:
+        assert _resolve_height(5.0, fallback=2.0) == 5.0
 
-    def test_neutral_sign_returns_fallback(self) -> None:
-        pivots = [{"kind": "LOW", "price": 90.0}]
-        assert _pattern_height(pivots, 100.0, 0, fallback=2.0) == 2.0
+    def test_none_falls_back(self) -> None:
+        assert _resolve_height(None, fallback=2.0) == 2.0
 
-    def test_bullish_without_low_pivots_returns_fallback(self) -> None:
-        pivots = [{"kind": "HIGH", "price": 110.0}]
-        assert _pattern_height(pivots, 100.0, 1, fallback=2.0) == 2.0
+    def test_nan_falls_back(self) -> None:
+        assert _resolve_height(float("nan"), fallback=2.0) == 2.0
 
-    def test_bearish_without_high_pivots_returns_fallback(self) -> None:
-        pivots = [{"kind": "LOW", "price": 90.0}]
-        assert _pattern_height(pivots, 100.0, -1, fallback=2.0) == 2.0
+    def test_zero_falls_back(self) -> None:
+        assert _resolve_height(0.0, fallback=2.0) == 2.0
 
-    def test_zero_height_falls_back(self) -> None:
-        # Bullish, but the only LOW equals entry → height = 0.
-        pivots = [{"kind": "LOW", "price": 100.0}]
-        assert _pattern_height(pivots, 100.0, 1, fallback=2.0) == 2.0
+    def test_negative_falls_back(self) -> None:
+        # Detector contract says non-negative; defensive check anyway.
+        assert _resolve_height(-1.5, fallback=2.0) == 2.0
+
+    def test_non_numeric_falls_back(self) -> None:
+        assert _resolve_height("abc", fallback=2.0) == 2.0
 
 
 class TestResolveTargetAndStopErrors:
@@ -243,28 +268,6 @@ class TestResolveTargetAndStopErrors:
 
 
 class TestApplyConditionDegenerateRows:
-    def test_neutral_direction_yields_nan(self) -> None:
-        bars = _bars()
-        ts = bars.index[50]
-        fs = bars.index[40]
-        events = pd.DataFrame(
-            [
-                _event_row(
-                    asset="AAA",
-                    direction=Direction.NEUTRAL,
-                    formation_start=fs,
-                    breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=100.0,
-                    pivots=[],
-                )
-            ],
-            columns=EVENTS_COLUMNS,
-        )
-        out = apply_condition(events, PatternCondition(), bars)
-        assert np.isnan(out.loc[0, "target_price"])
-        assert np.isnan(out.loc[0, "stop_price"])
-
     def test_unknown_asset_yields_nan(self) -> None:
         bars = _bars()
         ts = bars.index[50]
@@ -273,22 +276,19 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="ZZZ",  # not present in bars
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=100.0,
+                    breakout_level=100.0,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 ),
-                # second row hits the cached `None` branch (asset already
-                # seen and stored as None).
+                # second row hits the cached `None` branch.
                 _event_row(
                     asset="ZZZ",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=100.0,
+                    breakout_level=100.0,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 ),
             ],
@@ -305,11 +305,10 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="AAA",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=pd.NaT,
-                    entry_price=100.0,
-                    breakout_price=100.0,
+                    breakout_level=100.0,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 )
             ],
@@ -326,11 +325,10 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="AAA",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=pd.Timestamp("1999-01-01", tz="UTC"),
-                    entry_price=100.0,
-                    breakout_price=100.0,
+                    breakout_level=100.0,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 )
             ],
@@ -340,7 +338,6 @@ class TestApplyConditionDegenerateRows:
         assert np.isnan(out.loc[0, "target_price"])
 
     def test_atr_invalid_with_atr_relative_method_yields_nan(self) -> None:
-        # Use a tiny bar frame so ATR at the early breakout position is NaN.
         bars = _bars(n=20)
         ts = bars.index[2]  # too early for window=14 ATR to be defined
         fs = bars.index[0]
@@ -348,11 +345,10 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="AAA",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=100.0,
+                    breakout_level=100.0,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 )
             ],
@@ -363,7 +359,7 @@ class TestApplyConditionDegenerateRows:
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
-    def test_breakout_price_falls_back_to_entry_price(self) -> None:
+    def test_no_breakout_level_yields_nan(self) -> None:
         bars = _bars()
         ts = bars.index[60]
         fs = bars.index[40]
@@ -371,33 +367,10 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="AAA",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=None,  # forces entry_price fallback
-                    pivots=[{"kind": "LOW", "price": 95.0}],
-                )
-            ],
-            columns=EVENTS_COLUMNS,
-        )
-        out = apply_condition(events, PatternCondition(), bars)
-        # MEASURED_MOVE: target = 100 + (100 - 95) = 105.
-        assert out.loc[0, "target_price"] == pytest.approx(105.0)
-
-    def test_no_entry_price_at_all_yields_nan(self) -> None:
-        bars = _bars()
-        ts = bars.index[60]
-        fs = bars.index[40]
-        events = pd.DataFrame(
-            [
-                _event_row(
-                    asset="AAA",
-                    direction=Direction.BULLISH,
-                    formation_start=fs,
-                    breakout_ts=ts,
-                    entry_price=None,
-                    breakout_price=None,
+                    breakout_level=None,
+                    formation_height=5.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 )
             ],
@@ -406,13 +379,32 @@ class TestApplyConditionDegenerateRows:
         out = apply_condition(events, PatternCondition(), bars)
         assert np.isnan(out.loc[0, "target_price"])
 
-    def test_invalid_height_after_pivots_yields_nan(self) -> None:
-        # All LOW pivots == entry → height collapses to 0; with a NaN
-        # fallback (very short ATR window not yet warm in the bar context
-        # we'll target via the time_stop_bars-irrelevant condition), both
-        # values fall to NaN.
-        # Easier: stub the fallback path by giving entry == pivot AND a
-        # very early breakout where ATR is NaN.
+    def test_zero_height_falls_back_to_atr(self) -> None:
+        # formation_height = 0 → falls back to ATR. With a fully-warm ATR
+        # window, target/stop come out finite.
+        bars = _bars(n=60)
+        ts = bars.index[40]
+        fs = bars.index[35]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    breakout_level=100.0,
+                    formation_height=0.0,
+                    pivots=[],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        out = apply_condition(events, PatternCondition(), bars)
+        assert np.isfinite(out.loc[0, "target_price"])
+        assert np.isfinite(out.loc[0, "stop_price"])
+
+    def test_invalid_height_at_cold_atr_yields_nan(self) -> None:
+        # formation_height = 0 with an ATR window not yet warm → nothing
+        # to fall back to → NaN.
         bars = _bars(n=10)
         ts = bars.index[2]
         fs = bars.index[0]
@@ -420,21 +412,70 @@ class TestApplyConditionDegenerateRows:
             [
                 _event_row(
                     asset="AAA",
-                    direction=Direction.BULLISH,
                     formation_start=fs,
                     breakout_ts=ts,
-                    entry_price=100.0,
-                    breakout_price=100.0,
-                    pivots=[{"kind": "LOW", "price": 100.0}],
+                    breakout_level=100.0,
+                    formation_height=0.0,
+                    pivots=[],
                 )
             ],
             columns=EVENTS_COLUMNS,
         )
-        # MEASURED_MOVE doesn't need ATR, so the early-NaN-ATR path falls
-        # through; height = 0 (entry == pivot) → fallback ATR is NaN → NaN.
         out = apply_condition(events, PatternCondition(), bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
+
+    def test_direction_kwarg_flips_sign(self) -> None:
+        """Same event computed long vs. short produces mirrored target/stop."""
+        bars = _bars(n=80)
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    breakout_level=100.0,
+                    formation_height=5.0,
+                    pivots=[{"kind": "LOW", "price": 95.0}],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        long_out = apply_condition(events, PatternCondition(), bars, direction=Direction.BULLISH)
+        short_out = apply_condition(events, PatternCondition(), bars, direction=Direction.BEARISH)
+        # MEASURED_MOVE: long target = entry + h, short target = entry - h.
+        assert long_out.loc[0, "target_price"] == pytest.approx(105.0)
+        assert short_out.loc[0, "target_price"] == pytest.approx(95.0)
+
+    def test_direction_map_overrides_default(self) -> None:
+        bars = _bars(n=80)
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    breakout_level=100.0,
+                    formation_height=5.0,
+                    pivots=[{"kind": "LOW", "price": 95.0}],
+                    pattern=Pattern.HEAD_AND_SHOULDERS,
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        # Default LONG, but the map flips H&S to SHORT.
+        out = apply_condition(
+            events,
+            PatternCondition(),
+            bars,
+            direction=Direction.BULLISH,
+            direction_map={Pattern.HEAD_AND_SHOULDERS: Direction.BEARISH},
+        )
+        assert out.loc[0, "target_price"] == pytest.approx(95.0)
 
 
 # ---------------------------------------------------------------------------
