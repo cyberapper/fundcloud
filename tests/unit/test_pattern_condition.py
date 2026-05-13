@@ -112,7 +112,9 @@ def test_apply_condition_fib_1_618_target_extends_further() -> None:
         ],
         columns=EVENTS_COLUMNS,
     )
-    cond = PatternCondition(direction=Direction.BULLISH).override(target_method=TargetMethod.FIB_1_618)
+    cond = PatternCondition(direction=Direction.BULLISH).override(
+        target_method=TargetMethod.FIB_1_618
+    )
 
     out = apply_condition(events, cond, bars)
 
@@ -152,7 +154,9 @@ def test_apply_condition_atr_multiple_stop() -> None:
         ],
         columns=EVENTS_COLUMNS,
     )
-    cond = PatternCondition(direction=Direction.BULLISH).override(stop_method=StopMethod.ATR_MULTIPLE, atr_multiple=2.0)
+    cond = PatternCondition(direction=Direction.BULLISH).override(
+        stop_method=StopMethod.ATR_MULTIPLE, atr_multiple=2.0
+    )
 
     out = apply_condition(events, cond, bars)
 

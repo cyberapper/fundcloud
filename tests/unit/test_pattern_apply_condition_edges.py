@@ -370,7 +370,9 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        cond = PatternCondition(direction=Direction.BULLISH).override(target_method=TargetMethod.FIXED_ATR)
+        cond = PatternCondition(direction=Direction.BULLISH).override(
+            target_method=TargetMethod.FIXED_ATR
+        )
         out = apply_condition(events, cond, bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])

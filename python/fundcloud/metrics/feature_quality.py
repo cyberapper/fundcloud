@@ -554,9 +554,7 @@ def baseline_hit_rate(
     # 0.6.0: with no per-event direction, the per-asset baseline weights
     # by event count only; the sign is uniformly the caller-supplied side.
     sign = _resolve_sign(trade_direction)
-    weights: dict[str, int] = {
-        str(asset): len(group) for asset, group in events.groupby("asset")
-    }
+    weights: dict[str, int] = {str(asset): len(group) for asset, group in events.groupby("asset")}
     if not weights:
         return float("nan")
 

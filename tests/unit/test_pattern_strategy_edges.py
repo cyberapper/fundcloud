@@ -96,7 +96,9 @@ class _NullPortfolio:
 class TestInit:
     def test_empty_events_is_clean(self) -> None:
         bars = _bars()
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         # Stub the indicator to return an empty events table.
         strat.indicator.events = lambda _bars: pd.DataFrame(  # type: ignore[method-assign]
             columns=EVENTS_COLUMNS
@@ -143,7 +145,9 @@ class TestInit:
             [_double_bottom_event("ZZZ", ts, fs, entry=100.0, target=105.0, stop=95.0)],
             columns=EVENTS_COLUMNS,
         )
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         strat.init(bars, _NullPortfolio())  # type: ignore[arg-type]
         assert strat._events_by_asset == {}
@@ -171,7 +175,9 @@ class TestBarFieldHelper:
     def test_returns_none_for_missing_column(self) -> None:
         bars = _bars()
         portfolio = Portfolio(cash=1.0e5)
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         assert strat._bar_field(ctx, "ZZZ", "close") is None
 
@@ -179,7 +185,9 @@ class TestBarFieldHelper:
         bars = _bars()
         bars.loc[bars.index[10], ("close", "AAA")] = float("nan")
         portfolio = Portfolio(cash=1.0e5)
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 10, portfolio=portfolio)
         assert strat._bar_field(ctx, "AAA", "close") is None
 
@@ -187,7 +195,9 @@ class TestBarFieldHelper:
         bars = _bars()
         qty = 5.0
         portfolio = Portfolio(cash=10_000.0, positions={"AAA": qty})
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         close = float(bars.iloc[50][("close", "AAA")])
         assert strat._equity(ctx) == pytest.approx(10_000.0 + qty * close)
@@ -195,7 +205,9 @@ class TestBarFieldHelper:
     def test_equity_cash_only_when_no_positions(self) -> None:
         bars = _bars()
         portfolio = Portfolio(cash=10_000.0)
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         assert strat._equity(ctx) == pytest.approx(10_000.0)
 
@@ -208,7 +220,9 @@ class TestBarFieldHelper:
 class TestTimeStop:
     def test_returns_false_when_disabled(self) -> None:
         bars = _bars()
-        strat = PatternStrategy(DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH))  # default condition: time_stop_bars=None
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )  # default condition: time_stop_bars=None
         strat._bar_index = bars.index
         portfolio = Portfolio(cash=1.0)
         ctx = _ctx(bars, 5, portfolio=portfolio)
