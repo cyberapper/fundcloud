@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out release PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           ref: ${{ fromJson(needs.release-please.outputs.pr).headBranchName }}
