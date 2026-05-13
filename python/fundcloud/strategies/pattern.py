@@ -7,11 +7,13 @@ and caches the events table; ``decide`` walks the per-bar context,
 opens trades on event timestamps, and closes them on intraday target /
 stop hits (or on the optional ``time_stop_bars`` deadline).
 
-**Long-only by default.** The simulator's broker-style position model
-does not assume naked short capability, so bearish pattern events are
-*skipped* unless ``inverse=True`` is set — in which case every event's
-sign is flipped (the "fade the pattern" trade) so a Double Top fires a
-long entry instead of being skipped.
+**Long-only.** The simulator's broker-style position model does not
+assume naked short capability, so the strategy only acts on events when
+``condition.direction is Direction.BULLISH``. Other directions
+(``BEARISH`` / ``NEUTRAL``) are honored as a no-op — express the
+"fade the pattern" idea by pairing a bearish detector (e.g. Double Top)
+with ``PatternCondition(direction=Direction.BULLISH)`` at the call
+site once the simulator gains short support.
 
 This is a research-grade strategy: no slippage / fees / sizing logic
 beyond a fixed fraction-of-equity ``size``. For a production engine
@@ -62,11 +64,6 @@ class PatternStrategy(BaseStrategy):
     size
         Per-trade fraction of equity, ``0..=1``. ``0.1`` (default) means
         each open trade uses 10 % of current equity.
-    inverse
-        ``False`` (default) — trade in the natural direction, skip
-        bearish events. ``True`` — flip every event's direction so
-        bearish events fire long entries (test the fade-the-pattern
-        hypothesis end-to-end).
 
     Examples
     --------
