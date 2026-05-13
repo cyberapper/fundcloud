@@ -17,6 +17,7 @@ from dataclasses import dataclass, fields, replace
 from typing import Any
 
 from fundcloud.features.patterns._enums import (
+    Direction,
     EntryRule,
     ExitRule,
     StopMethod,
@@ -35,6 +36,12 @@ class PatternCondition:
     ``str`` coerce at the boundary via :func:`._enums.coerce`.
     """
 
+    #: Which side of the pattern to trade / grade. **Caller-supplied**; the
+    #: detection layer is direction-agnostic. ``NEUTRAL`` (the default) is
+    #: a noop — ``apply_condition`` returns NaN target/stop and
+    #: ``feature_quality.evaluate`` skips events. Pick ``BULLISH`` or
+    #: ``BEARISH`` explicitly to express a strategy bias.
+    direction: Direction = Direction.NEUTRAL
     entry_rule: EntryRule = EntryRule.ON_BREAKOUT
     exit_rule: ExitRule = ExitRule.TARGET_OR_STOP
     target_method: TargetMethod = TargetMethod.MEASURED_MOVE

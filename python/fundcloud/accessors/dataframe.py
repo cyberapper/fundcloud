@@ -681,15 +681,16 @@ class DataFrameAccessor:
         horizons: tuple[int, ...] = (5, 10, 20, 60),
         atr_window: int = 14,
         baseline: bool = True,
-        trade_direction: str = "natural",
+        trade_direction: str = "long",
         condition: Any = None,
         **params: Any,
     ) -> pd.DataFrame:
         """Headline feature-quality panel for the pattern.
 
         Delegates to :func:`fundcloud.metrics.feature_quality.evaluate`
-        after running the indicator. Use ``trade_direction='inverse'``
-        to test fading the pattern. Pass ``condition`` (a
+        after running the indicator. ``trade_direction`` is
+        caller-supplied (``"long"`` or ``"short"``); the library no
+        longer infers a per-event direction. Pass ``condition`` (a
         :class:`PatternCondition`) to grade R-multiples against the
         condition's target / stop instead of the 1×ATR fallback.
         """

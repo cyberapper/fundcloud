@@ -39,7 +39,7 @@ from fundcloud.features.patterns import (
     PatternIndicator,
     apply_condition,
 )
-from fundcloud.features.patterns._enums import EntryRule, ExitRule
+from fundcloud.features.patterns._enums import Direction, EntryRule, ExitRule
 from fundcloud.portfolio import Portfolio
 from fundcloud.sim.orders import Order
 from fundcloud.strategies.base import BaseStrategy, Context, register_strategy
@@ -82,7 +82,6 @@ class PatternStrategy(BaseStrategy):
         *,
         condition: PatternCondition | None = None,
         size: float = 0.1,
-        inverse: bool = False,
     ) -> None:
         if not 0.0 < size <= 1.0:
             msg = f"size must be in (0, 1]; got {size}"
@@ -102,7 +101,6 @@ class PatternStrategy(BaseStrategy):
             )
             raise NotImplementedError(msg)
         self.size = size
-        self.inverse = inverse
         # Filled in init():
         self._events_by_asset: dict[str, list[dict[str, Any]]] = {}
         # Open trades: asset → {sign, entry, target, stop, entry_ts, entry_pos}
@@ -123,14 +121,14 @@ class PatternStrategy(BaseStrategy):
         if events.empty:
             return
         events = apply_condition(events, self.condition, bars)
+        # 0.6.0: direction is caller-supplied via ``condition.direction``,
+        # not inferred from the detector. Long-only strategy: only trade if
+        # the user asked for bullish.
+        if self.condition.direction is not Direction.BULLISH:
+            return
         for asset, group in events.groupby("asset"):
             recs: list[dict[str, Any]] = []
             for _, ev in group.sort_values("breakout_ts").iterrows():
-                natural_sign = 1 if ev["direction"].value == "bullish" else -1
-                sign = -natural_sign if self.inverse else natural_sign
-                if sign <= 0:
-                    # Long-only: skip bearish events that didn't get flipped.
-                    continue
                 if (
                     pd.isna(ev["entry_price"])
                     or pd.isna(ev["target_price"])
@@ -138,7 +136,7 @@ class PatternStrategy(BaseStrategy):
                 ):
                     continue
                 recs.append({
-                    "sign": sign,
+                    "sign": 1,  # long-only (guarded by direction check above)
                     "ts": ev["breakout_ts"],
                     "entry": float(ev["entry_price"]),
                     "target": float(ev["target_price"]),

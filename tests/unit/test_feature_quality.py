@@ -101,7 +101,9 @@ def test_evaluate_bearish_event_in_uptrend_hits_zero() -> None:
         columns=EVENTS_COLUMNS,
     )
 
-    panel = fq.evaluate(events, bars, horizons=(5, 10, 20))
+    # 0.6.0: trade_direction is caller-supplied. Grade these "bearish" events
+    # as shorts and the uptrend should make them all losers.
+    panel = fq.evaluate(events, bars, horizons=(5, 10, 20), trade_direction="short")
 
     assert panel.loc[5, "n_events"] == 1
     assert panel.loc[5, "hit_rate"] == 0.0
@@ -125,8 +127,10 @@ def test_evaluate_baseline_reflects_asset_drift() -> None:
         [_empty_event("CCC", ts, Direction.BEARISH, entry)], columns=EVENTS_COLUMNS
     )
 
-    bull_panel = fq.evaluate(bullish, bars, horizons=(20,))
-    bear_panel = fq.evaluate(bearish, bars, horizons=(20,))
+    # 0.6.0: pass trade_direction explicitly — long for bullish, short for
+    # bearish. The baseline-mirror invariant still holds.
+    bull_panel = fq.evaluate(bullish, bars, horizons=(20,), trade_direction="long")
+    bear_panel = fq.evaluate(bearish, bars, horizons=(20,), trade_direction="short")
 
     # Heavy uptrend → most random 20-bar windows close higher.
     assert bull_panel.loc[20, "baseline_hit"] > 0.6
@@ -170,10 +174,11 @@ def test_evaluate_empty_events_returns_zero_row_panel() -> None:
     assert panel["expectancy"].isna().all()
 
 
-def test_evaluate_trade_direction_inverse_mirrors_natural() -> None:
-    """trade_direction='inverse' should flip per-event hit (and the
-    baseline tracks it) so natural+inverse hits sum to ~1 modulo zero
-    returns. Locks the baseline-honesty invariant.
+def test_evaluate_long_vs_short_are_signed_mirrors() -> None:
+    """Grading the same event set as `long` vs `short` should produce
+    hit-rates and expectancies that mirror each other — baseline included.
+    Replaces the 0.5.0 ``natural`` / ``inverse`` test now that
+    trade_direction is just ``long`` or ``short`` (0.6.0).
     """
     bars = _build_bars("FFF", n=300, drift_per_bar=0.005, seed=23)
     ts = bars.index[100]
@@ -182,19 +187,17 @@ def test_evaluate_trade_direction_inverse_mirrors_natural() -> None:
         [_empty_event("FFF", ts, Direction.BEARISH, entry)], columns=EVENTS_COLUMNS
     )
 
-    natural = fq.evaluate(events, bars, horizons=(20,), trade_direction="natural")
-    inverse = fq.evaluate(events, bars, horizons=(20,), trade_direction="inverse")
+    short = fq.evaluate(events, bars, horizons=(20,), trade_direction="short")
+    long_ = fq.evaluate(events, bars, horizons=(20,), trade_direction="long")
 
-    # Single bearish event in an uptrend — natural hit_rate=0, inverse hit_rate=1.
-    assert natural.loc[20, "hit_rate"] == 0.0
-    assert inverse.loc[20, "hit_rate"] == 1.0
-    # Baseline must flip in lockstep — natural baseline (bearish) below 0.5;
-    # inverse baseline (long) above 0.5; their sum ≈ 1.
-    total = natural.loc[20, "baseline_hit"] + inverse.loc[20, "baseline_hit"]
+    # Single event in an uptrend — graded short, hit_rate=0; graded long, hit_rate=1.
+    assert short.loc[20, "hit_rate"] == 0.0
+    assert long_.loc[20, "hit_rate"] == 1.0
+    # Baselines flip in lockstep — sum ≈ 1.
+    total = short.loc[20, "baseline_hit"] + long_.loc[20, "baseline_hit"]
     assert abs(total - 1.0) < 0.05
-    # Expectancies are exact mirrors of each other (signed move flipped,
-    # stop distance unchanged).
-    assert abs(natural.loc[20, "expectancy"] + inverse.loc[20, "expectancy"]) < 1e-9
+    # Expectancies are exact mirrors.
+    assert abs(short.loc[20, "expectancy"] + long_.loc[20, "expectancy"]) < 1e-9
 
 
 def test_evaluate_rejects_unknown_trade_direction() -> None:

@@ -232,9 +232,12 @@ def apply_condition(
 
     targets: list[float] = []
     stops: list[float] = []
+    # 0.6.0: direction is caller-supplied via `PatternCondition.direction`,
+    # applied uniformly to every event in this call. Detection no longer
+    # carries a direction column — see _events.py.
+    sign = _direction_sign(condition.direction)
     for _, ev in out.iterrows():
         asset = str(ev["asset"])
-        sign = _direction_sign(ev["direction"])
         if sign == 0:
             targets.append(float("nan"))
             stops.append(float("nan"))
