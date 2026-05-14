@@ -1,0 +1,4277 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Portfolio research, end-to-end, with a Rust core.">
+      
+      
+        <meta name="author" content="Fundcloud Authors">
+      
+      
+        <link rel="canonical" href="https://cyberapper.github.io/fundcloud/latest/reference/patterns/">
+      
+      
+        <link rel="prev" href="../kernels/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Chart Patterns - Fundcloud</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22m14.06%209%20.94.94L5.92%2019H5v-.92zm3.6-6c-.25%200-.51.1-.7.29l-1.83%201.83%203.75%203.75%201.83-1.83c.39-.39.39-1.04%200-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6%203.19L3%2017.25V21h3.75L17.81%209.94z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17%208C8%2010%205.9%2016.17%203.82%2021.34l1.89.66.95-2.3c.48.17.98.3%201.34.3C19%2020%2022%203%2022%203c-1%202-8%202.25-13%203.25S2%2011.5%202%2013.5s1.75%203.75%201.75%203.75C7%208%2017%208%2017%208%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%202%201%2021h22M12%206l7.53%2013H4.47M11%2010v4h2v-4m-2%206v2h2v-2%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17.66%2011.2c-.23-.3-.51-.56-.77-.82-.67-.6-1.43-1.03-2.07-1.66C13.33%207.26%2013%204.85%2013.95%203c-.95.23-1.78.75-2.49%201.32-2.59%202.08-3.61%205.75-2.39%208.9.04.1.08.2.08.33%200%20.22-.15.42-.35.5-.23.1-.47.04-.66-.12a.6.6%200%200%201-.14-.17c-1.13-1.43-1.31-3.48-.55-5.12C5.78%2010%204.87%2012.3%205%2014.47c.06.5.12%201%20.29%201.5.14.6.41%201.2.71%201.73%201.08%201.73%202.95%202.97%204.96%203.22%202.14.27%204.43-.12%206.07-1.6%201.83-1.66%202.47-4.32%201.53-6.6l-.13-.26c-.21-.46-.77-1.26-.77-1.26m-3.16%206.3c-.28.24-.74.5-1.1.6-1.12.4-2.24-.16-2.9-.82%201.19-.28%201.9-1.16%202.11-2.05.17-.8-.15-1.46-.28-2.23-.12-.74-.1-1.37.17-2.06.19.38.39.76.63%201.06.77%201%201.98%201.44%202.24%202.8.04.14.06.28.06.43.03.82-.33%201.72-.93%202.27%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%2019a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1c0-.21-.07-.41-.18-.57L13%208.35V4h-2v4.35L5.18%2018.43c-.11.16-.18.36-.18.57m1%203a3%203%200%200%201-3-3c0-.6.18-1.16.5-1.63L9%207.81V6a1%201%200%200%201-1-1V4a2%202%200%200%201%202-2h4a2%202%200%200%201%202%202v1a1%201%200%200%201-1%201v1.81l5.5%209.56c.32.47.5%201.03.5%201.63a3%203%200%200%201-3%203zm7-6%201.34-1.34L16.27%2018H7.73l2.66-4.61zm-.5-4a.5.5%200%200%201%20.5.5.5.5%200%200%201-.5.5.5.5%200%200%201-.5-.5.5.5%200%200%201%20.5-.5%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+    
+    
+  
+  <meta name="theme-color" content="#003a70">
+  <meta property="og:type" content="website">
+  
+  
+  <meta property="og:title" content="Chart Patterns — Fundcloud">
+  <meta property="og:description" content="Portfolio research, end-to-end, with a Rust core.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://rsms.me" crossorigin>
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chart-pattern-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;font-size:0.72rem;letter-spacing:0.02em;">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    Put this workflow to work on your own portfolio.
+    <a href="https://fundcloud.com" style="color:inherit;text-decoration:underline;">Create your account →</a>
+  </div>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Fundcloud" class="md-header__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fundcloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Chart Patterns
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../install/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Install
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/portfolio/returns-analysis/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../data/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Fundcloud" class="md-nav__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    Fundcloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    
+  
+  
+  
+    <a href="../../guides/portfolio/returns-analysis/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+  
+
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../accounts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accounts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../strategies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../portfolio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../optimize/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optimize
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../errors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Errors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plots/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Kernels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chart Patterns
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chart Patterns
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow-bars-in-detections-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flow — bars in, detections out
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pivot-detection-multi_level_pivots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pivot detection — multi_level_pivots
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pivot detection — multi_level_pivots">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#definition-swing-high-swing-low-at-ordern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Definition: swing high / swing low at order=N
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-scale-union-dedup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-scale union + dedup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inputs-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs / outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pivot-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pivot record
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pivot_orders-what-it-actually-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pivot_orders — what it actually controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tuning-by-bar-timeframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning by bar timeframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trend-line-fitting-fit_trendline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend-line fitting — fit_trendline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trend-line fitting — fit_trendline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometric-quality-score-geometricscorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometric quality score — GeometricScorer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Geometric quality score — GeometricScorer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sub-scorers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-scorers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sub-scorers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symmetry-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        symmetry (30%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#volume-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume (25%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trendline_r2-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trendline_r2 (25%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completeness-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        completeness (20%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patterndetector-trait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternDetector trait
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detector-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detector reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#head-and-shoulders-headshouldersdetector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Head and Shoulders (HeadShouldersDetector)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Head and Shoulders (HeadShouldersDetector)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-per-detector-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input (per detector call)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-per-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output (per match)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inverse-head-and-shoulders-inverseheadshouldersdetector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inverse Head and Shoulders (InverseHeadShouldersDetector)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inverse Head and Shoulders (InverseHeadShouldersDetector)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validation-rules_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#double-top-double-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Double Top / Double Bottom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#triple-top-triple-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triple Top / Triple Bottom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascending-descending-symmetrical-triangle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ascending / Descending / Symmetrical Triangle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pyo3-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyO3 bindings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PyO3 bindings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_corescan_pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.scan_pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_coremulti_level_pivots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.multi_level_pivots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_corelist_pattern_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.list_pattern_names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-dict-schema-pyo3-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection dict schema (PyO3 output)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-feature-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python feature layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python feature layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#patternindicatorindicatorspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternIndicator(IndicatorSpec)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PatternIndicator(IndicatorSpec)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#class-level-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class-level attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-input-frame-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required input frame shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-per-bar-signal-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: per-bar signal panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-events-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: events table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration knobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterncondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternCondition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enums" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enums
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Composition examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-featurepipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        With FeaturePipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-with-simulatorrun_signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backtest with Simulator.run_signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-validate-pattern-parameters-with-purgedkfold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-validate pattern parameters with PurgedKFold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance characteristics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-quality-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature-quality metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature-quality metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evaluateevents-bars-horizons-conditionnone-trade_directionnatural-baselinetrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate(events, bars, *, horizons, condition=None, trade_direction='natural', baseline=True)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratified-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratified diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scalar-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar primitives
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply_condition-and-patternstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_condition and PatternStrategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations-and-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations and future work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-at-a-glance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture at a glance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-flow-bars-in-detections-out" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data flow — bars in, detections out
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pivot-detection-multi_level_pivots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pivot detection — multi_level_pivots
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pivot detection — multi_level_pivots">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#definition-swing-high-swing-low-at-ordern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Definition: swing high / swing low at order=N
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-scale-union-dedup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-scale union + dedup
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inputs-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs / outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pivot-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pivot record
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pivot_orders-what-it-actually-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pivot_orders — what it actually controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tuning-by-bar-timeframe" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning by bar timeframe
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trend-line-fitting-fit_trendline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend-line fitting — fit_trendline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trend-line fitting — fit_trendline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#algorithm" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#geometric-quality-score-geometricscorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Geometric quality score — GeometricScorer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Geometric quality score — GeometricScorer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sub-scorers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sub-scorers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sub-scorers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symmetry-30" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        symmetry (30%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#volume-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        volume (25%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trendline_r2-25" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        trendline_r2 (25%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completeness-20" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        completeness (20%)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#patterndetector-trait" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternDetector trait
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#detector-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detector reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Detector reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#head-and-shoulders-headshouldersdetector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Head and Shoulders (HeadShouldersDetector)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Head and Shoulders (HeadShouldersDetector)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-per-detector-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input (per detector call)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-per-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output (per match)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inverse-head-and-shoulders-inverseheadshouldersdetector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inverse Head and Shoulders (InverseHeadShouldersDetector)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inverse Head and Shoulders (InverseHeadShouldersDetector)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#validation-rules_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reference_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reference
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#double-top-double-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Double Top / Double Bottom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#triple-top-triple-bottom" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triple Top / Triple Bottom
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ascending-descending-symmetrical-triangle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ascending / Descending / Symmetrical Triangle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pyo3-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyO3 bindings
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PyO3 bindings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_corescan_pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.scan_pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_coremulti_level_pivots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.multi_level_pivots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#_corelist_pattern_names" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _core.list_pattern_names
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#detection-dict-schema-pyo3-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Detection dict schema (PyO3 output)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#python-feature-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python feature layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Python feature layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#patternindicatorindicatorspec" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternIndicator(IndicatorSpec)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PatternIndicator(IndicatorSpec)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#class-level-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class-level attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#public-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#required-input-frame-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required input frame shape
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-per-bar-signal-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: per-bar signal panel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output-events-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: events table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-knobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration knobs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterncondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PatternCondition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#enums" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enums
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Composition examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-featurepipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        With FeaturePipeline
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backtest-with-simulatorrun_signals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backtest with Simulator.run_signals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-validate-pattern-parameters-with-purgedkfold" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-validate pattern parameters with PurgedKFold
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-characteristics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance characteristics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-quality-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature-quality metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature-quality metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evaluateevents-bars-horizons-conditionnone-trade_directionnatural-baselinetrue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        evaluate(events, bars, *, horizons, condition=None, trade_direction='natural', baseline=True)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stratified-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratified diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scalar-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scalar primitives
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#apply_condition-and-patternstrategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_condition and PatternStrategy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations-and-future-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations and future work
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#file-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        File reference
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../data/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Reference
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/cyberapper/fundcloud/edit/main/docs/reference/patterns.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="chart-pattern-detection">Chart Pattern Detection<a class="headerlink" href="#chart-pattern-detection" title="Anchor link to this section">&para;</a></h1>
+<p>The <code>fundcloud.features.patterns</code> subpackage detects classical chart
+patterns (Head &amp; Shoulders, Double Top/Bottom, Triangles, etc.) and
+exposes them as sklearn-compatible feature transformers. Detection
+itself runs in pure Rust under <code>fundcloud._core</code> for speed; the Python
+layer wraps it as <code>IndicatorSpec</code> subclasses so patterns compose with
+the rest of the feature pipeline (TA-Lib indicators, <code>FeaturePipeline</code>,
+<code>Simulator.run_signals</code>, <code>PurgedKFold</code>).</p>
+<p>For a runnable end-to-end walkthrough, see the example scripts
+<code>examples/31_head_and_shoulders_detection.py</code> (synthetic data) and
+<code>examples/32_pattern_scan_real_data.py</code> (real Yahoo Finance bars).</p>
+<h2 id="status">Status<a class="headerlink" href="#status" title="Anchor link to this section">&para;</a></h2>
+<p>The full v1 surface — 9 tier-1 reversal/continuation detectors — is now
+shipped. Each one is a Rust module implementing <code>PatternDetector</code> plus a
+thin Python subclass of <code>PatternIndicator</code> registered via
+<code>@register_indicator</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Detector</th>
+<th>Rust</th>
+<th>Python class</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Head and Shoulders</td>
+<td>✅</td>
+<td><code>HeadAndShoulders</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Inverse Head and Shoulders</td>
+<td>✅</td>
+<td><code>InverseHeadAndShoulders</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Double Top</td>
+<td>✅</td>
+<td><code>DoubleTop</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Double Bottom</td>
+<td>✅</td>
+<td><code>DoubleBottom</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Triple Top</td>
+<td>✅</td>
+<td><code>TripleTop</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Triple Bottom</td>
+<td>✅</td>
+<td><code>TripleBottom</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Ascending Triangle</td>
+<td>✅</td>
+<td><code>AscendingTriangle</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Descending Triangle</td>
+<td>✅</td>
+<td><code>DescendingTriangle</code></td>
+<td>shipped</td>
+</tr>
+<tr>
+<td>Symmetrical Triangle</td>
+<td>✅</td>
+<td><code>SymmetricalTriangle</code></td>
+<td>shipped</td>
+</tr>
+</tbody>
+</table>
+<h2 id="architecture-at-a-glance">Architecture at a glance<a class="headerlink" href="#architecture-at-a-glance" title="Anchor link to this section">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────────┐
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│ Python: fundcloud.features.patterns                             │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   PatternIndicator(IndicatorSpec)        ← sklearn fit/transform │
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── HeadAndShoulders / InverseHeadAndShoulders                 │
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── DoubleTop / DoubleBottom                                   │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── TripleTop / TripleBottom                                   │
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   └── AscendingTriangle / DescendingTriangle / SymmetricalTriangle│
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│                                                                  │
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   PatternCondition (entry/exit descriptor + presets)             │
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   events table (canonical 14-column schema)                      │
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   Enums (Pattern, Direction, SignalMode, EntryRule, …)           │
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>└──────────────────┬──────────────────────────────────────────────┘
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>                   │  numpy zero-copy + PyO3
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>                   ▼
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>┌─────────────────────────────────────────────────────────────────┐
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│ Rust: crates/fundcloud-core/src/patterns/                       │
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   types.rs        Pivot / TrendLine / Pattern / Detection       │
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   pivots.rs       multi_level_pivots()                          │
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   trendline.rs    fit_trendline() + boundary helpers            │
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│   scoring.rs      GeometricScorer  (0–100 quality)              │
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│   detect.rs       PatternDetector trait + scan() entry point    │
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│   detectors/                                                     │
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│     head_shoulders.rs    HeadShoulders + Inverse                │
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│     double.rs            DoubleTop + DoubleBottom                │
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│     triple.rs            TripleTop + TripleBottom                │
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│     triangles.rs         Asc / Desc / Symmetrical Triangle       │
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>└─────────────────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<h2 id="data-flow-bars-in-detections-out">Data flow — bars in, detections out<a class="headerlink" href="#data-flow-bars-in-detections-out" title="Anchor link to this section">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>1. User: bars (pd.DataFrame, MultiIndex columns (field, asset),
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>                              DatetimeIndex)
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   │
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   │ HeadAndShoulders().fit_transform(bars)
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   ▼
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>2. PatternIndicator._compute(per_asset)
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>   │ pull aligned numpy arrays:
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>   │   ts_ns = index.view(&quot;int64&quot;)   (UTC nanoseconds)
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>   │   open, high, low, close, volume = numpy float64
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>   │
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>   │ py.allow_threads → one PyO3 call per (pattern × asset)
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>   ▼
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>3. _core.scan_pattern(&quot;head_and_shoulders&quot;, ts, o, h, l, c, v,
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>                       pivot_orders, min_quality)
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>   │
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>   │ Rust side (no GIL):
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>   │   a. Build OhlcvView (zero-copy borrows of numpy buffers)
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>   │   b. multi_level_pivots(highs, lows, ts, orders=(3,5,8))
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>   │   c. PatternDetector::detect(&amp;pivots, ohlcv) for the named pattern
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a>   │   d. GeometricScorer::score(&amp;pattern, ohlcv) for each detection
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a>   │   e. Filter by min_quality
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>   │
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>   │ return Vec&lt;Detection&gt; as Python list[dict]
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>   ▼
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>4. build_events_frame()  → canonical 14-column events DataFrame
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>   events_to_signal()    → per-bar 0/1 signal series (BREAKOUT mode)
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a>   ▼
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>5. User: pd.DataFrame[index, asset]   (one column per asset)
+</span></code></pre></div>
+<h2 id="pivot-detection-multi_level_pivots">Pivot detection — <code>multi_level_pivots</code><a class="headerlink" href="#pivot-detection-multi_level_pivots" title="Anchor link to this section">&para;</a></h2>
+<p>The first stage of every pattern scan. It identifies the swing
+highs and swing lows (collectively, "pivots") that the detector then
+walks in sequence.</p>
+<h3 id="definition-swing-high-swing-low-at-ordern">Definition: swing high / swing low at <code>order=N</code><a class="headerlink" href="#definition-swing-high-swing-low-at-ordern" title="Anchor link to this section">&para;</a></h3>
+<p>A bar at index <code>i</code> qualifies as a <strong>swing high at order N</strong> when its
+price is <code>&gt;=</code> every neighbour within <code>N</code> bars on each side:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>x[i] &gt;= x[i-1], x[i-2], ..., x[i-N]
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>x[i] &gt;= x[i+1], x[i+2], ..., x[i+N]
+</span></code></pre></div>
+<p>Out-of-bounds neighbours are clipped to the boundary value (matching
+scipy's <code>argrelextrema(comparator, order=N, mode='clip')</code>). Swing lows
+use <code>&lt;=</code> against <code>lows[i]</code>.</p>
+<h3 id="multi-scale-union-dedup">Multi-scale union + dedup<a class="headerlink" href="#multi-scale-union-dedup" title="Anchor link to this section">&para;</a></h3>
+<p><code>multi_level_pivots(highs, lows, ts_ns, orders)</code> runs the detection at
+every order in <code>orders</code> (smallest to largest), then deduplicates.</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Detect</td>
+<td>For each order, find all swing highs (on <code>highs[]</code>) and swing lows (on <code>lows[]</code>)</td>
+</tr>
+<tr>
+<td>2. Union</td>
+<td>Concatenate every order's pivot list</td>
+</tr>
+<tr>
+<td>3. Sort</td>
+<td>By <code>(index, kind)</code></td>
+</tr>
+<tr>
+<td>4. Dedup</td>
+<td>For same-kind pivots within ±2 bars: keep the strictly more extreme price; on equal prices, the first-iterated (smallest order) wins</td>
+</tr>
+<tr>
+<td>5. Alternate</td>
+<td>Walk left-to-right; collapse consecutive same-kind pivots, keeping the more extreme. Output is strictly alternating High/Low</td>
+</tr>
+</tbody>
+</table>
+<h3 id="inputs-outputs">Inputs / outputs<a class="headerlink" href="#inputs-outputs" title="Anchor link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>highs</code>, <code>lows</code></td>
+<td><code>&amp;[f64]</code> of equal length, same as the OHLCV panel</td>
+</tr>
+<tr>
+<td><code>ts_ns</code></td>
+<td><code>&amp;[i64]</code> UTC nanoseconds, monotonic ascending</td>
+</tr>
+<tr>
+<td><code>orders</code></td>
+<td><code>&amp;[usize]</code> lookback half-window sizes; default <code>[3, 5, 8]</code></td>
+</tr>
+<tr>
+<td><strong>returns</strong></td>
+<td><code>Vec&lt;Pivot&gt;</code>, alternating High/Low, sorted by <code>index</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="pivot-record">Pivot record<a class="headerlink" href="#pivot-record" title="Anchor link to this section">&para;</a></h3>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Pivot</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">index</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w">    </span><span class="c1">// bar offset into the OHLCV panel</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">ts_ns</span><span class="p">:</span><span class="w"> </span><span class="kt">i64</span><span class="p">,</span><span class="w">      </span><span class="c1">// UTC nanoseconds</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">price</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span><span class="w">      </span><span class="c1">// highs[index] for High, lows[index] for Low</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kind</span><span class="p">:</span><span class="w"> </span><span class="nc">PivotKind</span><span class="p">,</span><span class="w"> </span><span class="c1">// High | Low</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">order</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w">       </span><span class="c1">// smallest order that detected this pivot (metadata)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="pivot_orders-what-it-actually-controls"><code>pivot_orders</code> — what it actually controls<a class="headerlink" href="#pivot_orders-what-it-actually-controls" title="Anchor link to this section">&para;</a></h3>
+<p>Per the math above, <strong>the smallest order in <code>orders</code> determines the
+pivot count</strong>. Adding larger orders to the tuple does not add or remove
+pivots — they are a strict subset. Concretely:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pivot_orders=(3,)            → N pivots
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pivot_orders=(3, 5)          → N pivots (identical bars)
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>pivot_orders=(3, 5, 8)       → N pivots (identical bars)
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>pivot_orders=(3, 5, 8, 13)   → N pivots (identical bars)
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>pivot_orders=(5,)            → M &lt; N pivots (different smallest order)
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>pivot_orders=(8,)            → P &lt; M pivots
+</span></code></pre></div>
+<p>The <code>order</code> field on each surviving pivot is <strong>the smallest order that
+detected it</strong> — set during dedup (smaller orders iterate first; equal
+prices don't replace). It is recorded as metadata; v1 detectors do not
+read it. Future detectors or quality scorers may use it to prefer
+"macro" pivots, but as of v1 it is purely informational.</p>
+<p><strong>Practical guidance</strong>: for v1, you may treat <code>pivot_orders</code> as a
+single-element tuple holding the lookback you actually want
+(<code>(3,)</code>, <code>(5,)</code>, etc.). The default <code>(3, 5, 8)</code> is kept for parity
+with pattern-service.</p>
+<h3 id="tuning-by-bar-timeframe">Tuning by bar timeframe<a class="headerlink" href="#tuning-by-bar-timeframe" title="Anchor link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Bars</th>
+<th>Suggested <code>pivot_orders</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Daily equities (default)</td>
+<td><code>(3, 5, 8)</code></td>
+</tr>
+<tr>
+<td>Daily crypto / very volatile</td>
+<td><code>(5, 8, 13)</code></td>
+</tr>
+<tr>
+<td>Intraday 5-minute</td>
+<td><code>(2, 5)</code></td>
+</tr>
+<tr>
+<td>Weekly bars</td>
+<td><code>(2, 4)</code></td>
+</tr>
+<tr>
+<td>Macro setups only</td>
+<td><code>(8, 13)</code></td>
+</tr>
+</tbody>
+</table>
+<p>Tune by the <strong>bars' character</strong> (timeframe, volatility), not by the
+pattern. The same <code>pivot_orders</code> is appropriate for every detector
+running on the same bars.</p>
+<h2 id="trend-line-fitting-fit_trendline">Trend-line fitting — <code>fit_trendline</code><a class="headerlink" href="#trend-line-fitting-fit_trendline" title="Anchor link to this section">&para;</a></h2>
+<p>Closed-form ordinary least squares through 2+ pivots. Used by every
+detector to construct necklines, channels, and triangle sides.</p>
+<h3 id="algorithm">Algorithm<a class="headerlink" href="#algorithm" title="Anchor link to this section">&para;</a></h3>
+<p>For pivots with <code>(index_i, price_i)</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>x_mean = mean(index_i)
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>y_mean = mean(price_i)
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>S_xx   = sum((x_i - x_mean)^2)
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>S_yy   = sum((y_i - y_mean)^2)
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>S_xy   = sum((x_i - x_mean) * (y_i - y_mean))
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>slope     = S_xy / S_xx
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>intercept = y_mean - slope * x_mean
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>r_squared = 1 - (S_yy - slope * S_xy) / S_yy   (clamped to [0, 1])
+</span></code></pre></div>
+<p><strong>Rank-deficient branch</strong>: when all pivots share the same <code>index</code>
+(<code>S_xx = 0</code>), the closed form would divide by zero. The fallback
+(matching numpy <code>lstsq</code>'s minimum-norm solution) is <code>slope=0</code>,
+<code>intercept=y_mean</code>. <code>r_squared</code> is <code>1.0</code> if <code>S_yy=0</code> (constant <code>y</code>),
+else <code>0.0</code>.</p>
+<h3 id="output">Output<a class="headerlink" href="#output" title="Anchor link to this section">&para;</a></h3>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">TrendLine</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">start_index</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w">    </span><span class="c1">// index of the leftmost anchor pivot</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">end_index</span><span class="p">:</span><span class="w"> </span><span class="kt">usize</span><span class="p">,</span><span class="w">      </span><span class="c1">// index of the rightmost anchor pivot</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">slope</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span><span class="w">            </span><span class="c1">// dPrice / dBar</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">intercept</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span><span class="w">        </span><span class="c1">// y at bar 0</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">r_squared</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span><span class="w">        </span><span class="c1">// [0, 1]</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">touch_count</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w">       </span><span class="c1">// number of pivots used in the fit</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The companion helpers <code>validate_boundaries</code> (channel-width sanity
+check) and <code>count_touches</code> (how many bars come within tolerance of the
+line) are used by triangle / channel / rectangle detectors and are
+documented inline in <code>crates/fundcloud-core/src/patterns/trendline.rs</code>.</p>
+<h2 id="geometric-quality-score-geometricscorer">Geometric quality score — <code>GeometricScorer</code><a class="headerlink" href="#geometric-quality-score-geometricscorer" title="Anchor link to this section">&para;</a></h2>
+<p>Every detection is graded on a <code>0..=100</code> composite score. The scorer
+is stateless and pattern-aware (the symmetry sub-scorer dispatches by
+pattern name).</p>
+<h3 id="composition">Composition<a class="headerlink" href="#composition" title="Anchor link to this section">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>quality = 30% * symmetry
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>        + 25% * volume
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>        + 25% * trendline_r2
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>        + 20% * completeness
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>(rounded; clamped to [0, 100])
+</span></code></pre></div>
+<h3 id="sub-scorers">Sub-scorers<a class="headerlink" href="#sub-scorers" title="Anchor link to this section">&para;</a></h3>
+<h4 id="symmetry-30"><code>symmetry</code> (30%)<a class="headerlink" href="#symmetry-30" title="Anchor link to this section">&para;</a></h4>
+<p>Pattern-specific. Returns <code>0..=100</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Pattern name</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>head_and_shoulders</code> / <code>inverse_head_and_shoulders</code></td>
+<td><code>(shoulder_score + neckline_score) / 2</code>, where each is <code>100 * (1 - pct_diff(pair) / 0.10)</code>, clamped at 0</td>
+</tr>
+<tr>
+<td><code>double_top</code> / <code>double_bottom</code></td>
+<td><code>100 * (1 - pct_diff(p1, p3) / 0.015)</code>, clamped at 0</td>
+</tr>
+<tr>
+<td><code>ascending_triangle</code> / <code>descending_triangle</code></td>
+<td><code>100 * (1 - cv(pivot_spacings))</code>, clamped at 0; <code>cv = std/mean</code> of the spacing-between-pivots series</td>
+</tr>
+<tr>
+<td>anything else</td>
+<td><code>50.0</code> (neutral)</td>
+</tr>
+</tbody>
+</table>
+<p><code>pct_diff(a, b) = abs(a - b) / ((|a| + |b|) / 2)</code>. Symmetry below
+roughly 0.7 starts to look "off"; tight formations score above 90.</p>
+<h4 id="volume-25"><code>volume</code> (25%)<a class="headerlink" href="#volume-25" title="Anchor link to this section">&para;</a></h4>
+<p>Declining volume during the formation is a confirmation signal.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>ratio = mean(volumes[mid:]) / mean(volumes[:mid])
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>where mid = len(volumes) // 2
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>ratio &lt;= 0.5  → 100  (ideal)
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>ratio &gt;= 1.5  → 0
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>otherwise     → 100 * (1.5 - ratio)
+</span></code></pre></div>
+<p>If volume data is unavailable or the formation is &lt; 4 bars, returns
+<code>50.0</code> (neutral).</p>
+<h4 id="trendline_r2-25"><code>trendline_r2</code> (25%)<a class="headerlink" href="#trendline_r2-25" title="Anchor link to this section">&para;</a></h4>
+<p>Average <code>r_squared</code> across all attached <code>TrendLine</code>s, scaled to 0–100.
+If no trend lines (e.g., a pivot-only detection), returns <code>50.0</code>.</p>
+<h4 id="completeness-20"><code>completeness</code> (20%)<a class="headerlink" href="#completeness-20" title="Anchor link to this section">&para;</a></h4>
+<p>Combines duration and trend-line touch count.</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>duration_score:
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>  bar_count &lt; 5         → 0
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>  5 &lt;= bar_count &lt; 10   → linear ramp 0 → 50
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>  10 &lt;= bar_count &lt;= 60 → 100   (the sweet spot)
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>  60 &lt; bar_count &lt;= 120 → linear ramp 100 → 50
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>  bar_count &gt; 120       → 50
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>touch_score (sum of TrendLine.touch_count across the detection):
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>  total &lt;= 2 → 30
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>  total &lt;= 4 → 60
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>  total &gt; 4  → min(100, 60 + (total - 4) * 10)
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>completeness = (duration_score + touch_score) / 2
+</span></code></pre></div>
+<h3 id="output_1">Output<a class="headerlink" href="#output_1" title="Anchor link to this section">&para;</a></h3>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">PatternScore</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">quality</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span><span class="w">                       </span><span class="c1">// 0..=100</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">features</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="kt">f64</span><span class="o">&gt;</span><span class="p">,</span><span class="w">     </span><span class="c1">// {symmetry, volume, trendline_r2, completeness} as 0..=1 floats</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>The <code>features</code> map is preserved verbatim into the events table's
+<code>meta["features"]</code> so users can inspect the breakdown.</p>
+<h2 id="patterndetector-trait">PatternDetector trait<a class="headerlink" href="#patterndetector-trait" title="Anchor link to this section">&para;</a></h2>
+<p>Every detector implements:</p>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">PatternDetector</span><span class="p">:</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span><span class="w"> </span><span class="kt">str</span><span class="p">;</span><span class="w">   </span><span class="c1">// matches Pattern enum value</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">detect</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">pivots</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">Pivot</span><span class="p">],</span><span class="w"> </span><span class="n">ohlcv</span><span class="p">:</span><span class="w"> </span><span class="nc">OhlcvView</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Pattern</span><span class="o">&gt;</span><span class="p">;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>pivots</code> are pre-computed by <code>multi_level_pivots</code>; <code>ohlcv</code> is borrowed
+zero-copy from the user's numpy arrays. The detector returns
+<strong>unscored</strong> <code>Pattern</code>s; the geometric scorer is applied centrally by
+<code>run_detector</code>.</p>
+<h2 id="detector-reference">Detector reference<a class="headerlink" href="#detector-reference" title="Anchor link to this section">&para;</a></h2>
+<h3 id="head-and-shoulders-headshouldersdetector">Head and Shoulders (<code>HeadShouldersDetector</code>)<a class="headerlink" href="#head-and-shoulders-headshouldersdetector" title="Anchor link to this section">&para;</a></h3>
+<p><strong>Direction</strong>: <code>Bearish</code>. <strong>Stable name</strong>: <code>"head_and_shoulders"</code>.</p>
+<p>A reversal pattern: a peak (head) flanked by two lower peaks
+(shoulders) of similar height, sitting above a neckline drawn through
+the two intervening lows. The breakout below the neckline projects a
+measured-move target equal to the head-to-neckline distance below the
+neckline.</p>
+<h4 id="input-per-detector-call">Input (per detector call)<a class="headerlink" href="#input-per-detector-call" title="Anchor link to this section">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Argument</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pivots: &amp;[Pivot]</code></td>
+<td>Alternating swing highs and lows from <code>multi_level_pivots</code></td>
+</tr>
+<tr>
+<td><code>ohlcv: OhlcvView&lt;'_&gt;</code></td>
+<td>Borrowed view of the bars (used for prior-trend gating)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="validation-rules">Validation rules<a class="headerlink" href="#validation-rules" title="Anchor link to this section">&para;</a></h4>
+<p>The detector slides a 5-pivot window over <code>pivots</code>. A window passes
+when <strong>every</strong> condition below holds:</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Rule</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Sequence is <code>H-L-H-L-H</code> (kind alternation)</td>
+<td>always</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Head price strictly above both shoulder prices</td>
+<td>always</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>pct_diff(left_shoulder, right_shoulder) &lt;= shoulder_tolerance</code></td>
+<td><code>0.10</code> (10%)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>(head - avg_shoulder) / avg_shoulder &gt;= min_head_prominence</code></td>
+<td><code>0.03</code> (3%)</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>right_shoulder.index - left_shoulder.index &gt;= MIN_FORMATION_BARS</code></td>
+<td><code>8</code> bars</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>prior_trend_slope(closes, head_left.index, window=10) &gt; 0</code> (uptrend before reversal)</td>
+<td>always</td>
+</tr>
+</tbody>
+</table>
+<p><code>prior_trend_slope</code> is a closed-form OLS slope over the <code>window</code> bars
+immediately preceding the formation start. It returns <code>0.0</code> when there
+are fewer than 3 prior bars or <code>mean(prior_closes) == 0</code>. Returning
+exactly <code>0.0</code> from this helper means "no signal — reject", not "flat
+is OK".</p>
+<h4 id="output-per-match">Output (per match)<a class="headerlink" href="#output-per-match" title="Anchor link to this section">&para;</a></h4>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">Pattern</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;head_and_shoulders&quot;</span><span class="p">,</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">    </span><span class="n">direction</span><span class="p">:</span><span class="w"> </span><span class="nc">Direction</span><span class="p">::</span><span class="n">Bearish</span><span class="p">,</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">    </span><span class="n">pivots</span><span class="p">:</span><span class="w"> </span><span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">h1</span><span class="p">,</span><span class="w"> </span><span class="n">l1</span><span class="p">,</span><span class="w"> </span><span class="n">h2</span><span class="p">,</span><span class="w"> </span><span class="n">l2</span><span class="p">,</span><span class="w"> </span><span class="n">h3</span><span class="p">],</span><span class="w">            </span><span class="c1">// the 5 anchors</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="w">    </span><span class="n">trend_lines</span><span class="p">:</span><span class="w"> </span><span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">neckline</span><span class="p">,</span><span class="w"> </span><span class="n">resistance</span><span class="p">],</span><span class="w">      </span><span class="c1">// both empty if fit fails</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">    </span><span class="n">formation</span><span class="p">:</span><span class="w"> </span><span class="p">(</span><span class="n">h1</span><span class="p">.</span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">h3</span><span class="p">.</span><span class="n">index</span><span class="p">),</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="n">entry_price</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">neckline</span><span class="p">.</span><span class="n">price_at</span><span class="p">(</span><span class="n">h3</span><span class="p">.</span><span class="n">index</span><span class="p">)),</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">    </span><span class="n">breakout_price</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">neckline</span><span class="p">.</span><span class="n">price_at</span><span class="p">(</span><span class="n">h3</span><span class="p">.</span><span class="n">index</span><span class="p">)),</span>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="n">variant</span><span class="p">:</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<ul>
+<li><strong>Neckline</strong> = OLS fit through <code>(l1, l2)</code>. Falls back to
+  <code>(l1.price + l2.price) / 2</code> if the fit is rejected (only happens
+  when the two lows share an index — extremely rare with alternating
+  pivots).</li>
+<li><strong>Resistance line</strong> = OLS fit through <code>(h1, h3)</code>. Used only as
+  metadata — does not feed into <code>entry_price</code>.</li>
+<li><strong>Entry / breakout price</strong> = the neckline value projected to the
+  right-shoulder bar (<code>h3.index</code>). This is what charting platforms
+  render and is what the events table uses as the breakout level.</li>
+</ul>
+<h4 id="reference">Reference<a class="headerlink" href="#reference" title="Anchor link to this section">&para;</a></h4>
+<p><code>crates/fundcloud-core/src/patterns/detectors/head_shoulders.rs</code>,
+struct <code>HeadShouldersDetector</code>.</p>
+<h3 id="inverse-head-and-shoulders-inverseheadshouldersdetector">Inverse Head and Shoulders (<code>InverseHeadShouldersDetector</code>)<a class="headerlink" href="#inverse-head-and-shoulders-inverseheadshouldersdetector" title="Anchor link to this section">&para;</a></h3>
+<p><strong>Direction</strong>: <code>Bullish</code>. <strong>Stable name</strong>: <code>"inverse_head_and_shoulders"</code>.</p>
+<p>The mirror of the regular variant — a trough (head) flanked by two
+higher troughs (shoulders), with a neckline drawn through the two
+intervening highs.</p>
+<h4 id="validation-rules_1">Validation rules<a class="headerlink" href="#validation-rules_1" title="Anchor link to this section">&para;</a></h4>
+<p>Identical structure to the regular detector, with everything mirrored
+(<code>&lt;=</code> in place of <code>&gt;=</code> and vice versa):</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Rule</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Sequence is <code>L-H-L-H-L</code></td>
+<td>always</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Head price strictly below both shoulder prices</td>
+<td>always</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>pct_diff(left_shoulder, right_shoulder) &lt;= shoulder_tolerance</code></td>
+<td><code>0.10</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>(avg_shoulder - head) / avg_shoulder &gt;= min_head_prominence</code></td>
+<td><code>0.03</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>right_shoulder.index - left_shoulder.index &gt;= MIN_FORMATION_BARS</code></td>
+<td><code>8</code> bars</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>prior_trend_slope(closes, head_left.index, window=10) &lt; 0</code> (downtrend before reversal)</td>
+<td>always</td>
+</tr>
+</tbody>
+</table>
+<h4 id="output_2">Output<a class="headerlink" href="#output_2" title="Anchor link to this section">&para;</a></h4>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">Pattern</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;inverse_head_and_shoulders&quot;</span><span class="p">,</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">    </span><span class="n">direction</span><span class="p">:</span><span class="w"> </span><span class="nc">Direction</span><span class="p">::</span><span class="n">Bullish</span><span class="p">,</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">    </span><span class="n">pivots</span><span class="p">:</span><span class="w"> </span><span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">l1</span><span class="p">,</span><span class="w"> </span><span class="n">h1</span><span class="p">,</span><span class="w"> </span><span class="n">l2</span><span class="p">,</span><span class="w"> </span><span class="n">h2</span><span class="p">,</span><span class="w"> </span><span class="n">l3</span><span class="p">],</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">    </span><span class="n">trend_lines</span><span class="p">:</span><span class="w"> </span><span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">neckline</span><span class="p">,</span><span class="w"> </span><span class="n">support</span><span class="p">],</span><span class="w">         </span><span class="c1">// neckline through h1,h2; support through l1,l3</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">    </span><span class="n">formation</span><span class="p">:</span><span class="w"> </span><span class="p">(</span><span class="n">l1</span><span class="p">.</span><span class="n">index</span><span class="p">,</span><span class="w"> </span><span class="n">l3</span><span class="p">.</span><span class="n">index</span><span class="p">),</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="n">entry_price</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">neckline</span><span class="p">.</span><span class="n">price_at</span><span class="p">(</span><span class="n">l3</span><span class="p">.</span><span class="n">index</span><span class="p">)),</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="n">breakout_price</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">neckline</span><span class="p">.</span><span class="n">price_at</span><span class="p">(</span><span class="n">l3</span><span class="p">.</span><span class="n">index</span><span class="p">)),</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">    </span><span class="n">variant</span><span class="p">:</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="p">}</span>
+</span></code></pre></div>
+<h4 id="reference_1">Reference<a class="headerlink" href="#reference_1" title="Anchor link to this section">&para;</a></h4>
+<p><code>crates/fundcloud-core/src/patterns/detectors/head_shoulders.rs</code>,
+struct <code>InverseHeadShouldersDetector</code>.</p>
+<h3 id="double-top-double-bottom">Double Top / Double Bottom<a class="headerlink" href="#double-top-double-bottom" title="Anchor link to this section">&para;</a></h3>
+<p><strong>Stable names</strong>: <code>"double_top"</code> (Bearish, <code>H-L-H</code>),
+<code>"double_bottom"</code> (Bullish, <code>L-H-L</code>).</p>
+<p>Two peaks (or troughs) at approximately the same level separated by an
+intervening trough (peak). Each detection carries a Bulkowski variant
+in <code>Pattern.variant</code>:</p>
+<ul>
+<li><strong><code>STRICT</code></strong> when the second extreme does not breach the first
+  (resistance / support held on both tests — the textbook case);
+  <strong><code>WEAK</code></strong> otherwise.</li>
+<li>Each pivot is then tagged <strong><code>ADAM</code></strong> (narrow 1–3 bar spike) or
+  <strong><code>EVE</code></strong> (rounded reversal, ≥ 5 nearby bars) based on how many bars
+  in a ±5 window sit within 1.5% of the pivot price.</li>
+<li>Final variant strings: <code>"STRICT_ADAM_ADAM"</code> … <code>"WEAK_EVE_EVE"</code>.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Rule</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Sequence is <code>H-L-H</code> (Double Top) or <code>L-H-L</code> (Double Bottom)</td>
+<td>always</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>pct_diff(p1, p3) &lt;= peak_tolerance</code></td>
+<td><code>0.015</code> (1.5%)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Trough depth / peak height ≥ <code>min_prominence</code> (avg-relative)</td>
+<td><code>0.03</code> (3%)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>p3.index - p1.index &gt;= MIN_FORMATION_BARS</code></td>
+<td><code>5</code> bars</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Output</strong>: 3-pivot formation, neckline = <code>p2.price</code> (the trough for
+tops, the peak for bottoms), entry / breakout = neckline, optional
+resistance / support trend line through <code>(p1, p3)</code>.</p>
+<p>Reference: <code>crates/fundcloud-core/src/patterns/detectors/double.rs</code>.</p>
+<h3 id="triple-top-triple-bottom">Triple Top / Triple Bottom<a class="headerlink" href="#triple-top-triple-bottom" title="Anchor link to this section">&para;</a></h3>
+<p><strong>Stable names</strong>: <code>"triple_top"</code> (Bearish, <code>H-L-H-L-H</code>),
+<code>"triple_bottom"</code> (Bullish, <code>L-H-L-H-L</code>).</p>
+<p>Three peaks (or troughs) at approximately the same level. Distinguished
+from Head-and-Shoulders by all three extremes being roughly equal — H&amp;S
+has a prominent middle peak (head). The breakout level is the <em>worst</em>
+intervening pivot (Bulkowski's confirmation rule):</p>
+<ul>
+<li><strong>Triple Top</strong>: neckline = <code>min(p2, p4)</code> — the lowest valley.</li>
+<li><strong>Triple Bottom</strong>: neckline = <code>max(p2, p4)</code> — the highest peak.</li>
+</ul>
+<p>Using the average would trigger entries at a price the formation has
+already traded through, which isn't a confirmed breakout.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Rule</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Sequence alternates 5 pivots</td>
+<td>always</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Each peak/trough within <code>peak_tolerance</code> of the trio's mean</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Pattern depth / height ≥ <code>min_prominence</code> of the mean</td>
+<td><code>0.02</code> (2%)</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>p5.index - p1.index &gt;= min_bar_count</code></td>
+<td><code>10</code> bars</td>
+</tr>
+</tbody>
+</table>
+<p>Reference: <code>crates/fundcloud-core/src/patterns/detectors/triple.rs</code>.</p>
+<h3 id="ascending-descending-symmetrical-triangle">Ascending / Descending / Symmetrical Triangle<a class="headerlink" href="#ascending-descending-symmetrical-triangle" title="Anchor link to this section">&para;</a></h3>
+<p><strong>Stable names</strong>: <code>"ascending_triangle"</code> (Bullish, flat resistance +
+rising support), <code>"descending_triangle"</code> (Bearish, falling resistance +
+flat support), <code>"symmetrical_triangle"</code> (direction inferred from prior
+trend, falling resistance + rising support).</p>
+<p>Triangles are the only family that runs <code>validate_boundaries</code>: every
+bar inside the formation must stay within the channel formed by the two
+trend lines. Asc / Desc use a fraction-of-channel-width tolerance (2%);
+Symmetric uses an absolute-price tolerance (5% of the starting gap)
+because the channel collapses to zero near the apex.</p>
+<p>Asymmetric flat-line tolerance is applied for the asc / desc detectors:
+the full <code>flat_threshold</code> is allowed in the consistent direction, but
+only 70% of it is allowed in the wrong direction (a strongly-rising
+support contradicts the descending-triangle thesis, and vice versa).</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Rule</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Flat leg normalised slope within asymmetric <code>flat_threshold</code> band (asc / desc)</td>
+<td><code>0.0005</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Sloping leg normalised slope strictly in the right direction (sym: |slope| &gt; <code>min_slope_threshold</code>)</td>
+<td><code>0.0005</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Lines must converge (end gap &lt; start gap, both positive)</td>
+<td>always</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Every bar in formation stays within the channel under the chosen tolerance</td>
+<td>always</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Formation length ≥ <code>min_bar_count</code></td>
+<td><code>8</code> (asc / desc), <code>10</code> (sym)</td>
+</tr>
+</tbody>
+</table>
+<p>Direction labelling for symmetric triangles uses
+<code>prior_trend_slope(closes, formation_start, prior_window=10)</code>:
+<code>Bullish</code> when slope &gt; 0, <code>Bearish</code> when slope &lt; 0, <code>Bullish</code> as a
+fallback when slope == 0 (insufficient history or flat data — preserves
+the reference Python's behaviour).</p>
+<p>Overlapping detections are deduplicated, keeping the one with more
+pivots; an "overlap" is &gt; 50% of the shorter formation's length.</p>
+<p>Reference: <code>crates/fundcloud-core/src/patterns/detectors/triangles.rs</code>.</p>
+<h2 id="pyo3-bindings">PyO3 bindings<a class="headerlink" href="#pyo3-bindings" title="Anchor link to this section">&para;</a></h2>
+<p>The Rust core is exposed under <code>fundcloud._core</code> (a single flat module
+following the existing convention; no nested submodule).</p>
+<h3 id="_corescan_pattern"><code>_core.scan_pattern</code><a class="headerlink" href="#_corescan_pattern" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">_core</span><span class="o">.</span><span class="n">scan_pattern</span><span class="p">(</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>                <span class="c1"># e.g. &quot;head_and_shoulders&quot;</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">ts_ns</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">int64</span><span class="p">],</span> <span class="c1"># UTC nanoseconds, monotonic ascending</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="nb">open</span><span class="p">:</span>   <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">high</span><span class="p">:</span>   <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">low</span><span class="p">:</span>    <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>    <span class="n">close</span><span class="p">:</span>  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="n">volume</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    <span class="n">pivot_orders</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+</span><span id="__span-14-10"><a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    <span class="n">min_quality</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+</span><span id="__span-14-11"><a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+</span></code></pre></div>
+<p>Returns a list of detection dicts (see schema below). All numpy arrays
+must have identical length. The GIL is released around the actual
+scan via <code>py.allow_threads</code>, so a thread pool over multiple
+<code>(pattern × asset)</code> pairs scales linearly.</p>
+<h3 id="_coremulti_level_pivots"><code>_core.multi_level_pivots</code><a class="headerlink" href="#_coremulti_level_pivots" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">_core</span><span class="o">.</span><span class="n">multi_level_pivots</span><span class="p">(</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">highs</span><span class="p">:</span>  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">lows</span><span class="p">:</span>   <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">float64</span><span class="p">],</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">ts_ns</span><span class="p">:</span>  <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">int64</span><span class="p">],</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">orders</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+</span></code></pre></div>
+<p>Exposed for testing and advanced use; <code>scan_pattern</code> calls this
+internally.</p>
+<h3 id="_corelist_pattern_names"><code>_core.list_pattern_names</code><a class="headerlink" href="#_corelist_pattern_names" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">_core</span><span class="o">.</span><span class="n">list_pattern_names</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</span></code></pre></div>
+<p>Returns the registered detector names — all 9 v1 detectors:
+<code>["head_and_shoulders", "inverse_head_and_shoulders", "double_top",
+"double_bottom", "triple_top", "triple_bottom", "ascending_triangle",
+"descending_triangle", "symmetrical_triangle"]</code>.</p>
+<h3 id="detection-dict-schema-pyo3-output">Detection dict schema (PyO3 output)<a class="headerlink" href="#detection-dict-schema-pyo3-output" title="Anchor link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td><code>str</code></td>
+<td>Stable lowercase pattern identifier</td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>str</code></td>
+<td><code>"bullish"</code> / <code>"bearish"</code> / <code>"neutral"</code></td>
+</tr>
+<tr>
+<td><code>pivots</code></td>
+<td><code>list[dict]</code></td>
+<td><code>{index, ts_ns, price, kind, order}</code> per pivot</td>
+</tr>
+<tr>
+<td><code>trend_lines</code></td>
+<td><code>list[dict]</code></td>
+<td><code>{start_index, end_index, slope, intercept, r_squared, touch_count}</code></td>
+</tr>
+<tr>
+<td><code>formation_start</code></td>
+<td><code>int</code></td>
+<td>Bar offset of the formation start</td>
+</tr>
+<tr>
+<td><code>formation_end</code></td>
+<td><code>int</code></td>
+<td>Bar offset of the formation end</td>
+</tr>
+<tr>
+<td><code>entry_price</code></td>
+<td><code>float</code> or <code>None</code></td>
+<td>Where the strategy is "entered" — usually the breakout level</td>
+</tr>
+<tr>
+<td><code>breakout_price</code></td>
+<td><code>float</code> or <code>None</code></td>
+<td>Same as entry for v1</td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code> or <code>None</code></td>
+<td>Pattern-specific subclass label (e.g., <code>"STRICT_ADAM_ADAM"</code>)</td>
+</tr>
+<tr>
+<td><code>quality</code></td>
+<td><code>float</code></td>
+<td><code>0..=100</code> from <code>GeometricScorer</code></td>
+</tr>
+<tr>
+<td><code>features</code></td>
+<td><code>dict[str, float]</code></td>
+<td>Sub-scores: <code>symmetry</code>, <code>volume</code>, <code>trendline_r2</code>, <code>completeness</code> (each 0..=1)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="python-feature-layer">Python feature layer<a class="headerlink" href="#python-feature-layer" title="Anchor link to this section">&para;</a></h2>
+<h3 id="patternindicatorindicatorspec"><code>PatternIndicator(IndicatorSpec)</code><a class="headerlink" href="#patternindicatorindicatorspec" title="Anchor link to this section">&para;</a></h3>
+<p>The base class every concrete pattern indicator subclasses. It plugs
+into the same <code>IndicatorSpec</code> machinery as TA-Lib indicators, so it
+composes naturally with <code>FeaturePipeline</code>, <code>FeatureStore</code>, and
+<code>PurgedKFold</code>.</p>
+<h4 id="class-level-attributes">Class-level attributes<a class="headerlink" href="#class-level-attributes" title="Anchor link to this section">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>inputs</code></td>
+<td><code>tuple[str, ...]</code></td>
+<td><code>("open", "high", "low", "close", "volume")</code> — required Bars fields</td>
+</tr>
+<tr>
+<td><code>outputs</code></td>
+<td><code>tuple[str, ...]</code></td>
+<td><code>("signal",)</code> — single per-bar float column</td>
+</tr>
+<tr>
+<td><code>pattern_name</code></td>
+<td><code>str</code></td>
+<td>Stable lowercase Rust detector key (matches <code>Pattern</code> enum value)</td>
+</tr>
+<tr>
+<td><code>condition</code></td>
+<td><code>PatternCondition</code></td>
+<td>Default entry/exit preset; per-instance overridable</td>
+</tr>
+<tr>
+<td><code>default_params</code></td>
+<td><code>dict</code></td>
+<td><code>{"min_quality": 50.0, "pivot_orders": (3, 5, 8), "signal_mode": SignalMode.BREAKOUT, "decay_bars": 5}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="public-methods">Public methods<a class="headerlink" href="#public-methods" title="Anchor link to this section">&para;</a></h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">indicator</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>    <span class="c1"># Sklearn standard. Returns a wide signal panel:</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="c1">#   index   = bars.index</span>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="c1">#   columns = one per asset</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="c1">#   dtype   = float64 (1.0 on breakout, 0.0 otherwise; varies by signal_mode)</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">indicator</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="c1"># Rich event log with the canonical 14-column schema; one row per</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="c1"># detected pattern across all assets.</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="n">indicator</span><span class="o">.</span><span class="n">effective_condition</span>  <span class="c1"># property</span>
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>    <span class="c1"># Returns the active PatternCondition (per-instance override or class preset).</span>
+</span></code></pre></div>
+<h3 id="required-input-frame-shape">Required input frame shape<a class="headerlink" href="#required-input-frame-shape" title="Anchor link to this section">&para;</a></h3>
+<p><code>bars</code> must be a <code>pd.DataFrame</code> with:</p>
+<ul>
+<li><strong>MultiIndex columns</strong> <code>(field, asset)</code> where
+  <code>field ∈ {"open", "high", "low", "close", "volume"}</code></li>
+<li><strong><code>pd.DatetimeIndex</code></strong> — naive timestamps are treated as UTC; <code>tz</code>-aware
+  timestamps are converted to UTC before being passed to Rust</li>
+<li><strong>Sorted ascending</strong> by index</li>
+<li><strong>All five OHLCV fields present</strong> for every asset (<code>KeyError</code> raised
+  otherwise)</li>
+</ul>
+<p>The shape <code>(T, 5 × n_assets)</code> for <code>T</code> bars and <code>n_assets</code> assets.</p>
+<h3 id="output-per-bar-signal-panel">Output: per-bar signal panel<a class="headerlink" href="#output-per-bar-signal-panel" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">signals</span> <span class="o">=</span> <span class="n">indicator</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>index</td>
+<td><code>pd.DatetimeIndex</code> matching <code>bars.index</code></td>
+</tr>
+<tr>
+<td>columns</td>
+<td>one per asset (single-output indicator → no <code>__asset</code> suffix)</td>
+</tr>
+<tr>
+<td>dtype</td>
+<td><code>float64</code></td>
+</tr>
+</tbody>
+</table>
+<p>Cell value semantics depend on <code>signal_mode</code>:</p>
+<table>
+<thead>
+<tr>
+<th><code>SignalMode</code></th>
+<th>Cell value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BREAKOUT</code> (default)</td>
+<td><code>1.0</code> on each <code>breakout_ts</code> bar; <code>0.0</code> elsewhere</td>
+</tr>
+<tr>
+<td><code>FORMATION</code></td>
+<td><code>1.0</code> from <code>formation_start</code> to <code>formation_end</code> inclusive; <code>0.0</code> outside</td>
+</tr>
+<tr>
+<td><code>DECAY</code></td>
+<td><code>1.0</code> on the breakout bar, decaying linearly to <code>0.0</code> over <code>decay_bars</code></td>
+</tr>
+</tbody>
+</table>
+<p>This shape is exactly what <code>Simulator.run_signals(entries, exits)</code>
+consumes, so backtesting is a direct plug-in.</p>
+<h3 id="output-events-table">Output: events table<a class="headerlink" href="#output-events-table" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">events</span> <span class="o">=</span> <span class="n">indicator</span><span class="o">.</span><span class="n">events</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The canonical schema is identical for every detector (so user code
+generalises cleanly across patterns):</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pattern</code></td>
+<td><code>Pattern</code> (enum)</td>
+<td>The pattern identifier</td>
+</tr>
+<tr>
+<td><code>asset</code></td>
+<td><code>str</code></td>
+<td>Column name from <code>bars</code></td>
+</tr>
+<tr>
+<td><code>direction</code></td>
+<td><code>Direction</code> (enum)</td>
+<td><code>BULLISH</code> / <code>BEARISH</code> / <code>NEUTRAL</code></td>
+</tr>
+<tr>
+<td><code>formation_start</code></td>
+<td><code>pd.Timestamp</code></td>
+<td>UTC, first pivot of the formation</td>
+</tr>
+<tr>
+<td><code>formation_end</code></td>
+<td><code>pd.Timestamp</code></td>
+<td>UTC, last pivot of the formation</td>
+</tr>
+<tr>
+<td><code>breakout_ts</code></td>
+<td><code>pd.Timestamp</code> or <code>pd.NaT</code></td>
+<td>When the breakout was confirmed (v1: equals <code>formation_end</code>)</td>
+</tr>
+<tr>
+<td><code>entry_price</code></td>
+<td><code>float</code></td>
+<td>Where the strategy enters (v1: neckline @ right edge)</td>
+</tr>
+<tr>
+<td><code>breakout_price</code></td>
+<td><code>float</code> or <code>NaN</code></td>
+<td>Same as <code>entry_price</code> in v1</td>
+</tr>
+<tr>
+<td><code>target_price</code></td>
+<td><code>float</code> or <code>NaN</code></td>
+<td>Filled by <code>apply_condition</code> (v1: <code>NaN</code> until Phase 7)</td>
+</tr>
+<tr>
+<td><code>stop_price</code></td>
+<td><code>float</code> or <code>NaN</code></td>
+<td>Filled by <code>apply_condition</code> (v1: <code>NaN</code> until Phase 7)</td>
+</tr>
+<tr>
+<td><code>quality</code></td>
+<td><code>float</code></td>
+<td>0–100 from <code>GeometricScorer</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>str</code> or <code>None</code></td>
+<td>Pattern-specific label (e.g., for double tops)</td>
+</tr>
+<tr>
+<td><code>pivots</code></td>
+<td><code>list[dict]</code></td>
+<td><code>[{ts, price, kind}]</code> per anchor pivot — useful for chart overlays</td>
+</tr>
+<tr>
+<td><code>meta</code></td>
+<td><code>dict</code></td>
+<td>Pattern-specific extras: <code>features</code> (the sub-scores) and <code>trend_lines</code></td>
+</tr>
+</tbody>
+</table>
+<p>The schema is exposed as <code>EVENTS_COLUMNS</code> from
+<code>fundcloud.features.patterns</code> for assertions.</p>
+<h3 id="configuration-knobs">Configuration knobs<a class="headerlink" href="#configuration-knobs" title="Anchor link to this section">&para;</a></h3>
+<p>Pass at construction or override with <code>set_params</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">HeadAndShoulders</span><span class="p">(</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="n">min_quality</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>        <span class="c1"># quality cutoff (0–100); detections below are dropped</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>    <span class="n">pivot_orders</span><span class="o">=</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>  <span class="c1"># see &quot;pivot_orders&quot; section above</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>    <span class="n">signal_mode</span><span class="o">=</span><span class="n">SignalMode</span><span class="o">.</span><span class="n">BREAKOUT</span><span class="p">,</span>  <span class="c1"># how events project to per-bar signals</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>    <span class="n">decay_bars</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>            <span class="c1"># window for SignalMode.DECAY</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>    <span class="n">condition</span><span class="o">=...</span><span class="p">,</span>           <span class="c1"># PatternCondition override (see below)</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="patterncondition"><code>PatternCondition</code><a class="headerlink" href="#patterncondition" title="Anchor link to this section">&para;</a></h3>
+<p>Frozen dataclass describing the entry / exit rules a strategy applies
+to detected events. Mirrors the convention used by
+<code>fundcloud.strategies.scheduler.Cadence</code> — one source of truth, with
+<code>override(...)</code> returning a new instance.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">PatternCondition</span><span class="p">:</span>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>    <span class="n">entry_rule</span><span class="p">:</span>    <span class="n">EntryRule</span>    <span class="o">=</span> <span class="n">EntryRule</span><span class="o">.</span><span class="n">ON_BREAKOUT</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    <span class="n">exit_rule</span><span class="p">:</span>     <span class="n">ExitRule</span>     <span class="o">=</span> <span class="n">ExitRule</span><span class="o">.</span><span class="n">TARGET_OR_STOP</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">target_method</span><span class="p">:</span> <span class="n">TargetMethod</span> <span class="o">=</span> <span class="n">TargetMethod</span><span class="o">.</span><span class="n">MEASURED_MOVE</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>    <span class="n">stop_method</span><span class="p">:</span>   <span class="n">StopMethod</span>   <span class="o">=</span> <span class="n">StopMethod</span><span class="o">.</span><span class="n">BELOW_PIVOT</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>    <span class="n">time_stop_bars</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>  <span class="o">=</span> <span class="kc">None</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>    <span class="n">atr_window</span><span class="p">:</span>     <span class="nb">int</span>         <span class="o">=</span> <span class="mi">14</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>    <span class="n">atr_multiple</span><span class="p">:</span>   <span class="nb">float</span>       <span class="o">=</span> <span class="mf">2.0</span>
+</span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a>
+</span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">override</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PatternCondition</span><span class="p">:</span> <span class="o">...</span>
+</span></code></pre></div>
+<p>Each detector class ships a sensible preset on the class
+(<code>HeadAndShoulders.condition</code>); per-instance overrides go via the
+<code>condition=</code> constructor argument. <code>override</code> accepts both Enum values
+and their <code>.value</code> strings, so:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">HeadAndShoulders</span><span class="p">(</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    <span class="n">condition</span><span class="o">=</span><span class="n">PatternCondition</span><span class="p">()</span><span class="o">.</span><span class="n">override</span><span class="p">(</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>        <span class="n">entry_rule</span><span class="o">=</span><span class="s2">&quot;on_pullback&quot;</span><span class="p">,</span>   <span class="c1"># str or EntryRule.ON_PULLBACK both work</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>        <span class="n">time_stop_bars</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>        <span class="n">target_method</span><span class="o">=</span><span class="n">TargetMethod</span><span class="o">.</span><span class="n">FIB_1_618</span><span class="p">,</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="p">)</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="enums">Enums<a class="headerlink" href="#enums" title="Anchor link to this section">&para;</a></h3>
+<p>All in <code>fundcloud.features.patterns</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">Pattern</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="n">HEAD_AND_SHOULDERS</span>         <span class="o">=</span> <span class="s2">&quot;head_and_shoulders&quot;</span>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="n">INVERSE_HEAD_AND_SHOULDERS</span> <span class="o">=</span> <span class="s2">&quot;inverse_head_and_shoulders&quot;</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">DOUBLE_TOP</span>                 <span class="o">=</span> <span class="s2">&quot;double_top&quot;</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="n">DOUBLE_BOTTOM</span>              <span class="o">=</span> <span class="s2">&quot;double_bottom&quot;</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="n">TRIPLE_TOP</span>                 <span class="o">=</span> <span class="s2">&quot;triple_top&quot;</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="n">TRIPLE_BOTTOM</span>              <span class="o">=</span> <span class="s2">&quot;triple_bottom&quot;</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>    <span class="n">ASCENDING_TRIANGLE</span>         <span class="o">=</span> <span class="s2">&quot;ascending_triangle&quot;</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>    <span class="n">DESCENDING_TRIANGLE</span>        <span class="o">=</span> <span class="s2">&quot;descending_triangle&quot;</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>    <span class="n">SYMMETRICAL_TRIANGLE</span>       <span class="o">=</span> <span class="s2">&quot;symmetrical_triangle&quot;</span>
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="k">class</span><span class="w"> </span><span class="nc">Direction</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>    <span class="n">BULLISH</span><span class="p">,</span> <span class="n">BEARISH</span><span class="p">,</span> <span class="n">NEUTRAL</span>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>
+</span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a><span class="k">class</span><span class="w"> </span><span class="nc">SignalMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-16"><a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a>    <span class="n">BREAKOUT</span><span class="p">,</span> <span class="n">FORMATION</span><span class="p">,</span> <span class="n">DECAY</span>
+</span><span id="__span-23-17"><a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a>
+</span><span id="__span-23-18"><a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a><span class="k">class</span><span class="w"> </span><span class="nc">EntryRule</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-19"><a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a>    <span class="n">ON_BREAKOUT</span><span class="p">,</span> <span class="n">ON_FORMATION_COMPLETE</span><span class="p">,</span> <span class="n">ON_PULLBACK</span>
+</span><span id="__span-23-20"><a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a>
+</span><span id="__span-23-21"><a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a><span class="k">class</span><span class="w"> </span><span class="nc">ExitRule</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-22"><a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a>    <span class="n">TARGET_OR_STOP</span><span class="p">,</span> <span class="n">TIME_STOP</span><span class="p">,</span> <span class="n">TRAILING_STOP</span>
+</span><span id="__span-23-23"><a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a>
+</span><span id="__span-23-24"><a id="__codelineno-23-24" name="__codelineno-23-24" href="#__codelineno-23-24"></a><span class="k">class</span><span class="w"> </span><span class="nc">TargetMethod</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-25"><a id="__codelineno-23-25" name="__codelineno-23-25" href="#__codelineno-23-25"></a>    <span class="n">MEASURED_MOVE</span><span class="p">,</span> <span class="n">FIB_1_618</span><span class="p">,</span> <span class="n">FIXED_ATR</span>
+</span><span id="__span-23-26"><a id="__codelineno-23-26" name="__codelineno-23-26" href="#__codelineno-23-26"></a>
+</span><span id="__span-23-27"><a id="__codelineno-23-27" name="__codelineno-23-27" href="#__codelineno-23-27"></a><span class="k">class</span><span class="w"> </span><span class="nc">StopMethod</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+</span><span id="__span-23-28"><a id="__codelineno-23-28" name="__codelineno-23-28" href="#__codelineno-23-28"></a>    <span class="n">BELOW_PIVOT</span><span class="p">,</span> <span class="n">ATR_MULTIPLE</span><span class="p">,</span> <span class="n">FIXED_PCT</span>
+</span></code></pre></div>
+<p>All public APIs accept <code>EnumType | str</code>. Use the <code>.coerce(value, EnumType)</code>
+helper to coerce at the boundary; it raises <code>ValueError</code> with a list of
+valid values on miss.</p>
+<h2 id="composition-examples">Composition examples<a class="headerlink" href="#composition-examples" title="Anchor link to this section">&para;</a></h2>
+<h3 id="with-featurepipeline">With <code>FeaturePipeline</code><a class="headerlink" href="#with-featurepipeline" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">FeaturePipeline</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.indicators</span><span class="w"> </span><span class="kn">import</span> <span class="n">RSI</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.patterns</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadAndShoulders</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="n">pipe</span> <span class="o">=</span> <span class="n">FeaturePipeline</span><span class="p">([</span>
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="p">(</span><span class="s2">&quot;rsi&quot;</span><span class="p">,</span> <span class="n">RSI</span><span class="p">(</span><span class="n">timeperiod</span><span class="o">=</span><span class="mi">14</span><span class="p">)),</span>
+</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>    <span class="p">(</span><span class="s2">&quot;hns&quot;</span><span class="p">,</span> <span class="n">HeadAndShoulders</span><span class="p">(</span><span class="n">min_quality</span><span class="o">=</span><span class="mi">70</span><span class="p">)),</span>
+</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="p">])</span>
+</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="n">panel</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span>
+</span></code></pre></div>
+<h3 id="backtest-with-simulatorrun_signals">Backtest with <code>Simulator.run_signals</code><a class="headerlink" href="#backtest-with-simulatorrun_signals" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fundcloud</span>  <span class="c1"># registers .fc accessor</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.patterns</span><span class="w"> </span><span class="kn">import</span> <span class="n">InverseHeadAndShoulders</span>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="n">bars</span> <span class="o">=</span> <span class="o">...</span>  <span class="c1"># MultiIndex Bars frame</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="n">entries</span> <span class="o">=</span> <span class="n">InverseHeadAndShoulders</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="n">exits</span>   <span class="o">=</span> <span class="n">entries</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>  <span class="c1"># 20-bar holding period</span>
+</span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="n">result</span>  <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">run_signals</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="n">exits</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+</span><span id="__span-25-8"><a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</span></code></pre></div>
+<h3 id="cross-validate-pattern-parameters-with-purgedkfold">Cross-validate pattern parameters with <code>PurgedKFold</code><a class="headerlink" href="#cross-validate-pattern-parameters-with-purgedkfold" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">GridSearchCV</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.validate</span><span class="w"> </span><span class="kn">import</span> <span class="n">PurgedKFold</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="n">search</span> <span class="o">=</span> <span class="n">GridSearchCV</span><span class="p">(</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>    <span class="n">HeadAndShoulders</span><span class="p">(),</span>
+</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>    <span class="n">param_grid</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;min_quality&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">50</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">70</span><span class="p">,</span> <span class="mi">80</span><span class="p">]},</span>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>    <span class="n">cv</span><span class="o">=</span><span class="n">PurgedKFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">purge</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="performance-characteristics">Performance characteristics<a class="headerlink" href="#performance-characteristics" title="Anchor link to this section">&para;</a></h2>
+<ul>
+<li><strong>Per <code>(pattern × asset)</code> scan</strong>: O(T) for pivot detection + O(P × k)
+  for the detector pass, where <code>T</code> is the bar count, <code>P</code> is the
+  pivot count, and <code>k</code> is the detector's window size (5 for H&amp;S).</li>
+<li><strong>Memory</strong>: zero-copy borrows of the user's numpy buffers; no
+  intermediate float64 arrays allocated in Rust beyond the pivot
+  list.</li>
+<li><strong>Concurrency</strong>: <code>scan_pattern</code> releases the GIL; concurrent
+  <code>ThreadPoolExecutor</code> over multiple assets scales linearly. (The
+  Python loop in <code>PatternIndicator.transform</code> runs assets serially in
+  v1; a 2D batched scan is a future optimisation that does not change
+  the public API.)</li>
+</ul>
+<p>Empirically, scanning 11k bars × 9 tickers × 2 detectors completes in
+well under a second on commodity hardware.</p>
+<h2 id="feature-quality-metrics">Feature-quality metrics<a class="headerlink" href="#feature-quality-metrics" title="Anchor link to this section">&para;</a></h2>
+<p>The <code>fundcloud.metrics.feature_quality</code> submodule grades a pattern's
+predictive power on a given OHLCV universe. Not flat-reexported from
+<code>fundcloud.metrics</code> (avoids collision with <code>metrics.win_rate</code>); import
+as:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">feature_quality</span> <span class="k">as</span> <span class="n">fq</span>
+</span></code></pre></div>
+<h3 id="evaluateevents-bars-horizons-conditionnone-trade_directionnatural-baselinetrue"><code>evaluate(events, bars, *, horizons, condition=None, trade_direction='natural', baseline=True)</code><a class="headerlink" href="#evaluateevents-bars-horizons-conditionnone-trade_directionnatural-baselinetrue" title="Anchor link to this section">&para;</a></h3>
+<p>Headline panel — one row per horizon. Columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>n_events</code></td>
+<td>Events with sufficient lookahead at this horizon</td>
+</tr>
+<tr>
+<td><code>hit_rate</code></td>
+<td>Fraction of events where directional close-to-entry move &gt; 0 at <code>t+h</code></td>
+</tr>
+<tr>
+<td><code>baseline_hit</code></td>
+<td>Asset-weighted unconditional <code>P(close[t+h] − close[t] in direction &gt; 0)</code> — the random-entry yardstick</td>
+</tr>
+<tr>
+<td><code>expectancy</code></td>
+<td>Mean realised R-multiple. R = signed move / stop distance</td>
+</tr>
+<tr>
+<td><code>edge_ratio</code></td>
+<td><code>avg(MFE_atr) / avg(MAE_atr)</code> — payoff asymmetry</td>
+</tr>
+<tr>
+<td><code>mfe_atr</code></td>
+<td>Average maximum favourable excursion in ATR units (intraday max forward <code>high</code> minus entry, or mirror for bearish)</td>
+</tr>
+<tr>
+<td><code>mae_atr</code></td>
+<td>Average maximum adverse excursion in ATR units</td>
+</tr>
+<tr>
+<td><code>mae_p95_atr</code></td>
+<td>95<sup>th</sup>-percentile MAE — the stop-sizing reference</td>
+</tr>
+<tr>
+<td><code>ic</code></td>
+<td>Spearman ρ between event <code>quality</code> and signed forward return</td>
+</tr>
+<tr>
+<td><code>icir</code></td>
+<td>Mean / std of yearly ICs — stability of the IC across periods</td>
+</tr>
+<tr>
+<td><code>throwback</code></td>
+<td>Fraction of events that re-touch entry within 10 bars</td>
+</tr>
+</tbody>
+</table>
+<p><code>condition</code> (optional): if a <code>PatternCondition</code> is passed, the metric
+calls <code>apply_condition</code> first to fill <code>target_price</code> / <code>stop_price</code> per
+the condition's target / stop methods. R-multiples then use the real
+stop distance instead of the 1×ATR fallback.</p>
+<p><code>trade_direction</code>: <code>"natural"</code> (default) uses each event's emitted
+direction; <code>"inverse"</code> flips every event (test the fade-the-pattern
+hypothesis); <code>"long"</code> / <code>"short"</code> force a fixed side. The baseline is
+transformed in lockstep so the comparison stays honest.</p>
+<h3 id="stratified-diagnostics">Stratified diagnostics<a class="headerlink" href="#stratified-diagnostics" title="Anchor link to this section">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>View</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>quality_buckets(events, bars, *, horizon, n_buckets=5)</code></td>
+<td>Quintile events by <code>quality</code>; one row per bucket. Validates the geometric scorer — monotonic Q1→Q5 means the scorer earns its weight.</td>
+</tr>
+<tr>
+<td><code>per_asset(events, bars, *, horizon)</code></td>
+<td>One row per asset — discovery tool for asset-specific deployment lists.</td>
+</tr>
+<tr>
+<td><code>time_stability(events, bars, *, horizon, n_folds=5)</code></td>
+<td>Equal-event-count chronological folds — exposes regime sensitivity.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="scalar-primitives">Scalar primitives<a class="headerlink" href="#scalar-primitives" title="Anchor link to this section">&para;</a></h3>
+<p>For ad-hoc use or composition into custom dashboards, the per-event
+scalars expose the same logic without going through the bundle:</p>
+<p><code>hit_rate</code>, <code>expectancy</code>, <code>edge_ratio</code>, <code>avg_mfe_atr</code>, <code>avg_mae_atr</code>,
+<code>mae_p95_atr</code>, <code>throwback_rate</code>, <code>information_coefficient</code>, <code>icir</code>.</p>
+<p>All take a list of <code>_EventPath</code> objects (the internal aligned-path
+representation) so they can be combined cheaply across stratifications.</p>
+<h2 id="apply_condition-and-patternstrategy"><code>apply_condition</code> and <code>PatternStrategy</code><a class="headerlink" href="#apply_condition-and-patternstrategy" title="Anchor link to this section">&para;</a></h2>
+<p><code>fundcloud.features.patterns.apply_condition(events, condition, bars)</code>
+returns a copy of the events table with <code>target_price</code> and
+<code>stop_price</code> filled per the supplied <code>PatternCondition</code>. Pattern
+height is derived from the events table's pivots:</p>
+<ul>
+<li>Bullish: <code>entry − min(low_pivot_prices)</code></li>
+<li>Bearish: <code>max(high_pivot_prices) − entry</code></li>
+</ul>
+<p><code>fundcloud.strategies.PatternStrategy(indicator, *, condition=None,
+size=0.1, inverse=False)</code> is the long-only backtest wrapper. <code>init</code>
+runs the indicator once and applies the condition; <code>decide</code> walks the
+per-bar context, opens trades on event timestamps, and closes them on
+intraday target hit, intraday stop hit, or <code>time_stop_bars</code>. Bearish
+events are skipped unless <code>inverse=True</code>, which flips every event's
+direction so the strategy long-trades the inverse hypothesis.</p>
+<p><code>bars.fc.run_pattern(pattern, *, condition, size, inverse, **params)</code>
+is the one-liner accessor that wraps the indicator + strategy +
+simulator into a <code>SimResult</code>.</p>
+<h2 id="limitations-and-future-work">Limitations and future work<a class="headerlink" href="#limitations-and-future-work" title="Anchor link to this section">&para;</a></h2>
+<ul>
+<li><strong><code>breakout_ts</code> fires at <code>formation_end</code></strong>, not at a confirmed
+  close-through-neckline breakout. This inflates <code>throwback_rate</code>
+  systematically (the "breakout" bar is right next to the neckline
+  by construction) and makes some events fire one or two bars before
+  the textbook entry. A future phase will add price-action breakout
+  confirmation as an opt-in mode.</li>
+<li><strong>No regime-aware scoring</strong> — pattern-service's <code>ReliabilityScorer</code>
+  blends <code>GeometricScorer</code> with empirical hit-rate per
+  (direction × timeframe × regime × asset_bucket). Out of scope for v1.</li>
+<li><strong>No ML scorer</strong> — pattern-service ships an XGBoost
+  <code>MLScorer</code> predicting realised R-multiple at a 20-bar horizon. Out
+  of scope for v1.</li>
+<li><strong><code>pivot.order</code> is recorded but unused</strong> — see the discussion under
+  "Pivot detection". Future detectors or quality scorers may
+  consume it.</li>
+<li><strong>No streaming / tick-by-tick path</strong> — every scan is a batch over
+  the whole bar range. The PyO3 layer has the seams to add a
+  streaming wrapper later without breaking the API.</li>
+<li><strong><code>PatternStrategy</code> is long-only</strong> — bearish events are skipped
+  unless <code>inverse=True</code> (which flips them to long). Native short-side
+  trading is a follow-up (depends on simulator support for naked
+  shorts).</li>
+</ul>
+<h2 id="file-reference">File reference<a class="headerlink" href="#file-reference" title="Anchor link to this section">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>File</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rust types</td>
+<td><code>crates/fundcloud-core/src/patterns/types.rs</code></td>
+</tr>
+<tr>
+<td>Pivot detection</td>
+<td><code>crates/fundcloud-core/src/patterns/pivots.rs</code></td>
+</tr>
+<tr>
+<td>Trend-line fit</td>
+<td><code>crates/fundcloud-core/src/patterns/trendline.rs</code></td>
+</tr>
+<tr>
+<td>Geometric scorer</td>
+<td><code>crates/fundcloud-core/src/patterns/scoring.rs</code></td>
+</tr>
+<tr>
+<td>Detector trait + scan entry point</td>
+<td><code>crates/fundcloud-core/src/patterns/detect.rs</code></td>
+</tr>
+<tr>
+<td>H&amp;S detector pair</td>
+<td><code>crates/fundcloud-core/src/patterns/detectors/head_shoulders.rs</code></td>
+</tr>
+<tr>
+<td>Double Top / Bottom</td>
+<td><code>crates/fundcloud-core/src/patterns/detectors/double.rs</code></td>
+</tr>
+<tr>
+<td>Triple Top / Bottom</td>
+<td><code>crates/fundcloud-core/src/patterns/detectors/triple.rs</code></td>
+</tr>
+<tr>
+<td>Triangle trio</td>
+<td><code>crates/fundcloud-core/src/patterns/detectors/triangles.rs</code></td>
+</tr>
+<tr>
+<td>PyO3 bindings</td>
+<td><code>crates/fundcloud-py/src/lib.rs</code> (<code>scan_pattern</code>, <code>multi_level_pivots</code>, <code>list_pattern_names</code>)</td>
+</tr>
+<tr>
+<td>Python <code>PatternIndicator</code></td>
+<td><code>python/fundcloud/features/patterns/_base.py</code></td>
+</tr>
+<tr>
+<td>Python condition descriptor</td>
+<td><code>python/fundcloud/features/patterns/_condition.py</code></td>
+</tr>
+<tr>
+<td>Events frame + projection</td>
+<td><code>python/fundcloud/features/patterns/_events.py</code></td>
+</tr>
+<tr>
+<td>Public enums</td>
+<td><code>python/fundcloud/features/patterns/_enums.py</code></td>
+</tr>
+<tr>
+<td>Indicator subclasses</td>
+<td><code>python/fundcloud/features/patterns/{head_and_shoulders, inverse_head_and_shoulders, double_top, double_bottom, triple_top, triple_bottom, ascending_triangle, descending_triangle, symmetrical_triangle}.py</code></td>
+</tr>
+<tr>
+<td>Synthetic walkthrough</td>
+<td><code>examples/31_head_and_shoulders_detection.py</code></td>
+</tr>
+<tr>
+<td>Real-data scan</td>
+<td><code>examples/32_pattern_scan_real_data.py</code></td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  <form class="md-feedback" name="feedback" hidden>
+    <fieldset>
+      <legend class="md-feedback__title">
+        Was this page useful?
+      </legend>
+      <div class="md-feedback__inner">
+        <div class="md-feedback__list">
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="True" data-md-value="1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 9v12H1V9zm4 12a2 2 0 0 1-2-2V9c0-.55.22-1.05.59-1.41L14.17 1l1.06 1.06c.27.27.44.64.44 1.05l-.03.32L14.69 8H21a2 2 0 0 1 2 2v2c0 .26-.05.5-.14.73l-3.02 7.05C19.54 20.5 18.83 21 18 21zm0-2h9.03L21 12v-2h-8.79l1.13-5.32L9 9.03z"/></svg>
+            </button>
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="False" data-md-value="0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 15V3h4v12zM15 3a2 2 0 0 1 2 2v10c0 .55-.22 1.05-.59 1.41L9.83 23l-1.06-1.06c-.27-.27-.44-.64-.44-1.06l.03-.31.95-4.57H3a2 2 0 0 1-2-2v-2c0-.26.05-.5.14-.73l3.02-7.05C4.46 3.5 5.17 3 6 3zm0 2H5.97L3 12v2h8.78l-1.13 5.32L15 14.97z"/></svg>
+            </button>
+          
+        </div>
+        <div class="md-feedback__note">
+          
+            <div data-md-value="1" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks — glad it helped.
+            </div>
+          
+            <div data-md-value="0" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Sorry. Please <a href="https://github.com/cyberapper/fundcloud/issues/new?labels=docs&title=Docs+improvement" target="_blank" rel="noopener">open a docs issue</a> and we'll fix it.
+            </div>
+          
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../kernels/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Kernels">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Kernels
+              </div>
+            </div>
+          </a>
+        
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+<div class="md-copyright" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:0.6rem;">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    <span style="font-weight:500;letter-spacing:-0.005em;">
+      Copyright © 2026 Fundcloud Authors · MIT License
+    </span>
+  </div>
+  
+    <div class="md-copyright__highlight" style="opacity:0.7;font-size:0.72rem;">
+      Built with
+      <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener" style="color:inherit;">Material for MkDocs</a>
+      · theme by Fundcloud
+    </div>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/cyberapper/fundcloud" target="_blank" rel="noopener" title="Fundcloud on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/fundcloud/" target="_blank" rel="noopener" title="Fundcloud on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["announce.dismiss", "navigation.instant", "navigation.instant.progress", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.annotate", "content.action.edit", "content.tooltips", "search.suggest", "search.highlight", "search.share"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>
