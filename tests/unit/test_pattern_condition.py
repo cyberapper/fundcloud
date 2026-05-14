@@ -245,11 +245,9 @@ def test_pattern_strategy_runs_end_to_end_with_synthetic_events() -> None:
 
 
 def test_pattern_strategy_trades_double_top_as_bullish_when_caller_says_so() -> None:
-    """The caller picks direction via ``PatternCondition.direction`` —
-    pattern type no longer dictates it. So a DoubleTop indicator with
-    ``direction=BULLISH`` produces long entries (fade-the-pattern style).
-    Previously expressed as ``inverse=True``; now the caller's intent is
-    explicit in the condition object."""
+    """A DoubleTop indicator with ``PatternCondition(direction=BULLISH)``
+    produces long entries — the caller's direction choice drives the
+    strategy, independent of the pattern's classical shape."""
     from fundcloud.features.patterns import DoubleTop
     from fundcloud.strategies import PatternStrategy
 

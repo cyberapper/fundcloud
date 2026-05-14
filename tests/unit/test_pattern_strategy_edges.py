@@ -43,9 +43,8 @@ def _bars(n: int = 200, asset: str = "AAA") -> pd.DataFrame:
     return df
 
 
-# After 0.6.0 the events frame no longer carries a `direction` column;
-# direction is derived from the pattern type at strategy time. Tests
-# that want a bullish/bearish event now pick a representative pattern.
+# Maps each Direction to a representative pattern; tests that need a
+# bullish or bearish event pick from this table.
 _PATTERN_FOR_DIRECTION = {
     Direction.BULLISH: Pattern.DOUBLE_BOTTOM,
     Direction.BEARISH: Pattern.DOUBLE_TOP,
@@ -125,9 +124,7 @@ class TestInit:
             ],
             columns=EVENTS_COLUMNS,
         )
-        # 0.6.0: PatternCondition(direction=Direction.BEARISH) replaces the
-        # old `inverse=False` semantics. Long-only PatternStrategy then
-        # skips all events (sign != +1).
+        # Long-only PatternStrategy must skip bearish events (sign != +1).
         cond = PatternCondition(direction=Direction.BEARISH)
         strat = PatternStrategy(DoubleTop(), condition=cond)
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]

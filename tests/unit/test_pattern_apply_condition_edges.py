@@ -53,10 +53,9 @@ def _bars(n: int = 100, asset: str = "AAA") -> pd.DataFrame:
     return df
 
 
-# After the 0.6.0 refactor, the events frame no longer carries a `direction`
-# column — direction is derived from the pattern type inside `apply_condition`.
-# Tests that want a "bullish/bearish/neutral" event therefore pick a
-# representative pattern with the desired classical direction.
+# Maps each Direction to a pattern whose classical shape carries that
+# direction — used to construct test events when a test needs a
+# bullish / bearish / neutral example.
 _PATTERN_FOR_DIRECTION = {
     Direction.BULLISH: Pattern.DOUBLE_BOTTOM,
     Direction.BEARISH: Pattern.DOUBLE_TOP,
@@ -271,8 +270,8 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        # 0.6.0: direction is caller-supplied. The "neutral yields NaN"
-        # contract is now expressed by passing NEUTRAL on the condition.
+        # The "neutral yields NaN" contract is expressed by passing
+        # NEUTRAL on the condition.
         out = apply_condition(events, PatternCondition(direction=Direction.NEUTRAL), bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])

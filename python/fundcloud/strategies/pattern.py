@@ -118,9 +118,7 @@ class PatternStrategy(BaseStrategy):
         if events.empty:
             return
         events = apply_condition(events, self.condition, bars)
-        # 0.6.0: direction is caller-supplied via ``condition.direction``,
-        # not inferred from the detector. Long-only strategy: only trade if
-        # the user asked for bullish.
+        # Long-only strategy: only trade events the caller tagged bullish.
         if self.condition.direction is not Direction.BULLISH:
             return
         for asset, group in events.groupby("asset"):

@@ -79,19 +79,12 @@ DEFAULT_ATR_WINDOW: int = 14
 # Throwback look-ahead — Bulkowski's standard.
 DEFAULT_THROWBACK_WINDOW: int = 10
 # Allowed values for the trade_direction knob.
-# 0.6.0: "natural" and "inverse" are gone — they required a per-event direction
-# from the detector, which we no longer provide. Caller picks "long" or "short"
-# explicitly; the function grades the events as if they were that side.
 _TRADE_DIRECTIONS = ("long", "short")
 
 
 def _resolve_sign(trade_direction: str) -> float:
-    """Resolve trade_direction → ±1 sign.
-
-    The detector no longer emits a per-event direction; callers tell us
-    which side to grade by setting ``trade_direction`` explicitly. There is
-    no longer a "natural" or "inverse" mode — those would require the
-    library to invent a direction prior.
+    """Resolve ``trade_direction`` (``"long"`` | ``"short"``) to a ±1 sign
+    used to flip MFE/MAE and hit-rate computations.
     """
     if trade_direction == "long":
         return 1.0
@@ -276,8 +269,6 @@ def _build_event_paths(
             # ±inf R-multiples that contaminate aggregates.
             continue
 
-        # 0.6.0: detector no longer emits a per-event direction. Grade every
-        # event as the caller-supplied trade_direction ("long" or "short").
         sign = _resolve_sign(trade_direction)
 
         quality = ev.get("quality")
@@ -539,8 +530,6 @@ def baseline_hit_rate(
       formation window — the baseline is "any random entry on this
       asset" at horizon ``h``.
     * Returns ``np.nan`` if the events table has no usable rows.
-    * 0.6.0: ``trade_direction`` is now caller-supplied (``"long"`` or
-      ``"short"``); the per-event "natural" sign is gone.
     """
     if horizon <= 0:
         msg = "horizon must be > 0"
@@ -551,8 +540,6 @@ def baseline_hit_rate(
         msg = "bars must have MultiIndex (field, asset) columns"
         raise TypeError(msg)
 
-    # 0.6.0: with no per-event direction, the per-asset baseline weights
-    # by event count only; the sign is uniformly the caller-supplied side.
     sign = _resolve_sign(trade_direction)
     weights: dict[str, int] = {str(asset): len(group) for asset, group in events.groupby("asset")}
     if not weights:
@@ -607,9 +594,8 @@ def evaluate(
     here so the table is self-contained.
 
     ``trade_direction`` is caller-supplied (``"long"`` or ``"short"``)
-    and applied uniformly to every event in the input table — detection
-    no longer emits a per-event direction (post-0.6.0). The baseline is
-    computed against the same side so the apples-to-apples comparison
+    and applied uniformly to every event in the input table. The baseline
+    is computed against the same side so the apples-to-apples comparison
     stays honest.
 
     ``condition`` (optional :class:`PatternCondition`): when supplied,

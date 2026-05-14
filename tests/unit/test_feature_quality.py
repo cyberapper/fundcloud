@@ -101,8 +101,7 @@ def test_evaluate_bearish_event_in_uptrend_hits_zero() -> None:
         columns=EVENTS_COLUMNS,
     )
 
-    # 0.6.0: trade_direction is caller-supplied. Grade these "bearish" events
-    # as shorts and the uptrend should make them all losers.
+    # Grade these "bearish" events as shorts; the uptrend makes them losers.
     panel = fq.evaluate(events, bars, horizons=(5, 10, 20), trade_direction="short")
 
     assert panel.loc[5, "n_events"] == 1
@@ -127,8 +126,8 @@ def test_evaluate_baseline_reflects_asset_drift() -> None:
         [_empty_event("CCC", ts, Direction.BEARISH, entry)], columns=EVENTS_COLUMNS
     )
 
-    # 0.6.0: pass trade_direction explicitly — long for bullish, short for
-    # bearish. The baseline-mirror invariant still holds.
+    # Pass trade_direction explicitly — long for bullish, short for bearish.
+    # The baseline-mirror invariant still holds.
     bull_panel = fq.evaluate(bullish, bars, horizons=(20,), trade_direction="long")
     bear_panel = fq.evaluate(bearish, bars, horizons=(20,), trade_direction="short")
 
@@ -177,8 +176,6 @@ def test_evaluate_empty_events_returns_zero_row_panel() -> None:
 def test_evaluate_long_vs_short_are_signed_mirrors() -> None:
     """Grading the same event set as `long` vs `short` should produce
     hit-rates and expectancies that mirror each other — baseline included.
-    Replaces the 0.5.0 ``natural`` / ``inverse`` test now that
-    trade_direction is just ``long`` or ``short`` (0.6.0).
     """
     bars = _build_bars("FFF", n=300, drift_per_bar=0.005, seed=23)
     ts = bars.index[100]
