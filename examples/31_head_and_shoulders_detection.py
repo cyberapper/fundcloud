@@ -145,7 +145,6 @@ def main() -> None:
         ev = events.iloc[0]
         print(f"\nFirst event ({ev['asset']}):")
         print(f"  pattern        : {ev['pattern']}")
-        print(f"  direction      : {ev['direction']}")
         print(f"  formation      : {ev['formation_start'].date()} → {ev['formation_end'].date()}")
         print(f"  breakout_ts    : {ev['breakout_ts'].date()}")
         print(f"  entry_price    : {ev['entry_price']:.2f}")

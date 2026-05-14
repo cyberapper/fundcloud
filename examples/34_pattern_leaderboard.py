@@ -1,6 +1,6 @@
 """34 — Cross-asset / cross-pattern leaderboard.
 
-Sweep all 9 patterns × 2 trade directions (natural + inverse) on all 9
+Sweep all 9 patterns × 2 trade directions (long + short) on all 9
 assets in the bundled parquet (QQQ + SPY + AAPL + AMZN + GOOGL + META +
 MSFT + NVDA + TSLA — daily bars since the early 1990s). Produces:
 
@@ -112,7 +112,7 @@ def _build_leaderboard(bars: pd.DataFrame) -> pd.DataFrame:
         # patterns whose detector emits nothing for some assets.
         events = events.reindex(columns=list(EVENTS_COLUMNS))
         for asset in assets:
-            for direction in ("natural", "inverse"):
+            for direction in ("long", "short"):
                 row = _evaluate_one(events, bars, pattern, asset, direction)
                 if row is not None:
                     rows.append(row)
@@ -186,7 +186,7 @@ def _print_tradeable(lb: pd.DataFrame) -> None:
 
 def _print_matrix(lb: pd.DataFrame) -> None:
     """Wide pattern × asset matrix of edge over baseline. Picks the
-    better of natural / inverse for each cell.
+    better of long / short for each cell.
     """
     best = (
         lb
@@ -196,7 +196,7 @@ def _print_matrix(lb: pd.DataFrame) -> None:
     )
     matrix = best.pivot(index="pattern", columns="asset", values="edge")
     print(f"\n{'=' * 78}")
-    print(f"Edge-over-baseline matrix (best of natural/inverse) at h={HORIZON}")
+    print(f"Edge-over-baseline matrix (best of long/short) at h={HORIZON}")
     print("Cells are hit_rate − baseline_hit (positive = pattern beats random)")
     print(f"{'=' * 78}\n")
     print(matrix.round(3).to_string(na_rep=" — "))

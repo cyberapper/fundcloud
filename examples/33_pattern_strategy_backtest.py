@@ -7,9 +7,10 @@ What this script demonstrates:
 2. Building the headline feature-quality panel via
    ``bars.fc.evaluate_pattern(...)`` — hit rate, expectancy, edge ratio,
    MFE/MAE in ATR, IC, ICIR, baseline comparison.
-3. The ``trade_direction='inverse'`` knob — empirically test the
-   "fade the bearish pattern" hypothesis, with the baseline transformed
-   in lockstep so the comparison stays honest.
+3. The caller-supplied ``trade_direction`` knob — empirically A/B
+   ``"long"`` vs ``"short"`` on the same pattern, with the baseline
+   transformed in lockstep so the comparison stays honest. The library
+   no longer imposes a direction prior; the strategy declares it.
 4. ``quality_buckets`` — the diagnostic that validates the geometric
    scorer. If Q5 outperforms Q1 monotonically, the scorer is doing
    useful work; flat buckets are a recalibration signal.
@@ -74,24 +75,26 @@ def main() -> None:
         .to_string()
     )
 
-    # ----------------------------------------------- 2. Inverse-direction test
-    print("\n=== trade_direction='inverse' on DoubleTop (fade the pattern) ===")
-    natural = bars.fc.evaluate_pattern(Pattern.DOUBLE_TOP, horizons=(20, 60))
-    inverse = bars.fc.evaluate_pattern(
-        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="inverse"
+    # ----------------------------------------------- 2. Direction A/B test
+    print("\n=== trade_direction A/B on DoubleTop (long vs short) ===")
+    short_side = bars.fc.evaluate_pattern(
+        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="short"
+    )
+    long_side = bars.fc.evaluate_pattern(
+        Pattern.DOUBLE_TOP, horizons=(20, 60), trade_direction="long"
     )
     pair = pd.concat(
         [
-            natural[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("nat_"),
-            inverse[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("inv_"),
+            short_side[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("short_"),
+            long_side[["hit_rate", "baseline_hit", "expectancy"]].add_prefix("long_"),
         ],
         axis=1,
     )
     print(pair.round(3).to_string())
-    edge_natural = (natural["hit_rate"] - natural["baseline_hit"]).round(3)
-    edge_inverse = (inverse["hit_rate"] - inverse["baseline_hit"]).round(3)
-    print(f"\nedge over baseline — natural: {edge_natural.to_dict()}")
-    print(f"edge over baseline — inverse: {edge_inverse.to_dict()}")
+    edge_short = (short_side["hit_rate"] - short_side["baseline_hit"]).round(3)
+    edge_long = (long_side["hit_rate"] - long_side["baseline_hit"]).round(3)
+    print(f"\nedge over baseline — short: {edge_short.to_dict()}")
+    print(f"edge over baseline — long:  {edge_long.to_dict()}")
 
     # ----------------------------------------------- 3. Quality buckets
     print("\n=== quality_buckets (h=20): InverseHeadAndShoulders ===")
