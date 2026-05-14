@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0](https://github.com/cyberapper/fundcloud/compare/v0.5.0...v0.6.0) (2026-05-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **patterns:** The events DataFrame returned by detector.events(bars) no longer carries a `direction` column. Consumers that read it should migrate to:   * apply_condition: pass PatternCondition(direction=Direction.BULLISH|BEARISH)   * feature_quality.evaluate: pass trade_direction="long"|"short"   * PatternStrategy: pass condition=PatternCondition(direction=...)
+
+### ### Fixed
+
+* **accessors:** drop removed `inverse` kwarg from run_pattern ([a28b7a8](https://github.com/cyberapper/fundcloud/commit/a28b7a807e21cb7ea41272cc53b7442fd0771d30))
+* **examples:** drop removed `direction` field from pattern examples ([f2a65ec](https://github.com/cyberapper/fundcloud/commit/f2a65ec184fc1c72e913a6596814e9b6b3983e91))
+
+
+### ### Changed
+
+* **patterns:** drop direction from detection; caller supplies it ([162cbdd](https://github.com/cyberapper/fundcloud/commit/162cbdd8908e61bb1fff9da9fe211e336fa21392))
+
+
+### ### Documentation
+
+* **patterns:** drop version stamps and legacy framing from comments ([e99332c](https://github.com/cyberapper/fundcloud/commit/e99332c1e08d749840fc0240b4434ca618523bca))
+
 ## [0.5.0](https://github.com/cyberapper/fundcloud/compare/v0.4.0...v0.5.0) (2026-05-08)
 
 
