@@ -202,7 +202,6 @@ def _top_n(events: pd.DataFrame, n: int) -> pd.DataFrame:
             [
                 "asset",
                 "pattern",
-                "direction",
                 "formation_start",
                 "formation_end",
                 "entry_price",
@@ -221,7 +220,6 @@ def _most_recent_per_ticker(events: pd.DataFrame) -> pd.DataFrame:
         [
             "asset",
             "pattern",
-            "direction",
             "breakout_ts",
             "entry_price",
             "quality",
@@ -281,7 +279,6 @@ def main() -> None:
         # Pretty-format dates and prices for the table.
         view = top.copy()
         view["pattern"] = view["pattern"].map(lambda p: p.value)
-        view["direction"] = view["direction"].map(lambda d: d.value)
         view["formation_start"] = view["formation_start"].dt.date
         view["formation_end"] = view["formation_end"].dt.date
         view["entry_price"] = view["entry_price"].round(2)
@@ -295,7 +292,6 @@ def main() -> None:
     else:
         view = recent.copy()
         view["pattern"] = view["pattern"].map(lambda p: p.value)
-        view["direction"] = view["direction"].map(lambda d: d.value)
         view["breakout_ts"] = view["breakout_ts"].dt.date
         view["entry_price"] = view["entry_price"].round(2)
         view["quality"] = view["quality"].round(1)

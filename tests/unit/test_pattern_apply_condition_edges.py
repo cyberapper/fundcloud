@@ -53,6 +53,16 @@ def _bars(n: int = 100, asset: str = "AAA") -> pd.DataFrame:
     return df
 
 
+# Maps each Direction to a pattern whose classical shape carries that
+# direction — used to construct test events when a test needs a
+# bullish / bearish / neutral example.
+_PATTERN_FOR_DIRECTION = {
+    Direction.BULLISH: Pattern.DOUBLE_BOTTOM,
+    Direction.BEARISH: Pattern.DOUBLE_TOP,
+    Direction.NEUTRAL: Pattern.SYMMETRICAL_TRIANGLE,
+}
+
+
 def _event_row(
     *,
     asset: str,
@@ -64,9 +74,8 @@ def _event_row(
     pivots: list[dict],
 ) -> dict:
     return {
-        "pattern": Pattern.DOUBLE_BOTTOM,
+        "pattern": _PATTERN_FOR_DIRECTION[direction],
         "asset": asset,
-        "direction": direction,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
@@ -261,7 +270,9 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        # The "neutral yields NaN" contract is expressed by passing
+        # NEUTRAL on the condition.
+        out = apply_condition(events, PatternCondition(direction=Direction.NEUTRAL), bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
@@ -294,7 +305,7 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         assert out["target_price"].isna().all()
         assert out["stop_price"].isna().all()
 
@@ -315,7 +326,7 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
@@ -336,7 +347,7 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         assert np.isnan(out.loc[0, "target_price"])
 
     def test_atr_invalid_with_atr_relative_method_yields_nan(self) -> None:
@@ -358,7 +369,9 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        cond = PatternCondition().override(target_method=TargetMethod.FIXED_ATR)
+        cond = PatternCondition(direction=Direction.BULLISH).override(
+            target_method=TargetMethod.FIXED_ATR
+        )
         out = apply_condition(events, cond, bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
@@ -381,7 +394,7 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         # MEASURED_MOVE: target = 100 + (100 - 95) = 105.
         assert out.loc[0, "target_price"] == pytest.approx(105.0)
 
@@ -403,7 +416,7 @@ class TestApplyConditionDegenerateRows:
             ],
             columns=EVENTS_COLUMNS,
         )
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         assert np.isnan(out.loc[0, "target_price"])
 
     def test_invalid_height_after_pivots_yields_nan(self) -> None:
@@ -432,7 +445,7 @@ class TestApplyConditionDegenerateRows:
         )
         # MEASURED_MOVE doesn't need ATR, so the early-NaN-ATR path falls
         # through; height = 0 (entry == pivot) → fallback ATR is NaN → NaN.
-        out = apply_condition(events, PatternCondition(), bars)
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
@@ -449,7 +462,7 @@ class TestPatternConditionOverride:
             cond.override(nonsense=1)
 
     def test_string_coercion_for_entry_and_exit_rules(self) -> None:
-        cond = PatternCondition().override(
+        cond = PatternCondition(direction=Direction.BULLISH).override(
             entry_rule="on_pullback",
             exit_rule="time_stop",
         )

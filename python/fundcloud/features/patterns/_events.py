@@ -21,7 +21,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from fundcloud.features.patterns._enums import Direction, Pattern, SignalMode, coerce
+from fundcloud.features.patterns._enums import Pattern, SignalMode, coerce
 
 __all__ = [
     "EVENTS_COLUMNS",
@@ -33,10 +33,16 @@ __all__ = [
 
 #: Canonical column order for the events table. Every detector returns the
 #: same shape; only the row content differs.
+#:
+#: Detection emits **geometry + pattern type** only — no directional label.
+#: Direction is a *strategy* concern: ``apply_condition`` derives it from the
+#: pattern type (via its private classical-direction map) when computing
+#: ``target_price`` / ``stop_price``, but the detection output stays neutral
+#: so downstream consumers (MFE/MAE analysis, alt-direction strategies) aren't
+#: locked into the classical interpretation.
 EVENTS_COLUMNS: tuple[str, ...] = (
     "pattern",
     "asset",
-    "direction",
     "formation_start",
     "formation_end",
     "breakout_ts",
@@ -73,7 +79,6 @@ def build_events_frame(
         rows.append({
             "pattern": Pattern(ev["name"] if "name" in ev else ev["pattern"]),
             "asset": asset,
-            "direction": Direction(ev["direction"]),
             "formation_start": index[formation_start_idx],
             "formation_end": index[formation_end_idx],
             "breakout_ts": index[formation_end_idx],  # v1: breakout = right edge

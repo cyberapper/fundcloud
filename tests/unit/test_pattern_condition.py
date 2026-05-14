@@ -53,7 +53,6 @@ def _double_bottom_event(
     return {
         "pattern": Pattern.DOUBLE_BOTTOM,
         "asset": asset,
-        "direction": Direction.BULLISH,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
@@ -94,7 +93,7 @@ def test_apply_condition_measured_move_target_for_bullish_double_bottom() -> Non
         columns=EVENTS_COLUMNS,
     )
 
-    out = apply_condition(events, PatternCondition(), bars)
+    out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
 
     assert out.loc[0, "target_price"] == pytest.approx(105.0)
     assert out.loc[0, "stop_price"] == pytest.approx(95.0)
@@ -113,7 +112,9 @@ def test_apply_condition_fib_1_618_target_extends_further() -> None:
         ],
         columns=EVENTS_COLUMNS,
     )
-    cond = PatternCondition().override(target_method=TargetMethod.FIB_1_618)
+    cond = PatternCondition(direction=Direction.BULLISH).override(
+        target_method=TargetMethod.FIB_1_618
+    )
 
     out = apply_condition(events, cond, bars)
 
@@ -133,7 +134,7 @@ def test_apply_condition_fixed_pct_stop() -> None:
         ],
         columns=EVENTS_COLUMNS,
     )
-    cond = PatternCondition().override(stop_method=StopMethod.FIXED_PCT)
+    cond = PatternCondition(direction=Direction.BULLISH).override(stop_method=StopMethod.FIXED_PCT)
 
     out = apply_condition(events, cond, bars)
 
@@ -153,7 +154,9 @@ def test_apply_condition_atr_multiple_stop() -> None:
         ],
         columns=EVENTS_COLUMNS,
     )
-    cond = PatternCondition().override(stop_method=StopMethod.ATR_MULTIPLE, atr_multiple=2.0)
+    cond = PatternCondition(direction=Direction.BULLISH).override(
+        stop_method=StopMethod.ATR_MULTIPLE, atr_multiple=2.0
+    )
 
     out = apply_condition(events, cond, bars)
 
@@ -185,7 +188,6 @@ def _double_top_event(
     return {
         "pattern": Pattern.DOUBLE_TOP,
         "asset": asset,
-        "direction": Direction.BEARISH,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
@@ -233,7 +235,8 @@ def test_pattern_strategy_runs_end_to_end_with_synthetic_events() -> None:
     indicator = DoubleBottom(min_quality=0.0)
     indicator.events = lambda _bars: stub_events  # type: ignore[method-assign]
 
-    strat = PatternStrategy(indicator, size=0.1)
+    cond = PatternCondition(direction=Direction.BULLISH)
+    strat = PatternStrategy(indicator, condition=cond, size=0.1)
     result = Simulator(bars).run_strategy(strat)
 
     assert len(result.equity_curve) == len(bars)
@@ -241,9 +244,10 @@ def test_pattern_strategy_runs_end_to_end_with_synthetic_events() -> None:
     assert len(result.trades) >= 1
 
 
-def test_pattern_strategy_inverse_flips_bearish_to_long() -> None:
-    """With ``inverse=True``, a bearish events panel produces long entries
-    (each event's sign flips from -1 to +1)."""
+def test_pattern_strategy_trades_double_top_as_bullish_when_caller_says_so() -> None:
+    """A DoubleTop indicator with ``PatternCondition(direction=BULLISH)``
+    produces long entries — the caller's direction choice drives the
+    strategy, independent of the pattern's classical shape."""
     from fundcloud.features.patterns import DoubleTop
     from fundcloud.strategies import PatternStrategy
 
@@ -266,10 +270,11 @@ def test_pattern_strategy_inverse_flips_bearish_to_long() -> None:
     indicator = DoubleTop(min_quality=0.0)
     indicator.events = lambda _bars: stub_events  # type: ignore[method-assign]
 
-    strat = PatternStrategy(indicator, inverse=True, size=0.1)
+    cond = PatternCondition(direction=Direction.BULLISH)
+    strat = PatternStrategy(indicator, condition=cond, size=0.1)
     strat.init(bars, _NullPortfolio())
 
-    assert strat._events_by_asset, "inverse flip should retain bearish events as longs"
+    assert strat._events_by_asset, "BULLISH direction should retain events as longs"
     for recs in strat._events_by_asset.values():
         assert recs, "expected at least one cached entry"
         assert all(r["sign"] == 1 for r in recs)

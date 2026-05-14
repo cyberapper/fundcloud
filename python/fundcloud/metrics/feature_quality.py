@@ -79,27 +79,17 @@ DEFAULT_ATR_WINDOW: int = 14
 # Throwback look-ahead — Bulkowski's standard.
 DEFAULT_THROWBACK_WINDOW: int = 10
 # Allowed values for the trade_direction knob.
-_TRADE_DIRECTIONS = ("natural", "inverse", "long", "short")
+_TRADE_DIRECTIONS = ("long", "short")
 
 
-def _resolve_sign(natural_sign: float, trade_direction: str) -> float:
-    """Apply the trade_direction transform to an event's natural sign.
-
-    * ``"natural"`` → keep the sign the detector emitted.
-    * ``"inverse"`` → flip it (test the "fade the pattern" hypothesis).
-    * ``"long"`` / ``"short"`` → force +1 / −1 regardless of detector.
-
-    Returns ``0.0`` only if the input was already neutral; callers
-    treat ``0.0`` as "skip this event".
+def _resolve_sign(trade_direction: str) -> float:
+    """Resolve ``trade_direction`` (``"long"`` | ``"short"``) to a ±1 sign
+    used to flip MFE/MAE and hit-rate computations.
     """
-    if trade_direction == "natural":
-        return natural_sign
-    if trade_direction == "inverse":
-        return -natural_sign
     if trade_direction == "long":
-        return 1.0 if natural_sign != 0.0 else 0.0
+        return 1.0
     if trade_direction == "short":
-        return -1.0 if natural_sign != 0.0 else 0.0
+        return -1.0
     msg = f"unknown trade_direction: {trade_direction!r}; valid: {_TRADE_DIRECTIONS}"
     raise ValueError(msg)
 
@@ -214,7 +204,7 @@ def _build_event_paths(
     *,
     max_horizon: int,
     atr_window: int,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
 ) -> list[_EventPath]:
     """Align each event with its forward path and ATR-based stop unit.
 
@@ -279,12 +269,7 @@ def _build_event_paths(
             # ±inf R-multiples that contaminate aggregates.
             continue
 
-        natural_sign = _direction_sign(ev["direction"])
-        if natural_sign == 0.0:
-            continue
-        sign = _resolve_sign(natural_sign, trade_direction)
-        if sign == 0.0:
-            continue
+        sign = _resolve_sign(trade_direction)
 
         quality = ev.get("quality")
         quality_f = float(quality) if quality is not None and not pd.isna(quality) else np.nan
@@ -528,17 +513,16 @@ def baseline_hit_rate(
     bars: pd.DataFrame,
     horizon: int,
     *,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
 ) -> float:
     """Asset-weighted unconditional ``P(directional forward return > 0)``
     at ``horizon``.
 
-    For each asset present in the events table, computes the fraction
-    of bars whose ``close[t+h] - close[t]`` has the *same* sign as the
-    typical event direction on that asset (after applying
-    ``trade_direction``). Aggregates across assets weighted by event
-    count, so a pattern that fires more on AAPL contributes more
-    AAPL-baseline weight.
+    For each asset present in the events table, computes the fraction of
+    bars whose ``close[t+h] - close[t]`` has the sign implied by the
+    caller-supplied ``trade_direction``. Aggregates across assets
+    weighted by event count, so a pattern that fires more on AAPL
+    contributes more AAPL-baseline weight.
 
     Notes:
 
@@ -556,30 +540,14 @@ def baseline_hit_rate(
         msg = "bars must have MultiIndex (field, asset) columns"
         raise TypeError(msg)
 
-    # Per-asset directional-sign mode: pick the most common direction
-    # among the events on that asset. Most pattern indicators are
-    # uni-directional, so this collapses to the obvious choice.
-    asset_dir: dict[str, float] = {}
-    weights: dict[str, int] = {}
-    for asset, group in events.groupby("asset"):
-        signs = [_direction_sign(d) for d in group["direction"]]
-        signs = [s for s in signs if s != 0.0]
-        if not signs:
-            continue
-        bullish = sum(1 for s in signs if s > 0)
-        bearish = sum(1 for s in signs if s < 0)
-        asset_dir[str(asset)] = 1.0 if bullish >= bearish else -1.0
-        weights[str(asset)] = len(group)
-
-    if not asset_dir:
+    sign = _resolve_sign(trade_direction)
+    weights: dict[str, int] = {str(asset): len(group) for asset, group in events.groupby("asset")}
+    if not weights:
         return float("nan")
 
     weighted_sum = 0.0
     weight_total = 0
-    for asset, natural_sign in asset_dir.items():
-        sign = _resolve_sign(natural_sign, trade_direction)
-        if sign == 0.0:
-            continue
+    for asset in weights:
         try:
             close = _select_asset(bars, asset)["close"].to_numpy(np.float64)
         except KeyError:
@@ -610,7 +578,7 @@ def evaluate(
     atr_window: int = DEFAULT_ATR_WINDOW,
     throwback_window: int = DEFAULT_THROWBACK_WINDOW,
     baseline: bool = True,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
     condition: Any = None,
 ) -> pd.DataFrame:
     """Headline feature-quality panel — one row per horizon.
@@ -625,12 +593,10 @@ def evaluate(
     it's a property of the breakout, not the horizon, but is included
     here so the table is self-contained.
 
-    ``trade_direction`` overrides the per-event direction sign before
-    the metrics are computed. ``"natural"`` (default) uses the
-    detector's emitted direction; ``"inverse"`` flips every event
-    (test the "fade the pattern" hypothesis); ``"long"`` / ``"short"``
-    force a fixed side. The baseline is transformed in lockstep so the
-    apples-to-apples comparison stays honest.
+    ``trade_direction`` is caller-supplied (``"long"`` or ``"short"``)
+    and applied uniformly to every event in the input table. The baseline
+    is computed against the same side so the apples-to-apples comparison
+    stays honest.
 
     ``condition`` (optional :class:`PatternCondition`): when supplied,
     :func:`fundcloud.features.patterns.apply_condition` runs first to
@@ -728,7 +694,7 @@ def quality_buckets(
     horizon: int = 20,
     n_buckets: int = 5,
     atr_window: int = DEFAULT_ATR_WINDOW,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
 ) -> pd.DataFrame:
     """Bucket events by ``quality`` and report metrics per bucket.
 
@@ -837,7 +803,7 @@ def per_asset(
     *,
     horizon: int = 20,
     atr_window: int = DEFAULT_ATR_WINDOW,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
 ) -> pd.DataFrame:
     """Stratified view: one row per asset, same metrics as ``evaluate``.
 
@@ -905,7 +871,7 @@ def time_stability(
     horizon: int = 20,
     n_folds: int = 5,
     atr_window: int = DEFAULT_ATR_WINDOW,
-    trade_direction: str = "natural",
+    trade_direction: str = "long",
 ) -> pd.DataFrame:
     """Chronological folds: equal-sized splits of the events by date.
 

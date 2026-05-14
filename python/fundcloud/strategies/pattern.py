@@ -7,11 +7,13 @@ and caches the events table; ``decide`` walks the per-bar context,
 opens trades on event timestamps, and closes them on intraday target /
 stop hits (or on the optional ``time_stop_bars`` deadline).
 
-**Long-only by default.** The simulator's broker-style position model
-does not assume naked short capability, so bearish pattern events are
-*skipped* unless ``inverse=True`` is set — in which case every event's
-sign is flipped (the "fade the pattern" trade) so a Double Top fires a
-long entry instead of being skipped.
+**Long-only.** The simulator's broker-style position model does not
+assume naked short capability, so the strategy only acts on events when
+``condition.direction is Direction.BULLISH``. Other directions
+(``BEARISH`` / ``NEUTRAL``) are honored as a no-op — express the
+"fade the pattern" idea by pairing a bearish detector (e.g. Double Top)
+with ``PatternCondition(direction=Direction.BULLISH)`` at the call
+site once the simulator gains short support.
 
 This is a research-grade strategy: no slippage / fees / sizing logic
 beyond a fixed fraction-of-equity ``size``. For a production engine
@@ -39,7 +41,7 @@ from fundcloud.features.patterns import (
     PatternIndicator,
     apply_condition,
 )
-from fundcloud.features.patterns._enums import EntryRule, ExitRule
+from fundcloud.features.patterns._enums import Direction, EntryRule, ExitRule
 from fundcloud.portfolio import Portfolio
 from fundcloud.sim.orders import Order
 from fundcloud.strategies.base import BaseStrategy, Context, register_strategy
@@ -62,11 +64,6 @@ class PatternStrategy(BaseStrategy):
     size
         Per-trade fraction of equity, ``0..=1``. ``0.1`` (default) means
         each open trade uses 10 % of current equity.
-    inverse
-        ``False`` (default) — trade in the natural direction, skip
-        bearish events. ``True`` — flip every event's direction so
-        bearish events fire long entries (test the fade-the-pattern
-        hypothesis end-to-end).
 
     Examples
     --------
@@ -82,7 +79,6 @@ class PatternStrategy(BaseStrategy):
         *,
         condition: PatternCondition | None = None,
         size: float = 0.1,
-        inverse: bool = False,
     ) -> None:
         if not 0.0 < size <= 1.0:
             msg = f"size must be in (0, 1]; got {size}"
@@ -102,7 +98,6 @@ class PatternStrategy(BaseStrategy):
             )
             raise NotImplementedError(msg)
         self.size = size
-        self.inverse = inverse
         # Filled in init():
         self._events_by_asset: dict[str, list[dict[str, Any]]] = {}
         # Open trades: asset → {sign, entry, target, stop, entry_ts, entry_pos}
@@ -123,14 +118,12 @@ class PatternStrategy(BaseStrategy):
         if events.empty:
             return
         events = apply_condition(events, self.condition, bars)
+        # Long-only strategy: only trade events the caller tagged bullish.
+        if self.condition.direction is not Direction.BULLISH:
+            return
         for asset, group in events.groupby("asset"):
             recs: list[dict[str, Any]] = []
             for _, ev in group.sort_values("breakout_ts").iterrows():
-                natural_sign = 1 if ev["direction"].value == "bullish" else -1
-                sign = -natural_sign if self.inverse else natural_sign
-                if sign <= 0:
-                    # Long-only: skip bearish events that didn't get flipped.
-                    continue
                 if (
                     pd.isna(ev["entry_price"])
                     or pd.isna(ev["target_price"])
@@ -138,7 +131,7 @@ class PatternStrategy(BaseStrategy):
                 ):
                     continue
                 recs.append({
-                    "sign": sign,
+                    "sign": 1,  # long-only (guarded by direction check above)
                     "ts": ev["breakout_ts"],
                     "entry": float(ev["entry_price"]),
                     "target": float(ev["target_price"]),

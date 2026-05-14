@@ -43,6 +43,15 @@ def _bars(n: int = 200, asset: str = "AAA") -> pd.DataFrame:
     return df
 
 
+# Maps each Direction to a representative pattern; tests that need a
+# bullish or bearish event pick from this table.
+_PATTERN_FOR_DIRECTION = {
+    Direction.BULLISH: Pattern.DOUBLE_BOTTOM,
+    Direction.BEARISH: Pattern.DOUBLE_TOP,
+    Direction.NEUTRAL: Pattern.SYMMETRICAL_TRIANGLE,
+}
+
+
 def _double_bottom_event(
     asset: str,
     breakout_ts: pd.Timestamp,
@@ -54,9 +63,8 @@ def _double_bottom_event(
     direction: Direction = Direction.BULLISH,
 ) -> dict:
     return {
-        "pattern": Pattern.DOUBLE_BOTTOM,
+        "pattern": _PATTERN_FOR_DIRECTION[direction],
         "asset": asset,
-        "direction": direction,
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
@@ -87,7 +95,9 @@ class _NullPortfolio:
 class TestInit:
     def test_empty_events_is_clean(self) -> None:
         bars = _bars()
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         # Stub the indicator to return an empty events table.
         strat.indicator.events = lambda _bars: pd.DataFrame(  # type: ignore[method-assign]
             columns=EVENTS_COLUMNS
@@ -114,7 +124,9 @@ class TestInit:
             ],
             columns=EVENTS_COLUMNS,
         )
-        strat = PatternStrategy(DoubleTop(), inverse=False)
+        # Long-only PatternStrategy must skip bearish events (sign != +1).
+        cond = PatternCondition(direction=Direction.BEARISH)
+        strat = PatternStrategy(DoubleTop(), condition=cond)
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         strat.init(bars, _NullPortfolio())  # type: ignore[arg-type]
         assert strat._events_by_asset == {}
@@ -130,7 +142,9 @@ class TestInit:
             [_double_bottom_event("ZZZ", ts, fs, entry=100.0, target=105.0, stop=95.0)],
             columns=EVENTS_COLUMNS,
         )
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         strat.init(bars, _NullPortfolio())  # type: ignore[arg-type]
         assert strat._events_by_asset == {}
@@ -158,7 +172,9 @@ class TestBarFieldHelper:
     def test_returns_none_for_missing_column(self) -> None:
         bars = _bars()
         portfolio = Portfolio(cash=1.0e5)
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         assert strat._bar_field(ctx, "ZZZ", "close") is None
 
@@ -166,7 +182,9 @@ class TestBarFieldHelper:
         bars = _bars()
         bars.loc[bars.index[10], ("close", "AAA")] = float("nan")
         portfolio = Portfolio(cash=1.0e5)
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 10, portfolio=portfolio)
         assert strat._bar_field(ctx, "AAA", "close") is None
 
@@ -174,7 +192,9 @@ class TestBarFieldHelper:
         bars = _bars()
         qty = 5.0
         portfolio = Portfolio(cash=10_000.0, positions={"AAA": qty})
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         close = float(bars.iloc[50][("close", "AAA")])
         assert strat._equity(ctx) == pytest.approx(10_000.0 + qty * close)
@@ -182,7 +202,9 @@ class TestBarFieldHelper:
     def test_equity_cash_only_when_no_positions(self) -> None:
         bars = _bars()
         portfolio = Portfolio(cash=10_000.0)
-        strat = PatternStrategy(DoubleBottom())
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )
         ctx = _ctx(bars, 50, portfolio=portfolio)
         assert strat._equity(ctx) == pytest.approx(10_000.0)
 
@@ -195,7 +217,9 @@ class TestBarFieldHelper:
 class TestTimeStop:
     def test_returns_false_when_disabled(self) -> None:
         bars = _bars()
-        strat = PatternStrategy(DoubleBottom())  # default condition: time_stop_bars=None
+        strat = PatternStrategy(
+            DoubleBottom(), condition=PatternCondition(direction=Direction.BULLISH)
+        )  # default condition: time_stop_bars=None
         strat._bar_index = bars.index
         portfolio = Portfolio(cash=1.0)
         ctx = _ctx(bars, 5, portfolio=portfolio)
@@ -262,7 +286,11 @@ class TestSimulatorExits:
             ],
             columns=EVENTS_COLUMNS,
         )
-        strat = PatternStrategy(DoubleBottom(), size=0.1)
+        strat = PatternStrategy(
+            DoubleBottom(),
+            condition=PatternCondition(direction=Direction.BULLISH),
+            size=0.1,
+        )
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         result = Simulator(bars).run_strategy(strat)
         # At least one round-trip trade — entry on bar 40 + exit on bar 41.
@@ -288,7 +316,7 @@ class TestSimulatorExits:
             ],
             columns=EVENTS_COLUMNS,
         )
-        cond = PatternCondition(time_stop_bars=3)
+        cond = PatternCondition(direction=Direction.BULLISH, time_stop_bars=3)
         strat = PatternStrategy(DoubleBottom(), condition=cond, size=0.1)
         strat.indicator.events = lambda _bars: events  # type: ignore[method-assign]
         result = Simulator(bars).run_strategy(strat)

@@ -27,7 +27,14 @@ __all__ = [
 
 
 class Pattern(str, Enum):
-    """Registered chart-pattern identifiers."""
+    """Registered chart-pattern identifiers.
+
+    Patterns are pure shape labels — no direction is implied by the name.
+    Whether to trade or grade a given event as bullish, bearish, or neutral
+    is a *strategy choice* expressed via :class:`PatternCondition.direction`
+    and :class:`PatternStrategy(direction=...)`. The library does not carry
+    a classical-TA prior.
+    """
 
     HEAD_AND_SHOULDERS = "head_and_shoulders"
     INVERSE_HEAD_AND_SHOULDERS = "inverse_head_and_shoulders"
@@ -41,7 +48,8 @@ class Pattern(str, Enum):
 
 
 class Direction(str, Enum):
-    """Direction a confirmed pattern resolves to."""
+    """Direction a strategy assigns to a pattern (caller-supplied, never
+    inferred by the library)."""
 
     BULLISH = "bullish"
     BEARISH = "bearish"

@@ -59,3 +59,6 @@ tests/integration/out/
 # Local strategy / scratch development (not committed)
 local/*
 !local/.gitkeep
+
+# Claude Code session metadata
+.claude/

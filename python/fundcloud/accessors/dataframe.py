@@ -681,15 +681,16 @@ class DataFrameAccessor:
         horizons: tuple[int, ...] = (5, 10, 20, 60),
         atr_window: int = 14,
         baseline: bool = True,
-        trade_direction: str = "natural",
+        trade_direction: str = "long",
         condition: Any = None,
         **params: Any,
     ) -> pd.DataFrame:
         """Headline feature-quality panel for the pattern.
 
         Delegates to :func:`fundcloud.metrics.feature_quality.evaluate`
-        after running the indicator. Use ``trade_direction='inverse'``
-        to test fading the pattern. Pass ``condition`` (a
+        after running the indicator. ``trade_direction`` is
+        caller-supplied (``"long"`` or ``"short"``); the library no
+        longer infers a per-event direction. Pass ``condition`` (a
         :class:`PatternCondition`) to grade R-multiples against the
         condition's target / stop instead of the 1×ATR fallback.
         """
@@ -815,19 +816,20 @@ class DataFrameAccessor:
         *,
         condition: Any = None,
         size: float = 0.1,
-        inverse: bool = False,
         **params: Any,
     ) -> SimResult:
         """Backtest the named pattern via :class:`PatternStrategy`.
 
+        Direction is supplied via ``condition.direction`` —
+        ``PatternStrategy`` is long-only and only trades events when
+        ``condition.direction is Direction.BULLISH``.
+
         Examples
         --------
-        >>> bars.fc.run_pattern(Pattern.DOUBLE_BOTTOM,                  # doctest: +SKIP
-        ...                     condition=PatternCondition(...))
-
-        Trade fade-the-pattern on a bearish detector::
-
-        >>> bars.fc.run_pattern("double_top", inverse=True)             # doctest: +SKIP
+        >>> bars.fc.run_pattern(                                        # doctest: +SKIP
+        ...     Pattern.DOUBLE_BOTTOM,
+        ...     condition=PatternCondition(direction=Direction.BULLISH),
+        ... )
         """
         require_bars_frame(self._obj, operation="run_pattern")
         from fundcloud.sim import Simulator
@@ -838,7 +840,6 @@ class DataFrameAccessor:
             indicator,
             condition=condition,
             size=size,
-            inverse=inverse,
         )
         return Simulator(self._obj).run_strategy(strategy)
 
