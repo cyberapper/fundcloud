@@ -130,37 +130,42 @@ the in-formation decline; breakout-bar volume is not part of `quality`.
 ### `trendline_r²` (25%)
 
 ```text
-score = mean(
-    max(
-        trendline_fit_r2(ohlcv.close, tl),
-        trendline_fit_r2(ohlcv.high,  tl),
-        trendline_fit_r2(ohlcv.low,   tl),
-    )
-    for tl in pattern.trend_lines
-) × 100
+score = mean(TrendLine::r_squared for tl in pattern.trend_lines) × 100
 ```
 
 If no trend lines are attached to the pattern, returns `50.0` (neutral).
 
-**Important — this is *not* the average of `TrendLine::r_squared`.**
-That field is the R² of the least-squares fit through the line's anchor
-pivots only — and since the line is constructed *to fit* those anchors,
-that R² is essentially always ~1.0 by construction (1.0 exactly with two
-anchors). It measures "did we draw the line through the points we said
-we'd draw it through?", which is trivially true.
+**This is the anchor-only R² — not an intermediate-bar fit.** Each
+`TrendLine::r_squared` is the R² of the least-squares fit through the
+line's anchor pivots; the per-bar `trendline_fit_r2` primitive in
+`trendline.rs` is *not* used by the scorer.
 
-`trendline_fit_r2(prices, line)` measures the fit against the
-**intermediate bars** between the anchors — the structural question of
-whether price actually behaved as if the line were meaningful (acting
-as support / resistance) over the formation window. Cleanly-respected
-trendlines score near 1.0; cherry-picked anchors with chaotic
-intermediate behaviour score near 0.0.
+**Why anchor-only:** many pattern trend lines are deliberately anchored
+on extreme pivots — the trough level for a triple-bottom support, the
+peak level for a triple-top resistance, the upper / lower boundary of
+a triangle. By construction the intermediate bars rise above or dip
+below such lines; they are *not* expected to hug the line. A per-bar
+fit against the bar-mean null model collapses to ~0 on extreme-anchor
+geometry even for textbook formations, which is the bug
+`features.trendline_r2 == 0` exposed.
 
-The max-of-three over `(close, high, low)` auto-selects the natural
-price series for the line: a low-anchored support line naturally fits
-the lows; a high-anchored resistance line fits the highs; a midline-ish
-line fits closes. A spurious line that fits *none* of the three remains
-correctly scored low.
+**Honest framing of information content:**
+
+* For 3+ anchor pivots (triple_top / triple_bottom and well-pivoted
+  triangle sides) anchor R² is a meaningful collinearity signal that
+  varies in `[0, 1]` — it answers "how cleanly do the three pivots
+  line up?". On a synthetic GBM corpus Spearman ρ ≈ 0.66 against
+  composite quality.
+* For 2-anchor lines (double_top / double_bottom, H&S necklines as
+  currently fitted, 2-touch triangle sides) anchor R² is trivially
+  `1.0` by construction. This sub-score therefore degenerates into a
+  constant `+25` bonus for those patterns (≈ 6/9 of the catalogue),
+  and discrimination falls to symmetry / volume / completeness.
+
+**Follow-up:** a subsequent commit introduces a boundary-respect ratio
+to make this component discriminative for 2-anchor lines too — the
+fraction of intermediate bars whose high / low respects the line within
+a 0.5% tolerance. For 3+ anchor lines anchor R² is retained.
 
 ### `completeness` (20%)
 

@@ -287,8 +287,18 @@ If volume data is unavailable or the formation is < 4 bars, returns
 
 #### `trendline_r2` (25%)
 
-Average `r_squared` across all attached `TrendLine`s, scaled to 0–100.
-If no trend lines (e.g., a pivot-only detection), returns `50.0`.
+Average anchor-only `TrendLine::r_squared` across all attached
+`TrendLine`s, scaled to 0–100. If no trend lines (e.g., a pivot-only
+detection), returns `50.0`.
+
+For 3+ anchor lines (triple_top / triple_bottom and well-pivoted
+triangle sides) this varies in `[0, 1]` and reflects how cleanly the
+pivots line up. For 2-anchor lines (double_top / double_bottom, H&S
+necklines, 2-touch triangle sides) it is trivially `1.0` by
+construction, so this component is effectively a constant `+25` bonus
+for those patterns; symmetry / volume / completeness carry the
+discrimination there. See [`docs/scoring/quality.md`](../scoring/quality.md)
+for the full rationale.
 
 #### `completeness` (20%)
 

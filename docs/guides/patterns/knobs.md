@@ -111,7 +111,23 @@ Lives in `crates/fundcloud-core/src/patterns/scoring.rs`.
 |---|---|---|---|
 | `symmetry` weight | `0.30` | keep | Composite weight on the symmetry sub-score. |
 | `volume` weight | `0.25` | keep | Volume sub-score weight. |
-| `trendline_r2` weight | `0.25` | keep | Trendline-fit sub-score weight (measures intermediate-bar fit, not anchor-only). |
+| `trendline_r2` weight | `0.25` | keep | Anchor-only R² of attached trend lines; informative for 3+ anchor lines (triple_top / triple_bottom / well-pivoted triangle sides), trivially 1.0 for 2-anchor lines. See `docs/scoring/quality.md`. |
+
+### Calibrated per-pattern `min_quality` defaults
+
+Subclasses now override `min_quality` to preserve the top-X% selectivity
+the old `min_quality=50` floor gave under the previous (broken) per-bar
+trendline scorer. These came out of a synthetic-GBM calibration corpus
+after the anchor-only scorer fix in `score_trendline`. Override per
+instance if your asset class needs a tighter / looser cutoff.
+
+| Pattern | `min_quality` |
+|---|---|
+| `double_top`, `double_bottom` | `75.0` |
+| `triple_top`, `triple_bottom` | `66.0` |
+| `head_and_shoulders`, `inverse_head_and_shoulders` | `73.0` |
+| `ascending_triangle`, `descending_triangle` | `74.0` |
+| `symmetrical_triangle` | `73.0` |
 | `completeness` weight | `0.20` | keep | Completeness sub-score weight. |
 | Duration floor | `5 bars` | keep | Below 5 bars, duration score is 0. |
 | Duration saturation | `10 bars` | keep | At ≥10 bars, duration score saturates at 100 (no long-pattern penalty). |

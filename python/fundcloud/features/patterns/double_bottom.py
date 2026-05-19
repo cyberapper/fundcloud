@@ -49,6 +49,11 @@ class DoubleBottom(PatternIndicator):
     detector_param_keys = ("trough_tolerance", "min_peak_height")
     default_params = {
         **PatternIndicator.default_params,
+        # Calibrated against a synthetic GBM corpus to preserve the top-X%
+        # selectivity of the old ``min_quality=50`` floor under the new
+        # anchor-only ``trendline_r2`` scorer. See
+        # ``docs/guides/patterns/knobs.md`` for the full table.
+        "min_quality": 75.0,
         "trough_tolerance": 0.015,
         "min_peak_height": 0.03,
     }

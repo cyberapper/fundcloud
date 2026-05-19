@@ -62,6 +62,11 @@ class SymmetricalTriangle(PatternIndicator):
     )
     default_params = {
         **PatternIndicator.default_params,
+        # Calibrated against a synthetic GBM corpus to preserve the top-X%
+        # selectivity of the old ``min_quality=50`` floor under the new
+        # anchor-only ``trendline_r2`` scorer. See
+        # ``docs/guides/patterns/knobs.md`` for the full table.
+        "min_quality": 73.0,
         "min_slope_threshold": 0.0005,
         "min_touches": 2,
         "min_bar_count": 10,

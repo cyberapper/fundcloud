@@ -52,6 +52,11 @@ class DoubleTop(PatternIndicator):
     detector_param_keys = ("peak_tolerance", "min_trough_depth")
     default_params = {
         **PatternIndicator.default_params,
+        # Calibrated against a synthetic GBM corpus to preserve the top-X%
+        # selectivity of the old ``min_quality=50`` floor under the new
+        # anchor-only ``trendline_r2`` scorer. See
+        # ``docs/guides/patterns/knobs.md`` for the full table.
+        "min_quality": 75.0,
         "peak_tolerance": 0.015,
         "min_trough_depth": 0.03,
     }
