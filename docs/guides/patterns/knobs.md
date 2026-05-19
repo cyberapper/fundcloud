@@ -115,19 +115,25 @@ Lives in `crates/fundcloud-core/src/patterns/scoring.rs`.
 
 ### Calibrated per-pattern `min_quality` defaults
 
-Subclasses now override `min_quality` to preserve the top-X% selectivity
-the old `min_quality=50` floor gave under the previous (broken) per-bar
-trendline scorer. These came out of a synthetic-GBM calibration corpus
-after the anchor-only scorer fix in `score_trendline`. Override per
-instance if your asset class needs a tighter / looser cutoff.
+Subclasses override `min_quality` to preserve the top-X% selectivity the
+old `min_quality=50` floor gave on the prior scorer. Recalibrated against
+a real-data corpus (~50 US large/mid-caps + sector ETFs + commodity/FX
+proxies, 2018-2026 dailies) after the boundary-respect + role-aware fix;
+the synthetic-GBM column is the prior recommendation kept for reference.
+Override per instance if your asset class needs a tighter / looser cutoff.
 
-| Pattern | `min_quality` |
-|---|---|
-| `double_top`, `double_bottom` | `75.0` |
-| `triple_top`, `triple_bottom` | `66.0` |
-| `head_and_shoulders`, `inverse_head_and_shoulders` | `73.0` |
-| `ascending_triangle`, `descending_triangle` | `74.0` |
-| `symmetrical_triangle` | `73.0` |
+| Pattern | Real-data (default) | Synthetic-GBM | Δ |
+|---|---|---|---|
+| `double_top`, `double_bottom` | `75.0` | `75.0` | 0 |
+| `triple_top`, `triple_bottom` | `71.0` | `66.0` | +5 |
+| `head_and_shoulders` | `67.0` | `73.0` | -6 |
+| `inverse_head_and_shoulders` | `68.0` | `73.0` | -5 |
+| `ascending_triangle`, `descending_triangle` | `74.0` | `74.0` | 0 |
+| `symmetrical_triangle` | `73.0` | `73.0` | 0 |
+
+Real-data corpus snapshot: `/tmp/calibration-real/events_{pre,post}.parquet`
+(~50 tickers, 8866 detections post-fix vs 11145 pre-fix). Differences of
+≤3 points were treated as sampling noise and not promoted.
 | `completeness` weight | `0.20` | keep | Completeness sub-score weight. |
 | Duration floor | `5 bars` | keep | Below 5 bars, duration score is 0. |
 | Duration saturation | `10 bars` | keep | At ≥10 bars, duration score saturates at 100 (no long-pattern penalty). |

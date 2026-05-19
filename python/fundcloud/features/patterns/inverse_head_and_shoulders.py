@@ -52,11 +52,14 @@ class InverseHeadAndShoulders(PatternIndicator):
     )
     default_params = {
         **PatternIndicator.default_params,
-        # Calibrated against a synthetic GBM corpus to preserve the top-X%
-        # selectivity of the old ``min_quality=50`` floor under the new
-        # anchor-only ``trendline_r2`` scorer. See
-        # ``docs/guides/patterns/knobs.md`` for the full table.
-        "min_quality": 73.0,
+        # Calibrated against a real-data corpus (~50 US large/mid-caps +
+        # ETFs + commodity/FX proxies, 2018-2026 dailies) to preserve the
+        # top-X% selectivity of the old ``min_quality=50`` floor under the
+        # current scorer. Real-data threshold is -5 points below the
+        # synthetic-GBM recommendation (73) — H&S formations in real
+        # markets are noisier and the synthetic GBM run was too strict.
+        # See ``docs/guides/patterns/knobs.md`` for the full table.
+        "min_quality": 68.0,
         "shoulder_tolerance": 0.10,
         "min_head_prominence": 0.03,
         "prior_trend_window": 20,
