@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, TrendLine};
+use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
 
 /// Default maximum `pct_diff` between any peak/trough and the trio's mean.
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.02;
@@ -163,7 +163,8 @@ impl PatternDetector for TripleTopDetector {
                 continue;
             }
 
-            let resistance = fit_trendline(&[p1, p3, p5]);
+            // Triple-top resistance through the three peaks → Upper role.
+            let resistance = fit_trendline(&[p1, p3, p5], Role::Upper);
             let mut trend_lines = Vec::new();
             if let Some(tl) = resistance {
                 // Boundary-respect gate: no intermediate bar may pierce the
@@ -274,7 +275,8 @@ impl PatternDetector for TripleBottomDetector {
                 continue;
             }
 
-            let support = fit_trendline(&[p1, p3, p5]);
+            // Triple-bottom support through the three troughs → Lower role.
+            let support = fit_trendline(&[p1, p3, p5], Role::Lower);
             let mut trend_lines = Vec::new();
             if let Some(tl) = support {
                 // Boundary-respect gate: no intermediate bar may dip below

@@ -259,7 +259,7 @@ fn score_completeness(pattern: &Pattern) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::patterns::types::{Direction, Pivot, PivotKind, TrendLine};
+    use crate::patterns::types::{Direction, Pivot, PivotKind, Role, TrendLine};
 
     fn pv(index: usize, price: f64, kind: PivotKind) -> Pivot {
         Pivot {
@@ -428,6 +428,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let p = Pattern {
             name: "double_top",
@@ -452,6 +453,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let p = Pattern {
             name: "double_top",
@@ -584,6 +586,7 @@ mod tests {
                 intercept: 0.0,
                 r_squared,
                 touch_count,
+                role: Role::Upper,
             }],
             formation: (0, formation_len),
             entry_price: None,
@@ -695,6 +698,7 @@ mod tests {
                     intercept: 100.0,
                     r_squared: r2,
                     touch_count: 4,
+                    role: Role::Upper,
                 };
                 let pattern = Pattern {
                     name: "double_top",
@@ -734,6 +738,7 @@ mod tests {
             intercept: 100.0,
             r_squared: 0.85, // anchor pivots are well collinear
             touch_count: 3,
+            role: Role::Lower,
         };
         let pattern = Pattern {
             name: "triple_bottom",
@@ -780,6 +785,7 @@ mod tests {
             intercept: 100.0,
             r_squared: 1.0, // trivially 1.0 for 2-anchor; old code returned 100
             touch_count: 2,
+            role: Role::Upper,
         };
         let pattern = Pattern {
             name: "double_top",
@@ -808,8 +814,10 @@ mod tests {
     #[test]
     fn trendline_score_drops_when_bars_breach_two_anchor_line() {
         // Same 2-anchor line at level 100 — but half the bars' highs
-        // break decisively above the line (110 ≫ 100 × 1.005) and lows
-        // break below. Boundary-respect ratio must drop materially.
+        // break decisively above the line (110 ≫ 100 × 1.005). With the
+        // role-aware boundary-respect ratio, only the upper-respect side
+        // is evaluated for Role::Upper, so the ratio drops to ~0.5
+        // (half the bars respect, half breach).
         let line = TrendLine {
             start_index: 0,
             end_index: 29,
@@ -817,6 +825,7 @@ mod tests {
             intercept: 100.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Upper,
         };
         let pattern = Pattern {
             name: "double_top",
@@ -841,8 +850,8 @@ mod tests {
         let v = view(&close, &volumes, &high, &low);
 
         let score = score_trendline(&pattern, v);
-        // Upper-respect = 0.5 (half breach), lower-respect = 0 (all lows
-        // below 99.5). Max = 0.5 → score = 50.
+        // Upper-respect = 0.5 (half breach), evaluated directly per
+        // Role::Upper → score = 50.
         assert!(
             score < 60.0,
             "expected dropped score from breaches, got {score}"
@@ -863,6 +872,7 @@ mod tests {
             intercept: 100.0,
             r_squared: 0.85,
             touch_count: 3,
+            role: Role::Lower,
         };
         let pattern = Pattern {
             name: "triple_bottom",
@@ -952,6 +962,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let scores: Vec<f64> = [100.0, 100.5, 101.0, 101.5, 102.0]
             .iter()

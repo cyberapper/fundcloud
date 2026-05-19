@@ -5,16 +5,22 @@
 //! parity is locked in by the Python integration tests in
 //! `tests/integration/test_pattern_pipeline.py`.
 
-use crate::patterns::types::{Pivot, TrendLine};
+use crate::patterns::types::{Pivot, Role, TrendLine};
 
 /// Fit a least-squares line through `pivots`.
+///
+/// `role` records whether the caller is fitting a resistance line through
+/// highs (`Role::Upper`) or a support line through lows (`Role::Lower`).
+/// The fit itself doesn't depend on the role — but downstream scoring
+/// ([`boundary_respect_ratio`]) does, so we record it at construction
+/// rather than guessing later.
 ///
 /// Returns `None` when fewer than two pivots are supplied. With exactly
 /// two pivots the fit is exact (`r² = 1.0`). When all pivot indices
 /// collide, slope is forced to zero and r² collapses to 1.0 only when
 /// every price is identical (matches the rank-deficient lstsq fallback in
 /// the reference implementation).
-pub fn fit_trendline(pivots: &[Pivot]) -> Option<TrendLine> {
+pub fn fit_trendline(pivots: &[Pivot], role: Role) -> Option<TrendLine> {
     let n = pivots.len();
     if n < 2 {
         return None;
@@ -64,6 +70,7 @@ pub fn fit_trendline(pivots: &[Pivot]) -> Option<TrendLine> {
         intercept,
         r_squared: r_squared.clamp(0.0, 1.0),
         touch_count: n.min(u8::MAX as usize) as u8,
+        role,
     })
 }
 
@@ -174,16 +181,20 @@ pub fn validate_boundaries(
 pub const DEFAULT_BOUNDARY_RESPECT_TOLERANCE: f64 = 0.005;
 
 /// Fraction of bars in `[line.start_index, line.end_index]` whose
-/// high / low respects the trend line within `tolerance` of the
-/// line price. Returns the **max** of the upper-boundary and
-/// lower-boundary respect ratios, so the line's role (resistance vs
-/// support) is auto-detected the same way `trendline_fit_r2`
-/// auto-detects (close vs high vs low).
+/// high / low respects the trend line within `tolerance` of the line
+/// price, **evaluated directionally per the line's [`Role`]**.
 ///
-/// * **Upper boundary (resistance):** `respect` iff
+/// * `Role::Upper` (resistance) — bar respects iff
 ///   `high[i] <= line.price_at(i) + tolerance * line.price_at(i)`.
-/// * **Lower boundary (support):** `respect` iff
+/// * `Role::Lower` (support) — bar respects iff
 ///   `low[i] >= line.price_at(i) - tolerance * line.price_at(i)`.
+///
+/// **No max-of-two heuristic.** Earlier versions returned
+/// `max(upper_respect, lower_respect)` to auto-detect role, but the max
+/// made the metric structurally permissive for 2-anchor patterns: if one
+/// role didn't fit, the other usually did, and the ratio saturated near
+/// 1.0. Recording `Role` on every line at construction lets us score the
+/// intended side directly.
 ///
 /// This is the **discriminative scorer for 2-anchor lines.** For a
 /// double_top / double_bottom or H&S neckline the anchor-only R² is
@@ -191,10 +202,10 @@ pub const DEFAULT_BOUNDARY_RESPECT_TOLERANCE: f64 = 0.005;
 /// For 3+ anchor lines (triple_top / triple_bottom, well-pivoted
 /// triangle sides) the scorer keeps using anchor R².
 ///
-/// Returns `0.0` when the line spans fewer than 2 bars in `highs`
-/// (no signal possible). Tolerance is interpreted as a fraction of the
-/// line price, not of the bar price — keeps the rule scale-free across
-/// price magnitudes.
+/// Returns `0.0` when the line spans fewer than 2 bars in `highs` /
+/// `lows` (no signal possible). Tolerance is interpreted as a fraction
+/// of the line price, not of the bar price — keeps the rule scale-free
+/// across price magnitudes.
 pub fn boundary_respect_ratio(
     highs: &[f64],
     lows: &[f64],
@@ -212,21 +223,19 @@ pub fn boundary_respect_ratio(
     }
     let span = last - start + 1;
 
-    let mut upper_ok = 0usize;
-    let mut lower_ok = 0usize;
+    let mut ok = 0usize;
     for i in start..=last {
         let line_price = line.price_at(i);
         let tol_amount = tolerance * line_price.abs();
-        if highs[i] <= line_price + tol_amount {
-            upper_ok += 1;
-        }
-        if lows[i] >= line_price - tol_amount {
-            lower_ok += 1;
+        let respects = match line.role {
+            Role::Upper => highs[i] <= line_price + tol_amount,
+            Role::Lower => lows[i] >= line_price - tol_amount,
+        };
+        if respects {
+            ok += 1;
         }
     }
-    let upper_ratio = upper_ok as f64 / span as f64;
-    let lower_ratio = lower_ok as f64 / span as f64;
-    upper_ratio.max(lower_ratio).clamp(0.0, 1.0)
+    (ok as f64 / span as f64).clamp(0.0, 1.0)
 }
 
 /// Count how many bars in `[line.start_index, line.end_index]` come within
@@ -269,38 +278,40 @@ mod tests {
 
     #[test]
     fn fewer_than_two_pivots_returns_none() {
-        assert!(fit_trendline(&[]).is_none());
-        assert!(fit_trendline(&[pv(0, 1.0)]).is_none());
+        assert!(fit_trendline(&[], Role::Upper).is_none());
+        assert!(fit_trendline(&[pv(0, 1.0)], Role::Upper).is_none());
     }
 
     #[test]
     fn two_pivots_give_exact_fit() {
-        let line = fit_trendline(&[pv(0, 1.0), pv(10, 11.0)]).unwrap();
+        let line = fit_trendline(&[pv(0, 1.0), pv(10, 11.0)], Role::Upper).unwrap();
         assert!((line.slope - 1.0).abs() < 1e-12);
         assert!((line.intercept - 1.0).abs() < 1e-12);
         assert!((line.r_squared - 1.0).abs() < 1e-12);
         assert_eq!(line.touch_count, 2);
+        assert_eq!(line.role, Role::Upper);
     }
 
     #[test]
     fn three_collinear_points_are_perfectly_fit() {
-        let line = fit_trendline(&[pv(1, 3.0), pv(4, 9.0), pv(7, 15.0)]).unwrap();
+        let line = fit_trendline(&[pv(1, 3.0), pv(4, 9.0), pv(7, 15.0)], Role::Upper).unwrap();
         assert!((line.slope - 2.0).abs() < 1e-12);
         assert!((line.r_squared - 1.0).abs() < 1e-12);
     }
 
     #[test]
     fn constant_y_has_zero_slope_and_r2_of_one() {
-        let line = fit_trendline(&[pv(0, 5.0), pv(5, 5.0), pv(10, 5.0)]).unwrap();
+        let line = fit_trendline(&[pv(0, 5.0), pv(5, 5.0), pv(10, 5.0)], Role::Lower).unwrap();
         assert_eq!(line.slope, 0.0);
         assert!((line.intercept - 5.0).abs() < 1e-12);
         assert_eq!(line.r_squared, 1.0);
+        assert_eq!(line.role, Role::Lower);
     }
 
     #[test]
     fn collapsed_x_with_varying_y_gives_zero_r2() {
         // All points share index 5 (degenerate); price differs.
-        let line = fit_trendline(&[pv(5, 1.0), pv(5, 2.0), pv(5, 3.0)]).unwrap();
+        let line = fit_trendline(&[pv(5, 1.0), pv(5, 2.0), pv(5, 3.0)], Role::Upper).unwrap();
         assert_eq!(line.slope, 0.0);
         assert!((line.intercept - 2.0).abs() < 1e-12);
         assert_eq!(line.r_squared, 0.0);
@@ -316,6 +327,7 @@ mod tests {
             intercept: 10.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Upper,
         };
         let lower = TrendLine {
             start_index: 0,
@@ -324,6 +336,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Lower,
         };
         let highs = [9.0, 9.5, 9.0, 8.0, 9.0];
         let lows = [1.0, 0.5, 1.0, 1.5, 1.0];
@@ -341,6 +354,7 @@ mod tests {
             intercept: 10.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Upper,
         };
         let lower = TrendLine {
             start_index: 0,
@@ -349,6 +363,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Lower,
         };
         let highs = [9.0, 9.5, 12.0, 8.0, 9.0]; // bar 2 breaks out
         let lows = [1.0; 5];
@@ -357,7 +372,7 @@ mod tests {
         ));
     }
 
-    fn flat_line(start: usize, end: usize, price: f64) -> TrendLine {
+    fn flat_line(start: usize, end: usize, price: f64, role: Role) -> TrendLine {
         TrendLine {
             start_index: start,
             end_index: end,
@@ -365,10 +380,11 @@ mod tests {
             intercept: price,
             r_squared: 1.0,
             touch_count: 2,
+            role,
         }
     }
 
-    fn sloped_line(start: usize, end: usize, slope: f64, intercept: f64) -> TrendLine {
+    fn sloped_line(start: usize, end: usize, slope: f64, intercept: f64, role: Role) -> TrendLine {
         TrendLine {
             start_index: start,
             end_index: end,
@@ -376,6 +392,7 @@ mod tests {
             intercept,
             r_squared: 1.0,
             touch_count: 2,
+            role,
         }
     }
 
@@ -383,7 +400,7 @@ mod tests {
     fn fit_r2_is_one_when_prices_lie_exactly_on_line() {
         // Prices follow y = 2 + x exactly across 5 bars.
         let prices: Vec<f64> = (0..5).map(|i| 2.0 + i as f64).collect();
-        let line = sloped_line(0, 4, 1.0, 2.0);
+        let line = sloped_line(0, 4, 1.0, 2.0, Role::Upper);
         assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
     }
 
@@ -391,7 +408,7 @@ mod tests {
     fn fit_r2_is_one_when_prices_constant_and_line_predicts_constant() {
         // Constant prices at 100, flat line at 100 → perfect fit.
         let prices = vec![100.0; 10];
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
     }
 
@@ -399,7 +416,7 @@ mod tests {
     fn fit_r2_is_zero_when_prices_constant_but_line_disagrees() {
         // Constant prices at 100, sloped line wandering away → no fit.
         let prices = vec![100.0; 10];
-        let line = sloped_line(0, 9, 1.0, 100.0); // y = 100 + x
+        let line = sloped_line(0, 9, 1.0, 100.0, Role::Upper); // y = 100 + x
         assert_eq!(trendline_fit_r2(&prices, &line), 0.0);
     }
 
@@ -409,7 +426,7 @@ mod tests {
         let prices: Vec<f64> = (0..10)
             .map(|i| if i % 2 == 0 { 100.0 } else { 110.0 })
             .collect();
-        let line = flat_line(0, 9, 105.0); // mean of oscillation
+        let line = flat_line(0, 9, 105.0, Role::Upper); // mean of oscillation
         let r2 = trendline_fit_r2(&prices, &line);
         // Flat line at the mean is the null model — R² collapses to 0.
         assert!(r2 < 1e-9, "expected ~0, got {r2}");
@@ -419,7 +436,7 @@ mod tests {
     fn fit_r2_decreases_as_prices_deviate_more_from_line() {
         // Hold the line flat at 100; progressively scatter prices.
         // R² must monotonically decrease as scatter increases.
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let mut prev = f64::INFINITY;
         for &amplitude in &[0.0, 1.0, 5.0, 15.0] {
             let prices: Vec<f64> = (0..10)
@@ -437,7 +454,7 @@ mod tests {
     #[test]
     fn fit_r2_returns_zero_for_too_few_bars() {
         let prices = vec![100.0, 101.0];
-        let line = flat_line(0, 0, 100.0);
+        let line = flat_line(0, 0, 100.0, Role::Upper);
         assert_eq!(trendline_fit_r2(&prices, &line), 0.0);
     }
 
@@ -446,7 +463,7 @@ mod tests {
         // Line claims it spans bars 0..=20, but prices only has 5 bars.
         // Should not panic; should evaluate over the available 0..=4.
         let prices: Vec<f64> = (0..5).map(|i| 2.0 + i as f64).collect();
-        let line = sloped_line(0, 20, 1.0, 2.0);
+        let line = sloped_line(0, 20, 1.0, 2.0, Role::Upper);
         assert!((trendline_fit_r2(&prices, &line) - 1.0).abs() < 1e-9);
     }
 
@@ -456,7 +473,7 @@ mod tests {
         // anchor-only `r_squared = 1.0` should produce different
         // `trendline_fit_r2` values when the bars between anchors
         // differ.
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Upper);
 
         // Bars hugging the line.
         let clean: Vec<f64> = (0..10).map(|_| 100.0).collect();
@@ -474,7 +491,7 @@ mod tests {
     #[test]
     fn boundary_respect_ratio_one_when_all_bars_respect_upper_line() {
         // Flat resistance line at 100; every bar's high sits below.
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let highs = vec![99.0; 10];
         let lows = vec![90.0; 10];
         let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
@@ -484,7 +501,7 @@ mod tests {
     #[test]
     fn boundary_respect_ratio_one_when_all_bars_respect_lower_line() {
         // Flat support line at 100; every bar's low sits above.
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Lower);
         let highs = vec![110.0; 10];
         let lows = vec![101.0; 10];
         let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
@@ -493,11 +510,10 @@ mod tests {
 
     #[test]
     fn boundary_respect_ratio_half_when_half_the_bars_pierce_upper_line() {
-        // Flat resistance line at 100; alternating highs at 99 (respect)
-        // and 110 (breach, well outside 0.5% tolerance). Lows sit well
-        // below the line, so the lower-respect ratio is 0.0 — the max
-        // collapses to the upper-respect ratio of 0.5.
-        let line = flat_line(0, 9, 100.0);
+        // Upper resistance line at 100; alternating highs at 99 (respect)
+        // and 110 (breach, well outside 0.5% tolerance). Role::Upper
+        // evaluates only the upper-respect ratio, which is 0.5.
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let highs: Vec<f64> = (0..10)
             .map(|i| if i % 2 == 0 { 99.0 } else { 110.0 })
             .collect();
@@ -507,34 +523,44 @@ mod tests {
     }
 
     #[test]
-    fn boundary_respect_ratio_zero_when_no_bar_respects_either_side() {
-        // Line at 100. Highs all break above (110 > 100.5), lows all
-        // break below (90 < 99.5). Neither boundary role fits.
-        let line = flat_line(0, 9, 100.0);
+    fn boundary_respect_ratio_zero_when_upper_role_breached() {
+        // Upper line at 100. Every high breaches above (110 > 100.5),
+        // so the upper-respect ratio is 0 — Role::Lower information is
+        // ignored even though the lows respect the same level.
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let highs = vec![110.0; 10];
-        let lows = vec![90.0; 10];
+        let lows = vec![101.0; 10];
         let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
         assert_eq!(r, 0.0);
     }
 
     #[test]
-    fn boundary_respect_ratio_takes_max_of_upper_and_lower_roles() {
-        // Line at 100. All highs break above (upper-respect = 0), but
-        // all lows respect the support role (lower-respect = 1).
-        // The function must pick the lower-respect role.
-        let line = flat_line(0, 9, 100.0);
+    fn boundary_respect_ratio_does_not_fall_back_to_other_role() {
+        // Upper line at 100. All highs break above (upper-respect = 0).
+        // The lows respect (lower-respect = 1), but Role::Upper must
+        // NOT fall back to it — this is the whole point of the role
+        // enum. Earlier max-of-two heuristic returned 1.0 here.
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let highs = vec![110.0; 10];
         let lows = vec![101.0; 10];
         let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
-        assert!((r - 1.0).abs() < 1e-9, "expected 1.0, got {r}");
+        assert_eq!(r, 0.0, "Role::Upper must not fall back to lower role");
+
+        // Same panel, but with Role::Lower — now the metric reads lows.
+        let line = flat_line(0, 9, 100.0, Role::Lower);
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert!(
+            (r - 1.0).abs() < 1e-9,
+            "Role::Lower should score 1, got {r}"
+        );
     }
 
     #[test]
     fn boundary_respect_ratio_respects_tolerance_band() {
-        // Line at 100, tolerance 1%. A high of 100.5 (0.5% above) is
+        // Upper line at 100, tolerance 1%. A high of 100.5 (0.5% above) is
         // inside tolerance and respects the upper role. A high of
         // 102 (2% above) is outside tolerance.
-        let line = flat_line(0, 9, 100.0);
+        let line = flat_line(0, 9, 100.0, Role::Upper);
         let highs = vec![100.5; 10];
         let lows = vec![10.0; 10];
         assert!((boundary_respect_ratio(&highs, &lows, &line, 0.01) - 1.0).abs() < 1e-9);
@@ -546,7 +572,7 @@ mod tests {
     #[test]
     fn boundary_respect_ratio_zero_for_single_bar_span() {
         // Line spans a single bar — no usable signal.
-        let line = flat_line(5, 5, 100.0);
+        let line = flat_line(5, 5, 100.0, Role::Upper);
         let highs = vec![99.0; 10];
         let lows = vec![101.0; 10];
         assert_eq!(boundary_respect_ratio(&highs, &lows, &line, 0.005), 0.0);
@@ -561,6 +587,7 @@ mod tests {
             intercept: 100.0,
             r_squared: 1.0,
             touch_count: 2,
+            role: Role::Upper,
         };
         // Tolerance 1% of 100 = 1.0
         let prices = [100.0, 99.5, 102.0, 101.0, 100.0];

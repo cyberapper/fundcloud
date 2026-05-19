@@ -18,7 +18,7 @@
 //! (revert).
 
 use fundcloud_core::patterns::{
-    Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, TrendLine,
+    Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine,
 };
 
 #[derive(Clone, Copy)]
@@ -143,7 +143,7 @@ fn pv(index: usize, price: f64, kind: PivotKind) -> Pivot {
     }
 }
 
-fn solid_trendline(end: usize, touches: u8) -> TrendLine {
+fn solid_trendline(end: usize, touches: u8, role: Role) -> TrendLine {
     TrendLine {
         start_index: 0,
         end_index: end,
@@ -151,10 +151,11 @@ fn solid_trendline(end: usize, touches: u8) -> TrendLine {
         intercept: 100.0,
         r_squared: 0.95,
         touch_count: touches,
+        role,
     }
 }
 
-fn weak_trendline(end: usize, touches: u8) -> TrendLine {
+fn weak_trendline(end: usize, touches: u8, role: Role) -> TrendLine {
     TrendLine {
         start_index: 0,
         end_index: end,
@@ -162,6 +163,7 @@ fn weak_trendline(end: usize, touches: u8) -> TrendLine {
         intercept: 100.0,
         r_squared: 0.30,
         touch_count: touches,
+        role,
     }
 }
 
@@ -177,7 +179,7 @@ fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
             pv(15, 92.0, PivotKind::Low),
             pv(30, 100.0, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(30, 5)],
+        trend_lines: vec![solid_trendline(30, 5, Role::Upper)],
         formation: (0, 30),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -197,7 +199,7 @@ fn double_top_good() -> (Pattern, OwnedOhlcv) {
             // 0.5% peak asymmetry — within tolerance, but not perfect.
             pv(30, 100.5, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(30, 4)],
+        trend_lines: vec![solid_trendline(30, 4, Role::Upper)],
         formation: (0, 30),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -217,7 +219,7 @@ fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
             // 1% peak asymmetry — chips into symmetry score.
             pv(14, 101.0, PivotKind::High),
         ],
-        trend_lines: vec![weak_trendline(14, 2)],
+        trend_lines: vec![weak_trendline(14, 2, Role::Upper)],
         formation: (0, 14),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -238,7 +240,8 @@ fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
             pv(30, 92.0, PivotKind::Low),   // neckline right
             pv(40, 100.0, PivotKind::High), // right shoulder
         ],
-        trend_lines: vec![solid_trendline(40, 5)],
+        // Resistance line through the shoulder level (intercept 100).
+        trend_lines: vec![solid_trendline(40, 5, Role::Upper)],
         formation: (0, 40),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -259,7 +262,7 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
             pv(30, 93.0, PivotKind::Low),   // 1% neckline tilt
             pv(40, 102.0, PivotKind::High), // 2% shoulder asymmetry
         ],
-        trend_lines: vec![solid_trendline(40, 4)],
+        trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
         formation: (0, 40),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -280,7 +283,7 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
             pv(15, 91.0, PivotKind::Low),   // 2% neckline tilt
             pv(20, 105.0, PivotKind::High), // 5% shoulder asymmetry
         ],
-        trend_lines: vec![weak_trendline(20, 2)],
+        trend_lines: vec![weak_trendline(20, 2, Role::Upper)],
         formation: (0, 20),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -304,7 +307,8 @@ fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
             pv(30, 92.0, PivotKind::Low),
             pv(40, 100.0, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(40, 6)],
+        // Triple-top resistance through the three peaks → Upper.
+        trend_lines: vec![solid_trendline(40, 6, Role::Upper)],
         formation: (0, 40),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -325,7 +329,11 @@ fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
             pv(30, 96.0, PivotKind::Low),
             pv(40, 98.0, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(40, 5), solid_trendline(40, 5)],
+        // Symmetrical triangle: upper boundary (Upper) + lower boundary (Lower).
+        trend_lines: vec![
+            solid_trendline(40, 5, Role::Upper),
+            solid_trendline(40, 5, Role::Lower),
+        ],
         formation: (0, 40),
         entry_price: Some(98.0),
         breakout_price: None,
@@ -347,7 +355,8 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
             pv(26, 96.0, PivotKind::Low),
             pv(40, 98.0, PivotKind::High),
         ],
-        trend_lines: vec![weak_trendline(40, 2)],
+        // Single weak upper boundary — a poorly-fit symmetrical triangle.
+        trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
         formation: (0, 40),
         entry_price: Some(98.0),
         breakout_price: None,
@@ -380,6 +389,7 @@ fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
             intercept: 92.0,
             r_squared: 0.95,
             touch_count: 5,
+            role: Role::Lower,
         }],
         formation: (0, 40),
         entry_price: Some(100.0),
@@ -403,7 +413,7 @@ fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
             // 50% peak asymmetry — symmetry score should be 0.
             pv(30, 150.0, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(30, 5)],
+        trend_lines: vec![solid_trendline(30, 5, Role::Upper)],
         formation: (0, 30),
         entry_price: Some(80.0),
         breakout_price: None,
@@ -423,7 +433,7 @@ fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
             pv(2, 92.0, PivotKind::Low),
             pv(4, 100.0, PivotKind::High),
         ],
-        trend_lines: vec![solid_trendline(4, 3)],
+        trend_lines: vec![solid_trendline(4, 3, Role::Upper)],
         formation: (0, 4),
         entry_price: Some(92.0),
         breakout_price: None,
@@ -445,7 +455,7 @@ fn h_and_s_degenerate_head() -> (Pattern, OwnedOhlcv) {
             pv(6, 95.0, PivotKind::Low),
             pv(8, 100.0, PivotKind::High),
         ],
-        trend_lines: vec![weak_trendline(8, 2)],
+        trend_lines: vec![weak_trendline(8, 2, Role::Upper)],
         formation: (0, 8),
         entry_price: Some(95.0),
         breakout_price: None,

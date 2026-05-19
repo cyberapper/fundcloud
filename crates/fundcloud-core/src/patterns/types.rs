@@ -48,6 +48,37 @@ impl PivotKind {
     }
 }
 
+/// Which side of price a trend line is defined against.
+///
+/// `Upper` = resistance, drawn through swing highs; bars are expected to stay
+/// at or below the line within tolerance. `Lower` = support, drawn through
+/// swing lows; bars are expected to stay at or above the line.
+///
+/// Carried on every [`TrendLine`] so [`crate::patterns::boundary_respect_ratio`]
+/// can evaluate the right side directly instead of taking the max of upper /
+/// lower respect ratios — that max-of-two heuristic was structurally
+/// permissive, saturating near 1.0 for many 2-anchor patterns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Role {
+    /// Resistance line — tracks highs. Bars respect it when their high is
+    /// at or below the line price (within tolerance).
+    Upper,
+    /// Support line — tracks lows. Bars respect it when their low is at or
+    /// above the line price (within tolerance).
+    Lower,
+}
+
+impl Role {
+    /// Uppercase string form. Mirrors `PivotKind::as_str` so JSON snapshots
+    /// of the role stay byte-identical to the convention used elsewhere.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Role::Upper => "UPPER",
+            Role::Lower => "LOWER",
+        }
+    }
+}
+
 /// A swing high or swing low.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Pivot {
@@ -79,6 +110,10 @@ pub struct TrendLine {
     pub r_squared: f64,
     /// Number of pivots used in the fit.
     pub touch_count: u8,
+    /// Whether the line tracks highs (`Upper` = resistance) or lows
+    /// (`Lower` = support). Set by the detector that builds the line —
+    /// the OLS fitter itself doesn't know which side it's working on.
+    pub role: Role,
 }
 
 impl TrendLine {

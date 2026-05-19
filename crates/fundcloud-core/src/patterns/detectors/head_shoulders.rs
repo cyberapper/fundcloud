@@ -7,7 +7,7 @@
 
 use crate::patterns::detect::{prior_trend_slope, PatternDetector};
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
+use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role};
 
 /// Window (in bars) used to infer the pre-formation trend. 20 bars
 /// (≈ one trading month on dailies) is wide enough to detect a real
@@ -104,10 +104,11 @@ impl PatternDetector for HeadShouldersDetector {
                 continue;
             }
 
-            // Neckline through the two lows; resistance through the two
-            // shoulder highs.
-            let neckline = fit_trendline(&[l1, l2]);
-            let resistance = fit_trendline(&[h1, h3]);
+            // Neckline through the two intervening lows → support that
+            // breaks downward on a confirmed bearish breakout (Lower role).
+            // Resistance through the two shoulder highs → Upper role.
+            let neckline = fit_trendline(&[l1, l2], Role::Lower);
+            let resistance = fit_trendline(&[h1, h3], Role::Upper);
 
             let neckline_price = match &neckline {
                 Some(tl) => tl.price_at(h3.index),
@@ -206,10 +207,11 @@ impl PatternDetector for InverseHeadShouldersDetector {
                 continue;
             }
 
-            // Neckline through the two highs; support through the two
-            // shoulder lows.
-            let neckline = fit_trendline(&[h1, h2]);
-            let support = fit_trendline(&[l1, l3]);
+            // Neckline through the two intervening highs → resistance
+            // that breaks upward on a confirmed bullish breakout (Upper).
+            // Support through the two shoulder lows → Lower role.
+            let neckline = fit_trendline(&[h1, h2], Role::Upper);
+            let support = fit_trendline(&[l1, l3], Role::Lower);
 
             let neckline_price = match &neckline {
                 Some(tl) => tl.price_at(l3.index),
