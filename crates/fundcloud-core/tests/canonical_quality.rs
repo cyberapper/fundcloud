@@ -18,7 +18,8 @@
 //! (revert).
 
 use fundcloud_core::patterns::{
-    Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine,
+    fit_trendline, Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role,
+    TrendLine,
 };
 
 #[derive(Clone, Copy)]
@@ -155,6 +156,14 @@ fn solid_trendline(end: usize, touches: u8, role: Role) -> TrendLine {
     }
 }
 
+// Hand-rolled "weak" line. Its `r_squared = 0.30` only bites the scorer
+// when `touches >= 3` (the anchor-R² branch in `score_trendline`); for
+// `touches == 2` the line goes through `boundary_respect_ratio` instead
+// and "weakness" must come from bars actually breaching the line — see
+// `h_and_s_marginal` for that pattern. Callers passing `touches == 2`
+// here get a saturated trendline component (~1.0) whenever bars sit on
+// the line's permitted side, which is fine for fixtures whose marginal
+// character comes from other sub-scorers (symmetry, completeness).
 fn weak_trendline(end: usize, touches: u8, role: Role) -> TrendLine {
     TrendLine {
         start_index: 0,
@@ -273,6 +282,18 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
 
 // Head & Shoulders — marginal (shoulders within but not great, weak supporting)
 fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
+    // Neckline fit through the two intervening lows — this is the
+    // *real* neckline geometry, not a hand-tweaked weak_trendline at
+    // intercept=100 (which would be a resistance line, not a neckline).
+    // Role::Lower because bars are expected to stay at or above the
+    // neckline during the formation; some of the noisy lows breach it,
+    // which is exactly the "weak supporting structure" the rationale
+    // claims.
+    let neckline = fit_trendline(
+        &[pv(5, 93.0, PivotKind::Low), pv(15, 91.0, PivotKind::Low)],
+        Role::Lower,
+    )
+    .expect("two pivots always produce a line");
     let p = Pattern {
         name: "head_and_shoulders",
         direction: Direction::Bearish,
@@ -283,15 +304,14 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
             pv(15, 91.0, PivotKind::Low),   // 2% neckline tilt
             pv(20, 105.0, PivotKind::High), // 5% shoulder asymmetry
         ],
-        trend_lines: vec![weak_trendline(20, 2, Role::Upper)],
+        trend_lines: vec![neckline],
         formation: (0, 20),
         entry_price: Some(92.0),
         breakout_price: None,
         variant: None,
     };
-    // Noisy closes around 92 (the neckline level) so the trendline_fit_r2
-    // path exercises the "bars wander from the line" weakness the
-    // rationale claims. Flat closes would now produce a perfect fit.
+    // Noisy closes around 92 so lows wander above and below the neckline,
+    // producing a sub-1.0 boundary-respect ratio for the 2-anchor line.
     (p, OwnedOhlcv::noisy_around(21, 92.0, 4.0))
 }
 
