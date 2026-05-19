@@ -99,11 +99,12 @@ impl OwnedOhlcv {
         }
     }
 
-    /// Closes scattered around `mean` with sinusoidal amplitude `amp`,
-    /// exercising the `trendline_fit_r2` path. Use for fixtures whose
-    /// rationale claims "weak supporting structure" — flat closes would
-    /// produce a perfect fit, hiding the very weakness the fixture is
-    /// supposed to demonstrate.
+    /// Closes scattered around `mean` with sinusoidal amplitude `amp`.
+    /// Use for fixtures whose rationale wants "messy real-world bars"
+    /// rather than perfectly flat synthetic data — but note that under
+    /// the anchor-R² scorer the trendline sub-score no longer reads
+    /// bar deviation, so this helper now matters mainly for visual /
+    /// volume-component realism rather than for trendline scoring.
     fn noisy_around(n: usize, mean: f64, amp: f64) -> Self {
         let close: Vec<f64> = (0..n)
             .map(|i| mean + amp * (i as f64 * 0.7).sin())
@@ -355,47 +356,37 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
     (p, OwnedOhlcv::flat(41, 100.0))
 }
 
-// Trendline-fit demonstration pair: same anchor pivots and same
-// nominal trendline, but the closes between anchors either hug the
-// line cleanly or wander chaotically. Anchor-only R² would rate them
-// identically; `trendline_fit_r2` separates them.
-
-fn double_top_clean_trendline_fit() -> (Pattern, OwnedOhlcv) {
+// Anchor-collinearity demonstration: a triple-bottom whose three
+// troughs are extremely collinear (`r_squared = 0.95`) — the
+// trendline sub-score reads anchor-only R² and so picks this up as a
+// strong supporting structure even though the bars between troughs
+// rise to peaks by design.
+fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
-        name: "double_top",
-        direction: Direction::Bearish,
+        name: "triple_bottom",
+        direction: Direction::Bullish,
         pivots: vec![
-            pv(0, 100.0, PivotKind::High),
-            pv(15, 92.0, PivotKind::Low),
+            pv(0, 92.0, PivotKind::Low),
+            pv(10, 100.0, PivotKind::High),
+            pv(20, 92.0, PivotKind::Low),
             pv(30, 100.0, PivotKind::High),
+            pv(40, 92.0, PivotKind::Low),
         ],
-        trend_lines: vec![solid_trendline(30, 5)],
-        formation: (0, 30),
-        entry_price: Some(92.0),
+        // Support line through the three troughs at 92, anchor R² high.
+        trend_lines: vec![TrendLine {
+            start_index: 0,
+            end_index: 40,
+            slope: 0.0,
+            intercept: 92.0,
+            r_squared: 0.95,
+            touch_count: 5,
+        }],
+        formation: (0, 40),
+        entry_price: Some(100.0),
         breakout_price: None,
         variant: None,
     };
-    // Closes hug the trendline (flat at 100) cleanly.
-    (p, OwnedOhlcv::declining_volume(31, 100.0, 30.0))
-}
-
-fn double_top_noisy_trendline_fit() -> (Pattern, OwnedOhlcv) {
-    let p = Pattern {
-        name: "double_top",
-        direction: Direction::Bearish,
-        pivots: vec![
-            pv(0, 100.0, PivotKind::High),
-            pv(15, 92.0, PivotKind::Low),
-            pv(30, 100.0, PivotKind::High),
-        ],
-        trend_lines: vec![solid_trendline(30, 5)],
-        formation: (0, 30),
-        entry_price: Some(92.0),
-        breakout_price: None,
-        variant: None,
-    };
-    // Closes scatter ±15 around 100 — bars do not respect the line.
-    (p, OwnedOhlcv::noisy_around(31, 100.0, 15.0))
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 30.0))
 }
 
 // ---------------------------------------------------------------- adversarial
@@ -522,21 +513,14 @@ const FIXTURES: &[Fixture] = &[
         build: triangle_poor,
     },
     Fixture {
-        label: "double_top_clean_trendline_fit",
-        rationale: "Identical anchor pivots to the noisy pair, but closes hug \
-                    the flat neckline cleanly — `trendline_fit_r2` should \
-                    score this near 100.",
+        label: "triple_bottom_collinear_anchors",
+        rationale: "Triple bottom with highly collinear troughs (anchor R²=0.95). \
+                    Even though the bars between troughs rise to peaks (an extreme-\
+                    anchor support line, per design), the anchor-only R² preserves \
+                    the trendline sub-score — regression against the bug where \
+                    per-bar fit collapsed extreme-anchor lines to 0.",
         band: Band::excellent(),
-        build: double_top_clean_trendline_fit,
-    },
-    Fixture {
-        label: "double_top_noisy_trendline_fit",
-        rationale: "Same anchors as the clean pair, but closes scatter ±15 \
-                    around the line — the trendline is cherry-picked, not \
-                    structural. `trendline_fit_r2` should drop the composite \
-                    into marginal or worse, even though anchor R² remains 1.0.",
-        band: Band::marginal(),
-        build: double_top_noisy_trendline_fit,
+        build: triple_bottom_collinear_anchors,
     },
 ];
 

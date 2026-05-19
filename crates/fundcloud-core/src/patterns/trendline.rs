@@ -69,6 +69,13 @@ pub fn fit_trendline(pivots: &[Pivot]) -> Option<TrendLine> {
 
 /// Goodness-of-fit of a trend line against the bars over its span.
 ///
+/// **Not used by the geometric quality scorer.** The scorer reads the
+/// anchor-only `TrendLine::r_squared` instead — see `score_trendline`
+/// in `crate::patterns::scoring` for the rationale (per-bar fit
+/// collapses to 0 against extreme-anchor lines, e.g. triple_bottom
+/// support sitting at the trough level). Kept as a correct, tested
+/// primitive for callers that genuinely want intermediate-bar fit.
+///
 /// **This is not the same number as `TrendLine::r_squared`.** That field
 /// is the R² of the least-squares fit through the line's anchor pivots
 /// — and since the line is constructed *to fit* those anchors, that R²
