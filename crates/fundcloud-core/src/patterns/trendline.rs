@@ -168,6 +168,67 @@ pub fn validate_boundaries(
     true
 }
 
+/// Default fractional tolerance used by [`boundary_respect_ratio`]. The
+/// same 0.5% level adopted by the triple boundary gate: anything beyond
+/// that is a meaningful breach of the line, not just noise.
+pub const DEFAULT_BOUNDARY_RESPECT_TOLERANCE: f64 = 0.005;
+
+/// Fraction of bars in `[line.start_index, line.end_index]` whose
+/// high / low respects the trend line within `tolerance` of the
+/// line price. Returns the **max** of the upper-boundary and
+/// lower-boundary respect ratios, so the line's role (resistance vs
+/// support) is auto-detected the same way `trendline_fit_r2`
+/// auto-detects (close vs high vs low).
+///
+/// * **Upper boundary (resistance):** `respect` iff
+///   `high[i] <= line.price_at(i) + tolerance * line.price_at(i)`.
+/// * **Lower boundary (support):** `respect` iff
+///   `low[i] >= line.price_at(i) - tolerance * line.price_at(i)`.
+///
+/// This is the **discriminative scorer for 2-anchor lines.** For a
+/// double_top / double_bottom or H&S neckline the anchor-only R² is
+/// trivially 1.0, so we substitute this ratio inside `score_trendline`.
+/// For 3+ anchor lines (triple_top / triple_bottom, well-pivoted
+/// triangle sides) the scorer keeps using anchor R².
+///
+/// Returns `0.0` when the line spans fewer than 2 bars in `highs`
+/// (no signal possible). Tolerance is interpreted as a fraction of the
+/// line price, not of the bar price — keeps the rule scale-free across
+/// price magnitudes.
+pub fn boundary_respect_ratio(
+    highs: &[f64],
+    lows: &[f64],
+    line: &TrendLine,
+    tolerance: f64,
+) -> f64 {
+    let n = highs.len().min(lows.len());
+    if n == 0 {
+        return 0.0;
+    }
+    let last = line.end_index.min(n - 1);
+    let start = line.start_index;
+    if last <= start {
+        return 0.0;
+    }
+    let span = last - start + 1;
+
+    let mut upper_ok = 0usize;
+    let mut lower_ok = 0usize;
+    for i in start..=last {
+        let line_price = line.price_at(i);
+        let tol_amount = tolerance * line_price.abs();
+        if highs[i] <= line_price + tol_amount {
+            upper_ok += 1;
+        }
+        if lows[i] >= line_price - tol_amount {
+            lower_ok += 1;
+        }
+    }
+    let upper_ratio = upper_ok as f64 / span as f64;
+    let lower_ratio = lower_ok as f64 / span as f64;
+    upper_ratio.max(lower_ratio).clamp(0.0, 1.0)
+}
+
 /// Count how many bars in `[line.start_index, line.end_index]` come within
 /// `tolerance` of the line price. Mirrors `count_touches` in the
 /// reference Python.
@@ -408,6 +469,87 @@ mod tests {
             r2_clean > r2_noisy,
             "clean ({r2_clean}) must beat noisy ({r2_noisy})"
         );
+    }
+
+    #[test]
+    fn boundary_respect_ratio_one_when_all_bars_respect_upper_line() {
+        // Flat resistance line at 100; every bar's high sits below.
+        let line = flat_line(0, 9, 100.0);
+        let highs = vec![99.0; 10];
+        let lows = vec![90.0; 10];
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert!((r - 1.0).abs() < 1e-9, "expected 1.0, got {r}");
+    }
+
+    #[test]
+    fn boundary_respect_ratio_one_when_all_bars_respect_lower_line() {
+        // Flat support line at 100; every bar's low sits above.
+        let line = flat_line(0, 9, 100.0);
+        let highs = vec![110.0; 10];
+        let lows = vec![101.0; 10];
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert!((r - 1.0).abs() < 1e-9, "expected 1.0, got {r}");
+    }
+
+    #[test]
+    fn boundary_respect_ratio_half_when_half_the_bars_pierce_upper_line() {
+        // Flat resistance line at 100; alternating highs at 99 (respect)
+        // and 110 (breach, well outside 0.5% tolerance). Lows sit well
+        // below the line, so the lower-respect ratio is 0.0 — the max
+        // collapses to the upper-respect ratio of 0.5.
+        let line = flat_line(0, 9, 100.0);
+        let highs: Vec<f64> = (0..10)
+            .map(|i| if i % 2 == 0 { 99.0 } else { 110.0 })
+            .collect();
+        let lows = vec![10.0; 10];
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert!((r - 0.5).abs() < 1e-9, "expected 0.5, got {r}");
+    }
+
+    #[test]
+    fn boundary_respect_ratio_zero_when_no_bar_respects_either_side() {
+        // Line at 100. Highs all break above (110 > 100.5), lows all
+        // break below (90 < 99.5). Neither boundary role fits.
+        let line = flat_line(0, 9, 100.0);
+        let highs = vec![110.0; 10];
+        let lows = vec![90.0; 10];
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert_eq!(r, 0.0);
+    }
+
+    #[test]
+    fn boundary_respect_ratio_takes_max_of_upper_and_lower_roles() {
+        // Line at 100. All highs break above (upper-respect = 0), but
+        // all lows respect the support role (lower-respect = 1).
+        // The function must pick the lower-respect role.
+        let line = flat_line(0, 9, 100.0);
+        let highs = vec![110.0; 10];
+        let lows = vec![101.0; 10];
+        let r = boundary_respect_ratio(&highs, &lows, &line, 0.005);
+        assert!((r - 1.0).abs() < 1e-9, "expected 1.0, got {r}");
+    }
+
+    #[test]
+    fn boundary_respect_ratio_respects_tolerance_band() {
+        // Line at 100, tolerance 1%. A high of 100.5 (0.5% above) is
+        // inside tolerance and respects the upper role. A high of
+        // 102 (2% above) is outside tolerance.
+        let line = flat_line(0, 9, 100.0);
+        let highs = vec![100.5; 10];
+        let lows = vec![10.0; 10];
+        assert!((boundary_respect_ratio(&highs, &lows, &line, 0.01) - 1.0).abs() < 1e-9);
+
+        let highs = vec![102.0; 10];
+        assert_eq!(boundary_respect_ratio(&highs, &lows, &line, 0.01), 0.0);
+    }
+
+    #[test]
+    fn boundary_respect_ratio_zero_for_single_bar_span() {
+        // Line spans a single bar — no usable signal.
+        let line = flat_line(5, 5, 100.0);
+        let highs = vec![99.0; 10];
+        let lows = vec![101.0; 10];
+        assert_eq!(boundary_respect_ratio(&highs, &lows, &line, 0.005), 0.0);
     }
 
     #[test]
