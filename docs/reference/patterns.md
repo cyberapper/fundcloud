@@ -228,6 +228,8 @@ pub struct TrendLine {
     pub intercept: f64,        // y at bar 0
     pub r_squared: f64,        // [0, 1]
     pub touch_count: u8,       // number of pivots used in the fit
+    pub role: Role,            // Upper / Lower — which side of the line
+                               // the scorer evaluates for boundary respect
 }
 ```
 
@@ -287,18 +289,22 @@ If volume data is unavailable or the formation is < 4 bars, returns
 
 #### `trendline_r2` (25%)
 
-Average anchor-only `TrendLine::r_squared` across all attached
-`TrendLine`s, scaled to 0–100. If no trend lines (e.g., a pivot-only
-detection), returns `50.0`.
+Trend-line quality sub-score, scaled to 0–100. The metric dispatches by
+touch count:
 
-For 3+ anchor lines (triple_top / triple_bottom and well-pivoted
-triangle sides) this varies in `[0, 1]` and reflects how cleanly the
-pivots line up. For 2-anchor lines (double_top / double_bottom, H&S
-necklines, 2-touch triangle sides) it is trivially `1.0` by
-construction, so this component is effectively a constant `+25` bonus
-for those patterns; symmetry / volume / completeness carry the
-discrimination there. See [`docs/scoring/quality.md`](../scoring/quality.md)
-for the full rationale.
+- **3+ anchor lines** (triple_top / triple_bottom and well-pivoted
+  triangle sides) use the mean anchor-only `TrendLine::r_squared`. This
+  varies in `[0, 1]` and reflects how cleanly the pivots line up.
+- **2-anchor lines** (double_top / double_bottom, H&S necklines,
+  2-touch triangle sides) use the boundary-respect ratio — the fraction
+  of intermediate bars whose high/low respects the line within a 0.5%
+  tolerance. This is implemented by `features.trendline_r2` in
+  `crates/fundcloud-core/src/patterns/features/trendline.rs` and is a
+  genuine discriminator for these patterns, not a constant.
+
+If no trend lines are attached (e.g., a pivot-only detection), returns
+`50.0`. See [`docs/scoring/quality.md`](../scoring/quality.md) for the
+dispatch rules and rationale.
 
 #### `completeness` (20%)
 
@@ -609,7 +615,7 @@ Returns the registered detector names — all 9 v1 detectors:
 | `name` | `str` | Stable lowercase pattern identifier |
 | `direction` | `str` | `"bullish"` / `"bearish"` / `"neutral"` |
 | `pivots` | `list[dict]` | `{index, ts_ns, price, kind, order}` per pivot |
-| `trend_lines` | `list[dict]` | `{start_index, end_index, slope, intercept, r_squared, touch_count}` |
+| `trend_lines` | `list[dict]` | `{start_index, end_index, slope, intercept, r_squared, touch_count, role}` — `role` is `"upper"` or `"lower"`, set by the detector and used by the scorer to pick which side of the line to evaluate. |
 | `formation_start` | `int` | Bar offset of the formation start |
 | `formation_end` | `int` | Bar offset of the formation end |
 | `entry_price` | `float` or `None` | Where the strategy is "entered" — usually the breakout level |
