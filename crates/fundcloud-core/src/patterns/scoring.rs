@@ -49,7 +49,23 @@ impl GeometricScorer {
         let completeness = score_completeness(pattern);
 
         let raw = symmetry * 0.30 + volume * 0.25 + trendline * 0.25 + completeness * 0.20;
-        let clamped = raw.round().clamp(0.0, 100.0);
+
+        // Composite gates: perfect supporting structure (volume + trendline
+        // + completeness = 70% weight) used to rescue patterns whose core
+        // geometry was broken — a 50%-peak-asymmetry double_top scored 66,
+        // a 5-bar formation scored 85. The gates crush composite when the
+        // pattern fails a structural prerequisite.
+        let symmetry_gate = (symmetry / 10.0).clamp(0.1, 1.0);
+        let (start, end) = pattern.formation;
+        let bar_count = end.saturating_sub(start).saturating_add(1);
+        let duration_gate = if bar_count < 10 {
+            ((bar_count as f64 - 4.0) / 6.0).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+
+        let gated = raw * symmetry_gate * duration_gate;
+        let clamped = gated.round().clamp(0.0, 100.0);
 
         let mut features: HashMap<String, f64> = HashMap::new();
         features.insert("symmetry".to_string(), symmetry / 100.0);
@@ -104,7 +120,24 @@ fn score_symmetry(pattern: &Pattern) -> f64 {
             let neckline_diff = pct_diff(pivots[1].price, pivots[3].price);
             let shoulder_score = (100.0 * (1.0 - shoulder_diff / 0.10)).max(0.0);
             let neckline_score = (100.0 * (1.0 - neckline_diff / 0.10)).max(0.0);
-            (shoulder_score + neckline_score) / 2.0
+
+            // Without a head, matching shoulders + neckline still scored 100.
+            // The head must stand 2-5% beyond the shoulder level — below 2%
+            // the formation isn't really an H&S, regardless of side symmetry.
+            let shoulder_avg = (pivots[0].price + pivots[4].price) / 2.0;
+            let head_extent = if pattern.name == "head_and_shoulders" {
+                pivots[2].price - shoulder_avg
+            } else {
+                shoulder_avg - pivots[2].price
+            };
+            let prominence = if shoulder_avg.abs() > f64::EPSILON {
+                head_extent / shoulder_avg.abs()
+            } else {
+                0.0
+            };
+            let prominence_factor = ((prominence - 0.02) / 0.03).clamp(0.0, 1.0);
+
+            (shoulder_score + neckline_score) / 2.0 * prominence_factor
         }
         "ascending_triangle" | "descending_triangle" | "symmetrical_triangle" => {
             if pivots.len() < 4 {

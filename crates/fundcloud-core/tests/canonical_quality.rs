@@ -1015,6 +1015,31 @@ const FIXTURES: &[Fixture] = &[
         band: Band::good(),
         build: symmetrical_triangle_good,
     },
+    Fixture {
+        label: "double_top_broken_symmetry",
+        rationale: "50% peak asymmetry. Volume / trendline / completeness all perfect, \
+                    but the symmetry-gate at the composite level crushes the score so \
+                    the formation cannot be rescued by supporting structure alone.",
+        band: Band::adversarial(),
+        build: double_top_broken_symmetry,
+    },
+    Fixture {
+        label: "double_top_too_short",
+        rationale: "5-bar formation, otherwise perfect geometry. Duration-gate at \
+                    the composite level crushes the score: patterns shorter than the \
+                    detector minimum should not be reported high quality even when \
+                    hand-built.",
+        band: Band::adversarial(),
+        build: double_top_too_short,
+    },
+    Fixture {
+        label: "h_and_s_degenerate_head",
+        rationale: "Head only 1% above shoulders. The H&S symmetry formula's \
+                    head-prominence factor zeroes the sub-score for prominence < 2%; \
+                    the composite symmetry-gate then crushes the score.",
+        band: Band::adversarial(),
+        build: h_and_s_degenerate_head,
+    },
 ];
 
 /// Calibration targets — fixtures encoding desired properties of
@@ -1024,36 +1049,12 @@ const FIXTURES: &[Fixture] = &[
 ///
 /// When a future scorer change brings one of these into its expected
 /// band, move the fixture into `FIXTURES`.
-const CALIBRATION_TARGETS: &[Fixture] = &[
-    Fixture {
-        label: "double_top_broken_symmetry",
-        rationale: "50% peak asymmetry — `quality` should reject this regardless of \
-                    supporting structure. Today the 30% symmetry weight is not enough \
-                    to overcome perfect volume + trendline + completeness; composite \
-                    lands ~66. Calibration TODO: either raise symmetry weight or apply \
-                    a multiplicative gate on symmetry == 0.",
-        band: Band::adversarial(),
-        build: double_top_broken_symmetry,
-    },
-    Fixture {
-        label: "double_top_too_short",
-        rationale: "4-bar formation — `quality` should drag this into the bottom band. \
-                    Today only the 20% completeness weight hits it (composite ~85). \
-                    Calibration TODO: short-duration penalty needs to scale composite, \
-                    not just one component; or detector should reject < 5 bars upstream.",
-        band: Band::adversarial(),
-        build: double_top_too_short,
-    },
-    Fixture {
-        label: "h_and_s_degenerate_head",
-        rationale: "Head only 1% above shoulders. Shoulders + neckline match (symmetry=100), \
-                    but the formation isn't really an H&S. Composite ~56 today. \
-                    Calibration TODO: H&S `symmetry` sub-score must factor in head \
-                    prominence (e.g., head ≥ shoulder × 1.05).",
-        band: Band::adversarial(),
-        build: h_and_s_degenerate_head,
-    },
-];
+///
+/// Currently empty — the three original entries (broken-symmetry,
+/// too-short duration, degenerate H&S head) were promoted into
+/// `FIXTURES` when the composite gates + head-prominence factor were
+/// added to the scorer. New gaps land here when found.
+const CALIBRATION_TARGETS: &[Fixture] = &[];
 
 #[test]
 fn every_canonical_fixture_lands_in_its_band() {
