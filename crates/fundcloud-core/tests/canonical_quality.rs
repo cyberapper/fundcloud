@@ -419,6 +419,379 @@ fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
     (p, OwnedOhlcv::declining_volume(41, 100.0, 30.0))
 }
 
+// Double Bottom — excellent (mirror of double_top_textbook)
+fn double_bottom_textbook() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "double_bottom",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 92.0, PivotKind::Low),
+            pv(15, 100.0, PivotKind::High),
+            pv(30, 92.0, PivotKind::Low),
+        ],
+        trend_lines: vec![solid_trendline(30, 5, Role::Lower)],
+        formation: (0, 30),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(31, 100.0, 30.0))
+}
+
+// Double Bottom — good (0.5% trough asymmetry)
+fn double_bottom_good() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "double_bottom",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 92.0, PivotKind::Low),
+            pv(15, 100.0, PivotKind::High),
+            pv(30, 92.5, PivotKind::Low),
+        ],
+        trend_lines: vec![solid_trendline(30, 4, Role::Lower)],
+        formation: (0, 30),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(31, 100.0, 80.0))
+}
+
+// Double Bottom — marginal (1% trough asymmetry, weak supporting)
+fn double_bottom_marginal() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "double_bottom",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 92.0, PivotKind::Low),
+            pv(7, 100.0, PivotKind::High),
+            pv(14, 93.0, PivotKind::Low),
+        ],
+        trend_lines: vec![weak_trendline(14, 2, Role::Lower)],
+        formation: (0, 14),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(15, 100.0))
+}
+
+// Inverse H&S — excellent
+fn inverse_h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "inverse_head_and_shoulders",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 90.0, PivotKind::Low),    // left shoulder
+            pv(10, 100.0, PivotKind::High), // neckline left
+            pv(20, 80.0, PivotKind::Low),   // head (lowest low)
+            pv(30, 100.0, PivotKind::High), // neckline right
+            pv(40, 90.0, PivotKind::Low),   // right shoulder
+        ],
+        // Neckline through the two intervening highs — Upper role.
+        trend_lines: vec![solid_trendline(40, 5, Role::Upper)],
+        formation: (0, 40),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 30.0))
+}
+
+// Inverse H&S — good (mild shoulder asymmetry, mild neckline tilt)
+fn inverse_h_and_s_good() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "inverse_head_and_shoulders",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 90.0, PivotKind::Low),
+            pv(10, 100.0, PivotKind::High),
+            pv(20, 80.0, PivotKind::Low),
+            pv(30, 99.0, PivotKind::High),  // 1% neckline tilt
+            pv(40, 88.0, PivotKind::Low),   // ~2% shoulder asymmetry
+        ],
+        trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
+        formation: (0, 40),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 60.0))
+}
+
+// Inverse H&S — marginal (5% shoulder asymmetry, 2% neckline tilt)
+fn inverse_h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
+    // Neckline fit through the two intervening highs; bars wander above
+    // and below it, producing a sub-1.0 boundary-respect ratio.
+    let neckline = fit_trendline(
+        &[pv(5, 99.0, PivotKind::High), pv(15, 101.0, PivotKind::High)],
+        Role::Upper,
+    )
+    .expect("two pivots always produce a line");
+    let p = Pattern {
+        name: "inverse_head_and_shoulders",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 90.0, PivotKind::Low),
+            pv(5, 99.0, PivotKind::High),
+            pv(10, 80.0, PivotKind::Low),
+            pv(15, 101.0, PivotKind::High), // 2% neckline tilt
+            pv(20, 85.0, PivotKind::Low),   // ~5% shoulder asymmetry
+        ],
+        trend_lines: vec![neckline],
+        formation: (0, 20),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(21, 100.0))
+}
+
+// Triple Top — good (0.5% peak asymmetry on each side)
+fn triple_top_good() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "triple_top",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(10, 92.0, PivotKind::Low),
+            pv(20, 100.5, PivotKind::High),
+            pv(30, 92.0, PivotKind::Low),
+            pv(40, 99.5, PivotKind::High),
+        ],
+        trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
+        formation: (0, 40),
+        entry_price: Some(92.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 70.0))
+}
+
+// Triple Top — marginal (peaks within tolerance but skewed; weak supporting)
+fn triple_top_marginal() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "triple_top",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(5, 95.0, PivotKind::Low),
+            pv(10, 101.5, PivotKind::High), // 1.5% peak asymmetry
+            pv(15, 95.0, PivotKind::Low),
+            pv(20, 98.5, PivotKind::High),  // 1.5% on the other side
+        ],
+        // Three anchors; lower R² for a "noisy" trio (not perfectly flat).
+        trend_lines: vec![TrendLine {
+            start_index: 0,
+            end_index: 20,
+            slope: 0.0,
+            intercept: 100.0,
+            r_squared: 0.50,
+            touch_count: 3,
+            role: Role::Upper,
+        }],
+        formation: (0, 20),
+        entry_price: Some(95.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(21, 100.0))
+}
+
+// Triple Bottom — good (0.5% trough asymmetry on each side)
+fn triple_bottom_good() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "triple_bottom",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 92.0, PivotKind::Low),
+            pv(10, 100.0, PivotKind::High),
+            pv(20, 92.5, PivotKind::Low),
+            pv(30, 100.0, PivotKind::High),
+            pv(40, 91.5, PivotKind::Low),
+        ],
+        trend_lines: vec![TrendLine {
+            start_index: 0,
+            end_index: 40,
+            slope: 0.0,
+            intercept: 92.0,
+            r_squared: 0.85,
+            touch_count: 3,
+            role: Role::Lower,
+        }],
+        formation: (0, 40),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 70.0))
+}
+
+// Triple Bottom — marginal (1.5% trough asymmetry, weak supporting)
+fn triple_bottom_marginal() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "triple_bottom",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 92.0, PivotKind::Low),
+            pv(5, 100.0, PivotKind::High),
+            pv(10, 93.5, PivotKind::Low),
+            pv(15, 100.0, PivotKind::High),
+            pv(20, 90.5, PivotKind::Low),
+        ],
+        trend_lines: vec![TrendLine {
+            start_index: 0,
+            end_index: 20,
+            slope: 0.0,
+            intercept: 92.0,
+            r_squared: 0.50,
+            touch_count: 3,
+            role: Role::Lower,
+        }],
+        formation: (0, 20),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(21, 100.0))
+}
+
+// Ascending Triangle — excellent (uniform spacing, flat resistance, rising support)
+fn ascending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "ascending_triangle",
+        direction: Direction::Bullish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(10, 92.0, PivotKind::Low),
+            pv(20, 100.0, PivotKind::High),
+            pv(30, 94.0, PivotKind::Low),
+            pv(40, 100.0, PivotKind::High),
+        ],
+        trend_lines: vec![
+            // Flat resistance line.
+            solid_trendline(40, 5, Role::Upper),
+            // Rising support — hand-built with a positive slope.
+            TrendLine {
+                start_index: 0,
+                end_index: 40,
+                slope: 0.05,
+                intercept: 92.0,
+                r_squared: 0.95,
+                touch_count: 5,
+                role: Role::Lower,
+            },
+        ],
+        formation: (0, 40),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 50.0))
+}
+
+// Ascending Triangle — marginal (irregular spacing, weak trendline, flat volume)
+fn ascending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "ascending_triangle",
+        direction: Direction::Bullish,
+        // Spacings 3, 18, 5, 14 — high coefficient of variation (mirrors triangle_poor).
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(3, 92.0, PivotKind::Low),
+            pv(21, 100.0, PivotKind::High),
+            pv(26, 95.0, PivotKind::Low),
+            pv(40, 100.0, PivotKind::High),
+        ],
+        trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
+        formation: (0, 40),
+        entry_price: Some(100.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(41, 100.0))
+}
+
+// Descending Triangle — excellent (uniform spacing, falling resistance, flat support)
+fn descending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "descending_triangle",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(10, 92.0, PivotKind::Low),
+            pv(20, 98.0, PivotKind::High),
+            pv(30, 92.0, PivotKind::Low),
+            pv(40, 96.0, PivotKind::High),
+        ],
+        trend_lines: vec![
+            // Falling resistance — hand-built with a negative slope.
+            TrendLine {
+                start_index: 0,
+                end_index: 40,
+                slope: -0.1,
+                intercept: 100.0,
+                r_squared: 0.95,
+                touch_count: 5,
+                role: Role::Upper,
+            },
+            // Flat support line.
+            solid_trendline(40, 5, Role::Lower),
+        ],
+        formation: (0, 40),
+        entry_price: Some(92.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 50.0))
+}
+
+// Descending Triangle — marginal (irregular spacing, weak trendline)
+fn descending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "descending_triangle",
+        direction: Direction::Bearish,
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(3, 92.0, PivotKind::Low),
+            pv(21, 98.0, PivotKind::High),
+            pv(26, 92.0, PivotKind::Low),
+            pv(40, 96.0, PivotKind::High),
+        ],
+        trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
+        formation: (0, 40),
+        entry_price: Some(92.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::flat(41, 100.0))
+}
+
+// Symmetrical Triangle — good (mild spacing irregularity)
+fn symmetrical_triangle_good() -> (Pattern, OwnedOhlcv) {
+    let p = Pattern {
+        name: "symmetrical_triangle",
+        direction: Direction::Neutral,
+        // Spacings 9, 11, 11, 9 — small coefficient of variation.
+        pivots: vec![
+            pv(0, 100.0, PivotKind::High),
+            pv(9, 95.0, PivotKind::Low),
+            pv(20, 99.0, PivotKind::High),
+            pv(31, 96.0, PivotKind::Low),
+            pv(40, 98.0, PivotKind::High),
+        ],
+        trend_lines: vec![
+            solid_trendline(40, 4, Role::Upper),
+            solid_trendline(40, 4, Role::Lower),
+        ],
+        formation: (0, 40),
+        entry_price: Some(98.0),
+        breakout_price: None,
+        variant: None,
+    };
+    (p, OwnedOhlcv::declining_volume(41, 100.0, 70.0))
+}
+
 // ---------------------------------------------------------------- adversarial
 
 // Adversarial: peaks miles apart — should land in the bottom band even
@@ -551,6 +924,96 @@ const FIXTURES: &[Fixture] = &[
                     per-bar fit collapsed extreme-anchor lines to 0.",
         band: Band::excellent(),
         build: triple_bottom_collinear_anchors,
+    },
+    Fixture {
+        label: "double_bottom_textbook",
+        rationale: "Symmetric troughs, declining volume, clean trendline, sweet-spot duration.",
+        band: Band::excellent(),
+        build: double_bottom_textbook,
+    },
+    Fixture {
+        label: "double_bottom_good",
+        rationale: "0.5% trough asymmetry, moderate volume drop, otherwise clean.",
+        band: Band::good(),
+        build: double_bottom_good,
+    },
+    Fixture {
+        label: "double_bottom_marginal",
+        rationale: "1% trough asymmetry near tolerance, weak trendline, flat volume.",
+        band: Band::marginal(),
+        build: double_bottom_marginal,
+    },
+    Fixture {
+        label: "inverse_h_and_s_textbook",
+        rationale: "Symmetric shoulders, level neckline, declining volume, strong trendline.",
+        band: Band::excellent(),
+        build: inverse_h_and_s_textbook,
+    },
+    Fixture {
+        label: "inverse_h_and_s_good",
+        rationale: "2% shoulder asymmetry, 1% neckline tilt, moderate volume.",
+        band: Band::good(),
+        build: inverse_h_and_s_good,
+    },
+    Fixture {
+        label: "inverse_h_and_s_marginal",
+        rationale: "5% shoulder asymmetry, 2% neckline tilt, weak supporting structure.",
+        band: Band::marginal(),
+        build: inverse_h_and_s_marginal,
+    },
+    Fixture {
+        label: "triple_top_good",
+        rationale: "0.5% peak asymmetry on each side, declining volume, clean trendline.",
+        band: Band::good(),
+        build: triple_top_good,
+    },
+    Fixture {
+        label: "triple_top_marginal",
+        rationale: "1.5% peak asymmetry on each side, weak trendline, flat volume.",
+        band: Band::marginal(),
+        build: triple_top_marginal,
+    },
+    Fixture {
+        label: "triple_bottom_good",
+        rationale: "0.5% trough asymmetry on each side, declining volume, strong anchors.",
+        band: Band::good(),
+        build: triple_bottom_good,
+    },
+    Fixture {
+        label: "triple_bottom_marginal",
+        rationale: "1.5% trough asymmetry, weak trendline, flat volume.",
+        band: Band::marginal(),
+        build: triple_bottom_marginal,
+    },
+    Fixture {
+        label: "ascending_triangle_textbook",
+        rationale: "Uniform pivot spacing, flat resistance, rising support, declining volume.",
+        band: Band::excellent(),
+        build: ascending_triangle_textbook,
+    },
+    Fixture {
+        label: "ascending_triangle_marginal",
+        rationale: "Highly irregular pivot spacing, weak trendline, flat volume.",
+        band: Band::marginal(),
+        build: ascending_triangle_marginal,
+    },
+    Fixture {
+        label: "descending_triangle_textbook",
+        rationale: "Uniform pivot spacing, falling resistance, flat support, declining volume.",
+        band: Band::excellent(),
+        build: descending_triangle_textbook,
+    },
+    Fixture {
+        label: "descending_triangle_marginal",
+        rationale: "Highly irregular pivot spacing, weak trendline, flat volume.",
+        band: Band::marginal(),
+        build: descending_triangle_marginal,
+    },
+    Fixture {
+        label: "symmetrical_triangle_good",
+        rationale: "Mild spacing irregularity, declining volume, otherwise clean.",
+        band: Band::good(),
+        build: symmetrical_triangle_good,
     },
 ];
 
