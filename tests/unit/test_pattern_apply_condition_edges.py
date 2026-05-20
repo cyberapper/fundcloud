@@ -449,6 +449,106 @@ class TestApplyConditionDegenerateRows:
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
+    def test_bearish_subcent_target_nan_when_height_exceeds_entry(self) -> None:
+        # Sub-cent OTC quote with a split-unadjusted HIGH pivot: measured-move
+        # target = 0.01 - (30 - 0.01) ≈ -29.99 → Guard B must NaN both legs.
+        bars = _bars()
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    direction=Direction.BEARISH,
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    entry_price=0.01,
+                    breakout_price=0.01,
+                    pivots=[{"kind": "HIGH", "price": 30.0}],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        out = apply_condition(events, PatternCondition(direction=Direction.BEARISH), bars)
+        assert np.isnan(out.loc[0, "target_price"])
+        assert np.isnan(out.loc[0, "stop_price"])
+
+    def test_bearish_target_exactly_zero_is_nanned(self) -> None:
+        # Boundary: entry=10, HIGH=20 → target = 10 - (20 - 10) = 0 exactly.
+        # Guard B's `target <= 0` must include equality, not just strict.
+        bars = _bars()
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    direction=Direction.BEARISH,
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    entry_price=10.0,
+                    breakout_price=10.0,
+                    pivots=[{"kind": "HIGH", "price": 20.0}],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        out = apply_condition(events, PatternCondition(direction=Direction.BEARISH), bars)
+        assert np.isnan(out.loc[0, "target_price"])
+        assert np.isnan(out.loc[0, "stop_price"])
+
+    def test_bullish_subcent_target_is_preserved(self) -> None:
+        # Negative control: legitimate sub-cent bullish setup. Guard must
+        # not over-fire — target = 0.01 + (0.01 - 0.001) = 0.019 is positive.
+        bars = _bars()
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    direction=Direction.BULLISH,
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    entry_price=0.01,
+                    breakout_price=0.01,
+                    pivots=[{"kind": "LOW", "price": 0.001}],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
+        target = out.loc[0, "target_price"]
+        stop = out.loc[0, "stop_price"]
+        assert np.isfinite(target) and target > 0
+        assert np.isfinite(stop) and stop > 0
+
+    def test_negative_entry_price_triggers_precondition_nan(self) -> None:
+        # Guard A: breakout_price=None forces the entry_raw fallback at
+        # lines 285-288 onto entry_price=-0.0008. Without the precondition,
+        # the negative entry would propagate into geometry — Guard A NaNs
+        # the row before any of that runs.
+        bars = _bars()
+        ts = bars.index[60]
+        fs = bars.index[40]
+        events = pd.DataFrame(
+            [
+                _event_row(
+                    asset="AAA",
+                    direction=Direction.BEARISH,
+                    formation_start=fs,
+                    breakout_ts=ts,
+                    entry_price=-0.0008,
+                    breakout_price=None,
+                    pivots=[{"kind": "HIGH", "price": 0.01}],
+                )
+            ],
+            columns=EVENTS_COLUMNS,
+        )
+        out = apply_condition(events, PatternCondition(direction=Direction.BEARISH), bars)
+        assert np.isnan(out.loc[0, "target_price"])
+        assert np.isnan(out.loc[0, "stop_price"])
+
 
 # ---------------------------------------------------------------------------
 # PatternCondition.override edge cases
