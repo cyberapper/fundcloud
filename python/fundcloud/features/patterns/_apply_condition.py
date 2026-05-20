@@ -328,12 +328,7 @@ def apply_condition(
         # Bearish measured-move yields target <= 0 when max(highs) >= 2*entry
         # (split-unadjusted bars, sub-cent quote noise). NaN both legs together
         # so downstream R-multiples never see a one-sided level.
-        if (
-            not np.isfinite(target)
-            or not np.isfinite(stop)
-            or target <= 0
-            or stop <= 0
-        ):
+        if not np.isfinite(target) or not np.isfinite(stop) or target <= 0 or stop <= 0:
             targets.append(float("nan"))
             stops.append(float("nan"))
             continue
