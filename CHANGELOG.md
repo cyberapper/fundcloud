@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0](https://github.com/cyberapper/fundcloud/compare/v0.6.0...v0.7.0) (2026-05-20)
+
+
+### ### Added
+
+* **patterns:** boundary-respect ratio for 2-anchor trendline component ([9c4bd03](https://github.com/cyberapper/fundcloud/commit/9c4bd030af9ee367a24626aee3203d5638544dd8))
+* **patterns:** composite gates + H&S head-prominence in quality scorer ([016b7dc](https://github.com/cyberapper/fundcloud/commit/016b7dce7346892f2e0f9c2c95c7b90ff312b1c0))
+
+
+### ### Fixed
+
+* **patterns:** add triple boundary gates + sync trendline_r2 docs ([1d132a3](https://github.com/cyberapper/fundcloud/commit/1d132a331ba4a364b28fc9b876b27428efd3a5de))
+* **patterns:** guard apply_condition against non-positive target/stop ([5c684c7](https://github.com/cyberapper/fundcloud/commit/5c684c74748c505f54f896f2f023c275575aa1f9))
+* **patterns:** skip anchor bars in triple-detector boundary-respect gates ([18ff42d](https://github.com/cyberapper/fundcloud/commit/18ff42de9375523b357b007e94afbbc3cf0fab50))
+* **patterns:** use anchor R² in trendline component of quality score ([23ac819](https://github.com/cyberapper/fundcloud/commit/23ac819bc27fc30858fd8923afde74134f241ef6))
+* **patterns:** validate boundary_tolerance is non-negative in detect.rs ([29a4309](https://github.com/cyberapper/fundcloud/commit/29a43096650b9443fac8bb0e34839f35e184e038))
+
+
+### ### Changed
+
+* **patterns:** TrendLine.role removes upper/lower ambiguity from boundary scoring ([cb0fb9e](https://github.com/cyberapper/fundcloud/commit/cb0fb9e14f0230d0476f7a392eb0316eecdc4508))
+
+
+### ### Documentation
+
+* **patterns:** close docs/code gap on composite gates + Triple knob names ([7c8088a](https://github.com/cyberapper/fundcloud/commit/7c8088a4c77e00a6bd32a4c9b1e64063176be32d))
+* **patterns:** refresh trendline_r2 / role docs for boundary-respect scorer ([5f866c1](https://github.com/cyberapper/fundcloud/commit/5f866c1f4e4d8d7473b8d94b29c462dc17c0b760))
+
 ## [0.6.0](https://github.com/cyberapper/fundcloud/compare/v0.5.0...v0.6.0) (2026-05-14)
 
 
