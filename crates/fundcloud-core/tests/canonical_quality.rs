@@ -507,8 +507,8 @@ fn inverse_h_and_s_good() -> (Pattern, OwnedOhlcv) {
             pv(0, 90.0, PivotKind::Low),
             pv(10, 100.0, PivotKind::High),
             pv(20, 80.0, PivotKind::Low),
-            pv(30, 99.0, PivotKind::High),  // 1% neckline tilt
-            pv(40, 88.0, PivotKind::Low),   // ~2% shoulder asymmetry
+            pv(30, 99.0, PivotKind::High), // 1% neckline tilt
+            pv(40, 88.0, PivotKind::Low),  // ~2% shoulder asymmetry
         ],
         trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
         formation: (0, 40),
@@ -578,7 +578,7 @@ fn triple_top_marginal() -> (Pattern, OwnedOhlcv) {
             pv(5, 95.0, PivotKind::Low),
             pv(10, 101.5, PivotKind::High), // 1.5% peak asymmetry
             pv(15, 95.0, PivotKind::Low),
-            pv(20, 98.5, PivotKind::High),  // 1.5% on the other side
+            pv(20, 98.5, PivotKind::High), // 1.5% on the other side
         ],
         // Three anchors; lower R² for a "noisy" trio (not perfectly flat).
         trend_lines: vec![TrendLine {
