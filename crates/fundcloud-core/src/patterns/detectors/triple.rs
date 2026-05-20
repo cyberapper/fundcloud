@@ -49,12 +49,16 @@ fn respects_support(
     level: f64,
     tolerance: f64,
 ) -> bool {
-    if lows.is_empty() {
+    if lows.is_empty() || end <= start + 1 {
         return true;
     }
-    let last = end.min(lows.len() - 1);
+    let from = start + 1;
+    let last = end.min(lows.len() - 1).saturating_sub(1);
+    if from > last {
+        return true;
+    }
     let tol_amount = tolerance * level.abs();
-    for (i, low) in lows.iter().enumerate().take(last + 1).skip(start) {
+    for (i, low) in lows.iter().enumerate().take(last + 1).skip(from) {
         if *low < line.price_at(i) - tol_amount {
             return false;
         }
@@ -70,12 +74,16 @@ fn respects_resistance(
     level: f64,
     tolerance: f64,
 ) -> bool {
-    if highs.is_empty() {
+    if highs.is_empty() || end <= start + 1 {
         return true;
     }
-    let last = end.min(highs.len() - 1);
+    let from = start + 1;
+    let last = end.min(highs.len() - 1).saturating_sub(1);
+    if from > last {
+        return true;
+    }
     let tol_amount = tolerance * level.abs();
-    for (i, high) in highs.iter().enumerate().take(last + 1).skip(start) {
+    for (i, high) in highs.iter().enumerate().take(last + 1).skip(from) {
         if *high > line.price_at(i) + tol_amount {
             return false;
         }
