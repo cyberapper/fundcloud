@@ -43,10 +43,19 @@ class TripleBottom(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
-    detector_param_keys = ("trough_tolerance", "min_peak_height", "min_bar_count")
+    detector_param_keys = (
+        "trough_tolerance",
+        "min_peak_height",
+        "min_bar_count",
+        "boundary_tolerance",
+    )
     default_params = {
         **PatternIndicator.default_params,
+        "min_quality": 71.0,
         "trough_tolerance": 0.02,
         "min_peak_height": 0.02,
         "min_bar_count": 10,
+        # Support line must not be pierced by more than 0.5% of the trough
+        # level between the three troughs.
+        "boundary_tolerance": 0.005,
     }

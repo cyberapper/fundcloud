@@ -310,8 +310,12 @@ class TestSimulatorExits:
                     ts_entry,
                     fs,
                     entry=entry_close,
-                    target=entry_close + 1_000.0,  # never hit
-                    stop=entry_close - 1_000.0,  # never hit
+                    # Use unreachable but financially valid bracket — bars
+                    # are around 100, so target=1100 and stop=0.01 cannot
+                    # fire during the run. (Negative values would be NaN'd
+                    # by apply_condition's non-positive guard.)
+                    target=entry_close + 1_000.0,
+                    stop=0.01,
                 )
             ],
             columns=EVENTS_COLUMNS,

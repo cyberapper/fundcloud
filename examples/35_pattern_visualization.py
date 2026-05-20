@@ -100,7 +100,7 @@ def _save_per_asset_overview(bars: pd.DataFrame) -> None:
     ]
     print("\n=== Per-asset overview charts (each shows every detection) ===")
     for asset, pattern in picks:
-        events = bars.fc.pattern_events(pattern, min_quality=50.0)
+        events = bars.fc.pattern_events(pattern, min_quality=73.0)
         events = events[events["asset"] == asset]
         if events.empty:
             print(f"  {asset:<6} {pattern.value:<28} (no events)")
@@ -121,7 +121,7 @@ def _save_all_patterns_per_asset(bars: pd.DataFrame) -> None:
         # No horizon shading on the multi-pattern overview — too noisy
         # with hundreds of events. Per-event detail (with horizon) is
         # available on plot_pattern_event for individual investigation.
-        fig = plot_asset_patterns(bars, asset, min_quality=50.0)
+        fig = plot_asset_patterns(bars, asset, min_quality=73.0)
         path = OUT_DIR / f"all_patterns_{asset}.html"
         fig.write_html(path)
         # Count formation traces (one per event); subtract 1 for candlestick.

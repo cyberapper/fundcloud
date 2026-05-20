@@ -49,6 +49,7 @@ class DoubleBottom(PatternIndicator):
     detector_param_keys = ("trough_tolerance", "min_peak_height")
     default_params = {
         **PatternIndicator.default_params,
+        "min_quality": 75.0,
         "trough_tolerance": 0.015,
         "min_peak_height": 0.03,
     }

@@ -63,8 +63,14 @@ def _synthetic_double_top(n: int = 80) -> pd.DataFrame:
     [
         (DoubleTop, ("peak_tolerance", "min_trough_depth")),
         (DoubleBottom, ("trough_tolerance", "min_peak_height")),
-        (TripleTop, ("peak_tolerance", "min_trough_depth", "min_bar_count")),
-        (TripleBottom, ("trough_tolerance", "min_peak_height", "min_bar_count")),
+        (
+            TripleTop,
+            ("peak_tolerance", "min_trough_depth", "min_bar_count", "boundary_tolerance"),
+        ),
+        (
+            TripleBottom,
+            ("trough_tolerance", "min_peak_height", "min_bar_count", "boundary_tolerance"),
+        ),
         (
             HeadAndShoulders,
             ("shoulder_tolerance", "min_head_prominence", "prior_trend_window"),

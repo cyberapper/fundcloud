@@ -62,6 +62,7 @@ class SymmetricalTriangle(PatternIndicator):
     )
     default_params = {
         **PatternIndicator.default_params,
+        "min_quality": 73.0,
         "min_slope_threshold": 0.0005,
         "min_touches": 2,
         "min_bar_count": 10,

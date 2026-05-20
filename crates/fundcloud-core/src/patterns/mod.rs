@@ -24,7 +24,7 @@ pub use detect::{detector_for, run_detector, scan, DetectorParams, PatternDetect
 pub use detectors::{HeadShouldersDetector, InverseHeadShouldersDetector};
 pub use pivots::multi_level_pivots;
 pub use scoring::GeometricScorer;
-pub use trendline::{count_touches, fit_trendline, validate_boundaries};
+pub use trendline::{boundary_respect_ratio, count_touches, fit_trendline, validate_boundaries};
 pub use types::{
-    Detection, Direction, OhlcvView, Pattern, PatternScore, Pivot, PivotKind, TrendLine,
+    Detection, Direction, OhlcvView, Pattern, PatternScore, Pivot, PivotKind, Role, TrendLine,
 };

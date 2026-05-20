@@ -235,7 +235,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--refresh", action="store_true", help="re-download bypass the cache")
-    ap.add_argument("--min-quality", type=float, default=60.0, help="quality cutoff (0–100)")
+    ap.add_argument("--min-quality", type=float, default=73.0, help="quality cutoff (0–100)")
     ap.add_argument(
         "--tickers", nargs="+", default=list(DEFAULT_TICKERS), help="override the universe"
     )

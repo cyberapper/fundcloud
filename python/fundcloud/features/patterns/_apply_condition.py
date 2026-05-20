@@ -291,6 +291,13 @@ def apply_condition(
             continue
         entry = float(entry_raw)
 
+        # Non-positive entry is financially impossible; refuse before
+        # computing geometry rather than producing a derived nonsense.
+        if not np.isfinite(entry) or entry <= 0:
+            targets.append(float("nan"))
+            stops.append(float("nan"))
+            continue
+
         pivots = ev.get("pivots") or []
         fallback_height = atr if atr_valid else float("nan")
         height = _pattern_height(pivots, entry, sign, fallback=fallback_height)
@@ -299,28 +306,35 @@ def apply_condition(
             stops.append(float("nan"))
             continue
 
-        targets.append(
-            _resolve_target(
-                entry=entry,
-                sign=sign,
-                pattern_height=height,
-                atr=atr,
-                method=condition.target_method,
-                atr_multiple=condition.atr_multiple,
-                fib_multiple=condition.fib_target_multiple,
-            )
+        target = _resolve_target(
+            entry=entry,
+            sign=sign,
+            pattern_height=height,
+            atr=atr,
+            method=condition.target_method,
+            atr_multiple=condition.atr_multiple,
+            fib_multiple=condition.fib_target_multiple,
         )
-        stops.append(
-            _resolve_stop(
-                entry=entry,
-                sign=sign,
-                pivots=pivots,
-                atr=atr,
-                method=condition.stop_method,
-                atr_multiple=condition.atr_multiple,
-                fixed_pct=condition.fixed_pct,
-            )
+        stop = _resolve_stop(
+            entry=entry,
+            sign=sign,
+            pivots=pivots,
+            atr=atr,
+            method=condition.stop_method,
+            atr_multiple=condition.atr_multiple,
+            fixed_pct=condition.fixed_pct,
         )
+
+        # Bearish measured-move yields target <= 0 when max(highs) >= 2*entry
+        # (split-unadjusted bars, sub-cent quote noise). NaN both legs together
+        # so downstream R-multiples never see a one-sided level.
+        if not np.isfinite(target) or not np.isfinite(stop) or target <= 0 or stop <= 0:
+            targets.append(float("nan"))
+            stops.append(float("nan"))
+            continue
+
+        targets.append(target)
+        stops.append(stop)
 
     out["target_price"] = targets
     out["stop_price"] = stops

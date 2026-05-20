@@ -419,6 +419,7 @@ fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bou
         .expect("set r_squared");
     d.set_item("touch_count", tl.touch_count)
         .expect("set touch_count");
+    d.set_item("role", tl.role.as_str()).expect("set role");
     d
 }
 

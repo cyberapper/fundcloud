@@ -20,12 +20,13 @@ the same commit**.
 ## Composite
 
 ```text
-quality = round(
-      0.30 × symmetry
-    + 0.25 × volume
-    + 0.25 × trendline_r²
-    + 0.20 × completeness
-), clamped to [0, 100]
+raw = 0.30 × symmetry + 0.25 × volume + 0.25 × trendline_r² + 0.20 × completeness
+
+symmetry_gate = clamp(symmetry / 10, 0.1, 1.0)
+duration_gate = clamp((bar_count − 4) / 6, 0, 1)   if bar_count < 10
+              = 1.0                                 otherwise
+
+quality = round(raw × symmetry_gate × duration_gate), clamped to [0, 100]
 ```
 
 | Weight | Sub-score | Range |
@@ -37,6 +38,25 @@ quality = round(
 
 The four sub-scores are independent geometric measurements; the weights
 encode an editorial judgment about which dimensions matter most.
+
+### Composite gates
+
+A plain weighted sum let perfect supporting structure (volume + trendline
++ completeness, 70% combined weight) rescue patterns whose core geometry
+was broken — a 50%-peak-asymmetry `double_top` scored 66, a 5-bar
+formation scored 85. Two multiplicative gates crush the composite when a
+structural prerequisite fails:
+
+- **`symmetry_gate`** — when `symmetry` is near 0 (e.g. asymmetric
+  double_top), the gate floors at `0.1`, scaling the whole composite
+  down by 10×. Patterns with `symmetry ≥ 10` pass through unchanged.
+- **`duration_gate`** — formations shorter than the typical detector
+  minimum (10 bars) ramp linearly from 0 at 4 bars to 1 at 10 bars.
+  Normal-length patterns are unaffected.
+
+Gates are intentionally multiplicative: a clean sub-score can never
+rescue a broken structural prerequisite, but a broken sub-score can
+always tank an otherwise valid pattern.
 
 ## Sub-scores
 
@@ -79,13 +99,22 @@ shoulder_diff = pct_diff(pivot[0].price, pivot[4].price)   # left vs right shoul
 neckline_diff = pct_diff(pivot[1].price, pivot[3].price)   # neckline left vs right
 shoulder_score = max(0, 100 × (1 − shoulder_diff / 0.10))
 neckline_score = max(0, 100 × (1 − neckline_diff / 0.10))
-score = (shoulder_score + neckline_score) / 2
+
+shoulder_avg = (pivot[0].price + pivot[4].price) / 2
+head_extent  = pivot[2].price − shoulder_avg     # H&S
+             = shoulder_avg − pivot[2].price     # inverse H&S
+prominence   = head_extent / |shoulder_avg|
+prominence_factor = clamp((prominence − 0.02) / 0.03, 0, 1)
+
+score = (shoulder_score + neckline_score) / 2 × prominence_factor
 ```
 
-Returns `0.0` if fewer than 5 pivots. Note the **head height is not
-scored** — only shoulder symmetry and neckline symmetry. A head only 1%
-above the shoulders still gets full marks here; gating happens earlier
-in the detector.
+Returns `0.0` if fewer than 5 pivots. The `prominence_factor` ramps from
+`0` at 2% prominence to `1.0` at 5% prominence — without it, a flat
+"H&S" with matching shoulders + level neckline but a 1%-prominent head
+scored full marks despite not really being an H&S. Below 2% the
+formation isn't structurally an H&S regardless of side symmetry, so the
+sub-score collapses.
 
 #### Ascending / Descending / Symmetrical triangle
 
@@ -130,37 +159,48 @@ the in-formation decline; breakout-bar volume is not part of `quality`.
 ### `trendline_r²` (25%)
 
 ```text
-score = mean(
-    max(
-        trendline_fit_r2(ohlcv.close, tl),
-        trendline_fit_r2(ohlcv.high,  tl),
-        trendline_fit_r2(ohlcv.low,   tl),
-    )
-    for tl in pattern.trend_lines
-) × 100
+score = mean(per_line_quality(tl) for tl in pattern.trend_lines) × 100
+
+per_line_quality(tl):
+    if tl.touch_count >= 3:  tl.r_squared                       # anchor-only R²
+    else:                    boundary_respect_ratio(tl, ...)    # 2-anchor path
 ```
 
 If no trend lines are attached to the pattern, returns `50.0` (neutral).
 
-**Important — this is *not* the average of `TrendLine::r_squared`.**
-That field is the R² of the least-squares fit through the line's anchor
-pivots only — and since the line is constructed *to fit* those anchors,
-that R² is essentially always ~1.0 by construction (1.0 exactly with two
-anchors). It measures "did we draw the line through the points we said
-we'd draw it through?", which is trivially true.
+The scorer dispatches by touch count. 3+ anchor lines use anchor-only
+R² (the bug `features.trendline_r2 == 0` exposed was the per-bar
+`trendline_fit_r2` primitive, which is *not* used by the scorer).
+2-anchor lines use the boundary-respect ratio implemented in
+`crates/fundcloud-core/src/patterns/features/trendline.rs`.
 
-`trendline_fit_r2(prices, line)` measures the fit against the
-**intermediate bars** between the anchors — the structural question of
-whether price actually behaved as if the line were meaningful (acting
-as support / resistance) over the formation window. Cleanly-respected
-trendlines score near 1.0; cherry-picked anchors with chaotic
-intermediate behaviour score near 0.0.
+**Why anchor-only for 3+ pivots:** many pattern trend lines are
+deliberately anchored on extreme pivots — the trough level for a
+triple-bottom support, the peak level for a triple-top resistance, the
+upper / lower boundary of a triangle. By construction the intermediate
+bars rise above or dip below such lines; they are *not* expected to
+hug the line. A per-bar fit against the bar-mean null model collapses
+to ~0 on extreme-anchor geometry even for textbook formations.
 
-The max-of-three over `(close, high, low)` auto-selects the natural
-price series for the line: a low-anchored support line naturally fits
-the lows; a high-anchored resistance line fits the highs; a midline-ish
-line fits closes. A spurious line that fits *none* of the three remains
-correctly scored low.
+**Why boundary-respect for 2-anchor lines:** with only two pivots, the
+least-squares fit is trivially `1.0` by construction, so anchor R²
+carries no information. Instead, the scorer measures the fraction of
+intermediate bars whose high / low respects the line within a 0.5%
+tolerance — role-aware, so upper-role lines check highs and lower-role
+lines check lows. This is implemented as the `features.trendline_r2`
+primitive and is a genuine discriminator for double_top / double_bottom,
+H&S necklines, and 2-touch triangle sides.
+
+**Information content:**
+
+* For 3+ anchor pivots, anchor R² is a meaningful collinearity signal
+  that varies in `[0, 1]` — it answers "how cleanly do the three
+  pivots line up?". On a synthetic GBM corpus Spearman ρ ≈ 0.66
+  against composite quality.
+* For 2-anchor lines, the boundary-respect ratio answers a different
+  question — "how clean is the channel/neckline between the anchors?"
+  — and discriminates the ≈ 6/9 of the catalogue that previously
+  degenerated to a constant bonus.
 
 ### `completeness` (20%)
 

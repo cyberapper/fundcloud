@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind};
+use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role};
 
 /// Default maximum `pct_diff` between the two peaks (or troughs).
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.015;
@@ -126,7 +126,8 @@ impl PatternDetector for DoubleTopDetector {
                 continue;
             }
 
-            let resistance = fit_trendline(&[p1, p3]);
+            // Resistance through the two peaks → Upper role.
+            let resistance = fit_trendline(&[p1, p3], Role::Upper);
             let mut trend_lines = Vec::new();
             if let Some(tl) = resistance {
                 trend_lines.push(tl);
@@ -205,7 +206,8 @@ impl PatternDetector for DoubleBottomDetector {
                 continue;
             }
 
-            let support = fit_trendline(&[p1, p3]);
+            // Support through the two troughs → Lower role.
+            let support = fit_trendline(&[p1, p3], Role::Lower);
             let mut trend_lines = Vec::new();
             if let Some(tl) = support {
                 trend_lines.push(tl);

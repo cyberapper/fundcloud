@@ -199,6 +199,9 @@ pub fn detector_for(
             if let Some(v) = get_usize(params, "min_bar_count") {
                 d.min_bar_count = v;
             }
+            if let Some(v) = get_f64(params, "boundary_tolerance").filter(|v| *v >= 0.0) {
+                d.boundary_tolerance = v;
+            }
             Ok(Box::new(d))
         }
         "triple_bottom" => {
@@ -211,6 +214,9 @@ pub fn detector_for(
             }
             if let Some(v) = get_usize(params, "min_bar_count") {
                 d.min_bar_count = v;
+            }
+            if let Some(v) = get_f64(params, "boundary_tolerance").filter(|v| *v >= 0.0) {
+                d.boundary_tolerance = v;
             }
             Ok(Box::new(d))
         }

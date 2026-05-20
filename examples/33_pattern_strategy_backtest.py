@@ -114,7 +114,7 @@ def main() -> None:
         Pattern.DOUBLE_BOTTOM,
         condition=condition,
         size=0.1,
-        min_quality=60,
+        min_quality=75,
     )
     print("\n" + result.summary().round(4).to_string())
 
@@ -123,7 +123,7 @@ def main() -> None:
         Pattern.DOUBLE_BOTTOM,
         horizons=(20, 60),
         condition=condition,
-        min_quality=60,
+        min_quality=75,
     )
     print(cond_panel[["n_events", "hit_rate", "baseline_hit", "expectancy"]].round(3).to_string())
     print(

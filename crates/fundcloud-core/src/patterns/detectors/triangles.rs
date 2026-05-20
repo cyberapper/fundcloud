@@ -15,7 +15,7 @@
 
 use crate::patterns::detect::{prior_trend_slope, PatternDetector};
 use crate::patterns::trendline::{fit_trendline, validate_boundaries};
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, TrendLine};
+use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
 
 /// Default normalised-slope tolerance for the "flat" leg of asc/desc.
 /// 0.0005 was unrealistically tight (≈ 0.05% drift) and produced near-zero
@@ -139,7 +139,8 @@ impl PatternDetector for AscendingTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(h_subset) else {
+                // Ascending triangle upper line tracks highs → Upper role.
+                let Some(upper) = fit_trendline(h_subset, Role::Upper) else {
                     continue;
                 };
 
@@ -163,7 +164,8 @@ impl PatternDetector for AscendingTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(&l_subset) else {
+                // Ascending triangle lower line tracks rising lows → Lower.
+                let Some(lower) = fit_trendline(&l_subset, Role::Lower) else {
                     continue;
                 };
 
@@ -261,7 +263,8 @@ impl PatternDetector for DescendingTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(l_subset) else {
+                // Descending triangle lower line tracks the flat lows → Lower.
+                let Some(lower) = fit_trendline(l_subset, Role::Lower) else {
                     continue;
                 };
 
@@ -283,7 +286,8 @@ impl PatternDetector for DescendingTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(&h_subset) else {
+                // Descending triangle upper line tracks falling highs → Upper.
+                let Some(upper) = fit_trendline(&h_subset, Role::Upper) else {
                     continue;
                 };
 
@@ -393,7 +397,8 @@ impl PatternDetector for SymmetricalTriangleDetector {
                 if h_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(upper) = fit_trendline(h_subset) else {
+                // Symmetrical triangle upper boundary tracks highs → Upper.
+                let Some(upper) = fit_trendline(h_subset, Role::Upper) else {
                     continue;
                 };
 
@@ -415,7 +420,8 @@ impl PatternDetector for SymmetricalTriangleDetector {
                 if l_subset.len() < self.min_touches {
                     continue;
                 }
-                let Some(lower) = fit_trendline(&l_subset) else {
+                // Symmetrical triangle lower boundary tracks lows → Lower.
+                let Some(lower) = fit_trendline(&l_subset, Role::Lower) else {
                     continue;
                 };
 

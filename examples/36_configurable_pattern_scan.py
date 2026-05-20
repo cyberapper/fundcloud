@@ -72,11 +72,11 @@ def section_1_tiered_vs_single(bars: pd.DataFrame) -> None:
     print("\n=== 1. Tiered pivot scanning — single-tier (legacy) vs default ===")
     print("Same detector, same data, different `pivot_tiers` setting.\n")
 
-    single_tier = DoubleTop(min_quality=50, pivot_tiers=()).events(bars)
-    multi_tier = DoubleTop(min_quality=50).events(bars)
-    long_only = DoubleTop(min_quality=50, pivot_tiers=((34, 55),)).events(bars)
+    single_tier = DoubleTop(min_quality=75, pivot_tiers=()).events(bars)
+    multi_tier = DoubleTop(min_quality=75).events(bars)
+    long_only = DoubleTop(min_quality=75, pivot_tiers=((34, 55),)).events(bars)
 
-    print("DoubleTop, min_quality=50:")
+    print("DoubleTop, min_quality=75:")
     _print_row("single-tier (3,5,8)", _summarize(single_tier))
     _print_row("default tiered", _summarize(multi_tier))
     _print_row("large-tier only (34, 55)", _summarize(long_only))
@@ -92,9 +92,9 @@ def section_2_per_detector_knobs(bars: pd.DataFrame) -> None:
     print("\n=== 2. Per-detector knobs — strict vs default vs loose ===")
     print("DoubleTop with peak_tolerance + min_trough_depth swept three ways.\n")
 
-    strict = DoubleTop(min_quality=50, peak_tolerance=0.005, min_trough_depth=0.05)
-    default = DoubleTop(min_quality=50)
-    loose = DoubleTop(min_quality=50, peak_tolerance=0.03, min_trough_depth=0.015)
+    strict = DoubleTop(min_quality=75, peak_tolerance=0.005, min_trough_depth=0.05)
+    default = DoubleTop(min_quality=75)
+    loose = DoubleTop(min_quality=75, peak_tolerance=0.03, min_trough_depth=0.015)
 
     print("DoubleTop:")
     _print_row("strict (0.5% peaks / 5% trough)", _summarize(strict.events(bars)))
@@ -102,9 +102,9 @@ def section_2_per_detector_knobs(bars: pd.DataFrame) -> None:
     _print_row("loose (3% / 1.5%)", _summarize(loose.events(bars)))
 
     print("\n=== Same exercise on Head & Shoulders ===\n")
-    hs_strict = HeadAndShoulders(min_quality=50, shoulder_tolerance=0.05, min_head_prominence=0.05)
-    hs_default = HeadAndShoulders(min_quality=50)
-    hs_long_prior = HeadAndShoulders(min_quality=50, prior_trend_window=30)
+    hs_strict = HeadAndShoulders(min_quality=73, shoulder_tolerance=0.05, min_head_prominence=0.05)
+    hs_default = HeadAndShoulders(min_quality=73)
+    hs_long_prior = HeadAndShoulders(min_quality=73, prior_trend_window=30)
 
     print("HeadAndShoulders:")
     _print_row("strict shoulders/head", _summarize(hs_strict.events(bars)))

@@ -48,6 +48,29 @@ impl PivotKind {
     }
 }
 
+/// Which side of price a trend line is defined against.
+///
+/// Recorded at construction so [`crate::patterns::boundary_respect_ratio`]
+/// scores the intended side directly. The old max-of-upper-and-lower
+/// fallback saturated near 1.0 for 2-anchor patterns and killed discrimination.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Role {
+    /// Resistance line (upper boundary).
+    Upper,
+    /// Support line (lower boundary).
+    Lower,
+}
+
+impl Role {
+    /// Uppercase string form; mirrors `PivotKind::as_str`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Role::Upper => "UPPER",
+            Role::Lower => "LOWER",
+        }
+    }
+}
+
 /// A swing high or swing low.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Pivot {
@@ -79,6 +102,8 @@ pub struct TrendLine {
     pub r_squared: f64,
     /// Number of pivots used in the fit.
     pub touch_count: u8,
+    /// See [`Role`]. Set by the detector; drives boundary-respect scoring side.
+    pub role: Role,
 }
 
 impl TrendLine {

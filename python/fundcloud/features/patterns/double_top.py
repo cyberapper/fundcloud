@@ -52,6 +52,7 @@ class DoubleTop(PatternIndicator):
     detector_param_keys = ("peak_tolerance", "min_trough_depth")
     default_params = {
         **PatternIndicator.default_params,
+        "min_quality": 75.0,
         "peak_tolerance": 0.015,
         "min_trough_depth": 0.03,
     }

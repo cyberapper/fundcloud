@@ -44,10 +44,19 @@ class TripleTop(PatternIndicator):
         target_method=TargetMethod.MEASURED_MOVE,
         stop_method=StopMethod.BELOW_PIVOT,
     )
-    detector_param_keys = ("peak_tolerance", "min_trough_depth", "min_bar_count")
+    detector_param_keys = (
+        "peak_tolerance",
+        "min_trough_depth",
+        "min_bar_count",
+        "boundary_tolerance",
+    )
     default_params = {
         **PatternIndicator.default_params,
+        "min_quality": 71.0,
         "peak_tolerance": 0.02,
         "min_trough_depth": 0.02,
         "min_bar_count": 10,
+        # Resistance line must not be pierced by more than 0.5% of the
+        # peak level between the three peaks.
+        "boundary_tolerance": 0.005,
     }

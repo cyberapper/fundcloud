@@ -8,9 +8,10 @@
 //!   for triangles).
 //! - **25%** volume confirmation — declining volume during formation is a
 //!   bullish/bearish confirmation signal.
-//! - **25%** trend-line R² — average `trendline_fit_r2` across attached
-//!   trend lines (i.e., how well intermediate bars hug each line, NOT
-//!   the anchor-only R² stored on the line).
+//! - **25%** trend-line fit — per-line, dispatched on anchor count:
+//!   3+ anchors use anchor R² (`TrendLine::r_squared`); 2-anchor lines
+//!   use a boundary-respect ratio instead (anchor R² is trivially 1.0
+//!   for two points). See `score_trendline` for the dispatch.
 //! - **20%** completeness — duration in bars + total trend-line touches.
 //!
 //! All four sub-scorers return `0.0..=100.0`; the top-level scorer rounds
@@ -18,7 +19,7 @@
 
 use std::collections::HashMap;
 
-use crate::patterns::trendline::trendline_fit_r2;
+use crate::patterns::trendline::{boundary_respect_ratio, DEFAULT_BOUNDARY_RESPECT_TOLERANCE};
 use crate::patterns::types::{OhlcvView, Pattern, PatternScore};
 
 /// Absolute percentage difference using the average magnitude as the
@@ -48,7 +49,23 @@ impl GeometricScorer {
         let completeness = score_completeness(pattern);
 
         let raw = symmetry * 0.30 + volume * 0.25 + trendline * 0.25 + completeness * 0.20;
-        let clamped = raw.round().clamp(0.0, 100.0);
+
+        // Composite gates: perfect supporting structure (volume + trendline
+        // + completeness = 70% weight) used to rescue patterns whose core
+        // geometry was broken — a 50%-peak-asymmetry double_top scored 66,
+        // a 5-bar formation scored 85. The gates crush composite when the
+        // pattern fails a structural prerequisite.
+        let symmetry_gate = (symmetry / 10.0).clamp(0.1, 1.0);
+        let (start, end) = pattern.formation;
+        let bar_count = end.saturating_sub(start).saturating_add(1);
+        let duration_gate = if bar_count < 10 {
+            ((bar_count as f64 - 4.0) / 6.0).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+
+        let gated = raw * symmetry_gate * duration_gate;
+        let clamped = gated.round().clamp(0.0, 100.0);
 
         let mut features: HashMap<String, f64> = HashMap::new();
         features.insert("symmetry".to_string(), symmetry / 100.0);
@@ -103,7 +120,24 @@ fn score_symmetry(pattern: &Pattern) -> f64 {
             let neckline_diff = pct_diff(pivots[1].price, pivots[3].price);
             let shoulder_score = (100.0 * (1.0 - shoulder_diff / 0.10)).max(0.0);
             let neckline_score = (100.0 * (1.0 - neckline_diff / 0.10)).max(0.0);
-            (shoulder_score + neckline_score) / 2.0
+
+            // Without a head, matching shoulders + neckline still scored 100.
+            // The head must stand 2-5% beyond the shoulder level — below 2%
+            // the formation isn't really an H&S, regardless of side symmetry.
+            let shoulder_avg = (pivots[0].price + pivots[4].price) / 2.0;
+            let head_extent = if pattern.name == "head_and_shoulders" {
+                pivots[2].price - shoulder_avg
+            } else {
+                shoulder_avg - pivots[2].price
+            };
+            let prominence = if shoulder_avg.abs() > f64::EPSILON {
+                head_extent / shoulder_avg.abs()
+            } else {
+                0.0
+            };
+            let prominence_factor = ((prominence - 0.02) / 0.03).clamp(0.0, 1.0);
+
+            (shoulder_score + neckline_score) / 2.0 * prominence_factor
         }
         "ascending_triangle" | "descending_triangle" | "symmetrical_triangle" => {
             if pivots.len() < 4 {
@@ -157,38 +191,44 @@ fn score_volume(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
 
 /// Trend-line fit quality.
 ///
-/// Average `trendline_fit_r2` across attached trend lines, where each
-/// line's contribution is the **maximum** of its fit against `close`,
-/// `high`, and `low` over the formation. **Not** the average of
-/// `TrendLine::r_squared` — that field is the anchor-only R² and is
-/// essentially constant by construction. See
-/// `crate::patterns::trendline::trendline_fit_r2` for the rationale.
+/// Per-line dispatch on `TrendLine::touch_count`, averaged across attached
+/// lines and rescaled to `0.0..=100.0`:
 ///
-/// Why max-of-three: a structural trend line auto-selects its native
-/// price series — a neckline anchored on lows fits the lows; a triangle's
-/// upper boundary anchored on highs fits the highs; a flat consolidation
-/// line fits closes. Taking the max picks the right series without
-/// requiring `TrendLine` to carry an explicit "anchored on" tag.
-/// A spurious line that fits *none* of the three series remains correctly
-/// scored low. Storing the anchor kind on `TrendLine` directly would
-/// let us drop the max-of-three; not done yet to keep `TrendLine`
-/// minimal.
+/// * **`>= 3` anchors** — anchor-only R² (`TrendLine::r_squared`).
+/// * **`== 2` anchors** — anchor R² is trivially 1.0 by construction, so
+///   substitute [`boundary_respect_ratio`], evaluated against the line's
+///   recorded [`Role`].
+/// * **`< 2`** — defensive `50.0` (`fit_trendline` rejects this upstream).
+///
+/// Per-bar `trendline_fit_r2` is *not* used here: extreme-anchor lines
+/// (triple-bottom support at the trough level, etc.) collapse it to 0 even
+/// when the anchors are perfectly collinear.
 fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     if pattern.trend_lines.is_empty() {
         return 50.0;
     }
-    let avg_r2: f64 = pattern
+    let n = pattern.trend_lines.len() as f64;
+    let sum: f64 = pattern
         .trend_lines
         .iter()
         .map(|tl| {
-            let against_close = trendline_fit_r2(ohlcv.close, tl);
-            let against_high = trendline_fit_r2(ohlcv.high, tl);
-            let against_low = trendline_fit_r2(ohlcv.low, tl);
-            against_close.max(against_high).max(against_low)
+            if tl.touch_count >= 3 {
+                tl.r_squared
+            } else if tl.touch_count == 2 {
+                boundary_respect_ratio(
+                    ohlcv.high,
+                    ohlcv.low,
+                    tl,
+                    DEFAULT_BOUNDARY_RESPECT_TOLERANCE,
+                )
+            } else {
+                // Defensive — fit_trendline rejects <2 anchors, but never
+                // panic on a hand-built TrendLine.
+                0.5
+            }
         })
-        .sum::<f64>()
-        / (pattern.trend_lines.len() as f64);
-    avg_r2 * 100.0
+        .sum();
+    ((sum / n) * 100.0).clamp(0.0, 100.0)
 }
 
 /// Completeness: duration in bars + cumulative trend-line touch count.
@@ -226,7 +266,7 @@ fn score_completeness(pattern: &Pattern) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::patterns::types::{Direction, Pivot, PivotKind, TrendLine};
+    use crate::patterns::types::{Direction, Pivot, PivotKind, Role, TrendLine};
 
     fn pv(index: usize, price: f64, kind: PivotKind) -> Pivot {
         Pivot {
@@ -395,6 +435,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let p = Pattern {
             name: "double_top",
@@ -419,6 +460,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let p = Pattern {
             name: "double_top",
@@ -551,6 +593,7 @@ mod tests {
                 intercept: 0.0,
                 r_squared,
                 touch_count,
+                role: Role::Upper,
             }],
             formation: (0, formation_len),
             entry_price: None,
@@ -640,21 +683,116 @@ mod tests {
     }
 
     #[test]
-    fn trendline_score_monotonic_in_bar_deviation_from_line() {
-        // Hold a flat trend line at 100 over 30 bars. Vary how far the
-        // closes wander from the line. Score must monotonically decrease
-        // as bars deviate further.
-        //
-        // (Replaces an earlier test that varied `TrendLine::r_squared`
-        // directly — that field is no longer read by the scorer; see
-        // `score_trendline` doc.)
+    fn trendline_score_monotonic_in_anchor_r_squared() {
+        // Hold a single attached trend line over 30 bars. Vary the
+        // anchor-only `TrendLine::r_squared` from perfect (1.0) down to
+        // adversarial (0.0). The trendline sub-score must monotonically
+        // decrease, and r²=1.0 must produce score=100.
+        let close = vec![100.0; 30];
+        let high = vec![101.0; 30];
+        let low = vec![99.0; 30];
+        let volumes = ohlcv_with_flat_volume(30, 100.0);
+        let v = view(&close, &volumes, &high, &low);
+
+        let r_squareds = [1.0_f64, 0.85, 0.5, 0.25, 0.0];
+        let scores: Vec<f64> = r_squareds
+            .iter()
+            .map(|&r2| {
+                let line = TrendLine {
+                    start_index: 0,
+                    end_index: 29,
+                    slope: 0.0,
+                    intercept: 100.0,
+                    r_squared: r2,
+                    touch_count: 4,
+                    role: Role::Upper,
+                };
+                let pattern = Pattern {
+                    name: "double_top",
+                    direction: Direction::Bearish,
+                    pivots: vec![],
+                    trend_lines: vec![line],
+                    formation: (0, 29),
+                    entry_price: None,
+                    breakout_price: None,
+                    variant: None,
+                };
+                score_trendline(&pattern, v)
+            })
+            .collect();
+        assert_non_increasing("trendline anchor r²", &scores);
+        assert!(
+            (scores[0] - 100.0).abs() < 1e-9,
+            "anchor r²=1.0 should score 100, got {}",
+            scores[0]
+        );
+    }
+
+    #[test]
+    fn trendline_score_uses_anchor_r2_for_extreme_anchor_lines() {
+        // Regression: a triple-bottom-style support line sits at the
+        // trough level (100.0). Intermediate bars rise to peaks at 110
+        // by design — they are NOT expected to hug the line. The old
+        // per-bar `trendline_fit_r2` path collapsed to 0 on this geometry
+        // because the bars' mean is a better predictor than the
+        // extreme-anchor line. The fix reads `TrendLine::r_squared`
+        // (anchor-only) directly, preserving the collinearity signal of
+        // the three troughs.
         let line = TrendLine {
             start_index: 0,
             end_index: 29,
             slope: 0.0,
             intercept: 100.0,
-            r_squared: 1.0,
-            touch_count: 4,
+            r_squared: 0.85, // anchor pivots are well collinear
+            touch_count: 3,
+            role: Role::Lower,
+        };
+        let pattern = Pattern {
+            name: "triple_bottom",
+            direction: Direction::Bullish,
+            // Anchors at the trough level (100); detector built this line.
+            pivots: vec![
+                pv(0, 100.0, PivotKind::Low),
+                pv(15, 100.0, PivotKind::Low),
+                pv(29, 100.0, PivotKind::Low),
+            ],
+            trend_lines: vec![line],
+            formation: (0, 29),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        };
+
+        // Closes wander wildly between troughs — peaks reach ~110.
+        // Under the old per-bar fit this would have driven the score to 0.
+        let close: Vec<f64> = (0..30)
+            .map(|i| 100.0 + 10.0 * ((i as f64) * 0.5).sin().abs())
+            .collect();
+        let high: Vec<f64> = close.iter().map(|c| c + 0.5).collect();
+        let low: Vec<f64> = close.iter().map(|c| (c - 0.5).min(100.0)).collect();
+        let volumes = ohlcv_with_flat_volume(30, 100.0);
+        let v = view(&close, &volumes, &high, &low);
+
+        let score = score_trendline(&pattern, v);
+        assert!(
+            (score - 85.0).abs() < 1e-9,
+            "expected anchor-r² scoring ≈ 85, got {score}"
+        );
+    }
+
+    #[test]
+    fn trendline_score_uses_boundary_respect_for_two_anchor_lines() {
+        // 2-anchor line at level 100 over 30 bars; every bar's high sits
+        // well below the line → upper-respect ratio is 1.0, so the
+        // boundary-respect branch must score 100.
+        let line = TrendLine {
+            start_index: 0,
+            end_index: 29,
+            slope: 0.0,
+            intercept: 100.0,
+            r_squared: 1.0, // trivially 1.0 for 2-anchor; old code returned 100
+            touch_count: 2,
+            role: Role::Upper,
         };
         let pattern = Pattern {
             name: "double_top",
@@ -667,25 +805,105 @@ mod tests {
             variant: None,
         };
 
-        let high = vec![101.0; 30];
-        let low = vec![99.0; 30];
+        let close = vec![95.0; 30];
+        let high = vec![99.0; 30]; // every bar respects the upper line
+        let low = vec![90.0; 30];
         let volumes = ohlcv_with_flat_volume(30, 100.0);
+        let v = view(&close, &volumes, &high, &low);
 
-        // Each amplitude scatters closes around 100 by ± amplitude.
-        let amplitudes = [0.0_f64, 1.0, 5.0, 15.0, 30.0];
-        let mut scores: Vec<f64> = Vec::new();
-        for amplitude in amplitudes {
-            let close: Vec<f64> = (0..30)
-                .map(|i| 100.0 + amplitude * (i as f64 * 0.5).sin())
-                .collect();
-            let v = view(&close, &volumes, &high, &low);
-            scores.push(score_trendline(&pattern, v));
-        }
-        assert_non_increasing("trendline bar-deviation", &scores);
+        let score = score_trendline(&pattern, v);
         assert!(
-            (scores[0] - 100.0).abs() < 1e-9,
-            "perfect hug should score 100, got {}",
-            scores[0]
+            score > 80.0,
+            "expected high boundary-respect score, got {score}"
+        );
+    }
+
+    #[test]
+    fn trendline_score_drops_when_bars_breach_two_anchor_line() {
+        // Same 2-anchor line at level 100 — but half the bars' highs
+        // break decisively above the line (110 ≫ 100 × 1.005). With the
+        // role-aware boundary-respect ratio, only the upper-respect side
+        // is evaluated for Role::Upper, so the ratio drops to ~0.5
+        // (half the bars respect, half breach).
+        let line = TrendLine {
+            start_index: 0,
+            end_index: 29,
+            slope: 0.0,
+            intercept: 100.0,
+            r_squared: 1.0,
+            touch_count: 2,
+            role: Role::Upper,
+        };
+        let pattern = Pattern {
+            name: "double_top",
+            direction: Direction::Bearish,
+            pivots: vec![],
+            trend_lines: vec![line],
+            formation: (0, 29),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        };
+
+        let close = vec![100.0; 30];
+        // Alternating: half respect, half breach.
+        let high: Vec<f64> = (0..30)
+            .map(|i| if i % 2 == 0 { 99.0 } else { 110.0 })
+            .collect();
+        let low: Vec<f64> = (0..30)
+            .map(|i| if i % 2 == 0 { 90.0 } else { 95.0 })
+            .collect();
+        let volumes = ohlcv_with_flat_volume(30, 100.0);
+        let v = view(&close, &volumes, &high, &low);
+
+        let score = score_trendline(&pattern, v);
+        // Upper-respect = 0.5 (half breach), evaluated directly per
+        // Role::Upper → score = 50.
+        assert!(
+            score < 60.0,
+            "expected dropped score from breaches, got {score}"
+        );
+        // Sanity floor: should not collapse to 0.
+        assert!(score > 40.0, "expected ~50, got {score}");
+    }
+
+    #[test]
+    fn trendline_score_still_uses_anchor_r2_for_three_anchor_lines() {
+        // Regression: a 3-anchor line with anchor R² 0.85 must keep
+        // scoring 85, unaffected by whatever the bars are doing
+        // (boundary-respect substitution applies to 2-anchor lines only).
+        let line = TrendLine {
+            start_index: 0,
+            end_index: 29,
+            slope: 0.0,
+            intercept: 100.0,
+            r_squared: 0.85,
+            touch_count: 3,
+            role: Role::Lower,
+        };
+        let pattern = Pattern {
+            name: "triple_bottom",
+            direction: Direction::Bullish,
+            pivots: vec![],
+            trend_lines: vec![line],
+            formation: (0, 29),
+            entry_price: None,
+            breakout_price: None,
+            variant: None,
+        };
+        // Bars wandering wildly — irrelevant to the 3+ anchor branch.
+        let close: Vec<f64> = (0..30)
+            .map(|i| 100.0 + 10.0 * ((i as f64) * 0.5).sin().abs())
+            .collect();
+        let high: Vec<f64> = close.iter().map(|c| c + 0.5).collect();
+        let low: Vec<f64> = close.iter().map(|c| (c - 0.5).min(100.0)).collect();
+        let volumes = ohlcv_with_flat_volume(30, 100.0);
+        let v = view(&close, &volumes, &high, &low);
+
+        let score = score_trendline(&pattern, v);
+        assert!(
+            (score - 85.0).abs() < 1e-9,
+            "expected anchor-r² scoring ≈ 85 for 3+ anchor line, got {score}"
         );
     }
 
@@ -751,6 +969,7 @@ mod tests {
             intercept: 0.0,
             r_squared: 1.0,
             touch_count: 5,
+            role: Role::Upper,
         };
         let scores: Vec<f64> = [100.0, 100.5, 101.0, 101.5, 102.0]
             .iter()
