@@ -49,13 +49,17 @@ kwargs on any concrete pattern class (`DoubleTop`, `HeadAndShoulders`, …).
 
 ### Triple top / bottom
 
-`TripleTop`, `TripleBottom`.
+`TripleTop`, `TripleBottom`. The two detectors are structurally
+symmetric, but the knob names mirror which pivots they constrain
+(extremes for one, the depth/height of the in-between pivots for the
+other), so the names differ between top and bottom.
 
-| Knob | Default | Decision | What it does |
+| Knob (`TripleTop` / `TripleBottom`) | Default | Decision | What it does |
 |---|---|---|---|
-| `peak_tolerance` | `0.02` | exposed | Max percentage difference across the three peaks/troughs. 2%. |
-| `min_trough_depth` | `0.02` | exposed | Min depth as a fraction of average peak. 2%. |
-| `min_formation_bars` | `10` | exposed | Minimum bars for the formation. Higher than double because three pivots need more space. |
+| `peak_tolerance` / `trough_tolerance` | `0.02` | exposed | Max `pct_diff` across the three extreme pivots (the three peaks for top, the three troughs for bottom). 2%. |
+| `min_trough_depth` / `min_peak_height` | `0.02` | exposed | Minimum depth of the intervening troughs (top) or height of the intervening peaks (bottom), as a fraction of the average extreme price. 2%. |
+| `min_bar_count` | `10` | exposed | Minimum bars between the first and fifth pivot. Higher than double because three pivots need more space. |
+| `boundary_tolerance` | `0.005` | exposed | Tolerance for the boundary-respect gate that checks intermediate bars between the anchor pivots respect the support / resistance line. 0.5%. Validated as non-negative on assignment — negatives flip the comparison and silently accept patterns the gate should reject. |
 
 ### Head & shoulders / inverse head & shoulders
 

@@ -20,12 +20,13 @@ the same commit**.
 ## Composite
 
 ```text
-quality = round(
-      0.30 × symmetry
-    + 0.25 × volume
-    + 0.25 × trendline_r²
-    + 0.20 × completeness
-), clamped to [0, 100]
+raw = 0.30 × symmetry + 0.25 × volume + 0.25 × trendline_r² + 0.20 × completeness
+
+symmetry_gate = clamp(symmetry / 10, 0.1, 1.0)
+duration_gate = clamp((bar_count − 4) / 6, 0, 1)   if bar_count < 10
+              = 1.0                                 otherwise
+
+quality = round(raw × symmetry_gate × duration_gate), clamped to [0, 100]
 ```
 
 | Weight | Sub-score | Range |
@@ -37,6 +38,25 @@ quality = round(
 
 The four sub-scores are independent geometric measurements; the weights
 encode an editorial judgment about which dimensions matter most.
+
+### Composite gates
+
+A plain weighted sum let perfect supporting structure (volume + trendline
++ completeness, 70% combined weight) rescue patterns whose core geometry
+was broken — a 50%-peak-asymmetry `double_top` scored 66, a 5-bar
+formation scored 85. Two multiplicative gates crush the composite when a
+structural prerequisite fails:
+
+- **`symmetry_gate`** — when `symmetry` is near 0 (e.g. asymmetric
+  double_top), the gate floors at `0.1`, scaling the whole composite
+  down by 10×. Patterns with `symmetry ≥ 10` pass through unchanged.
+- **`duration_gate`** — formations shorter than the typical detector
+  minimum (10 bars) ramp linearly from 0 at 4 bars to 1 at 10 bars.
+  Normal-length patterns are unaffected.
+
+Gates are intentionally multiplicative: a clean sub-score can never
+rescue a broken structural prerequisite, but a broken sub-score can
+always tank an otherwise valid pattern.
 
 ## Sub-scores
 
@@ -79,13 +99,22 @@ shoulder_diff = pct_diff(pivot[0].price, pivot[4].price)   # left vs right shoul
 neckline_diff = pct_diff(pivot[1].price, pivot[3].price)   # neckline left vs right
 shoulder_score = max(0, 100 × (1 − shoulder_diff / 0.10))
 neckline_score = max(0, 100 × (1 − neckline_diff / 0.10))
-score = (shoulder_score + neckline_score) / 2
+
+shoulder_avg = (pivot[0].price + pivot[4].price) / 2
+head_extent  = pivot[2].price − shoulder_avg     # H&S
+             = shoulder_avg − pivot[2].price     # inverse H&S
+prominence   = head_extent / |shoulder_avg|
+prominence_factor = clamp((prominence − 0.02) / 0.03, 0, 1)
+
+score = (shoulder_score + neckline_score) / 2 × prominence_factor
 ```
 
-Returns `0.0` if fewer than 5 pivots. Note the **head height is not
-scored** — only shoulder symmetry and neckline symmetry. A head only 1%
-above the shoulders still gets full marks here; gating happens earlier
-in the detector.
+Returns `0.0` if fewer than 5 pivots. The `prominence_factor` ramps from
+`0` at 2% prominence to `1.0` at 5% prominence — without it, a flat
+"H&S" with matching shoulders + level neckline but a 1%-prominent head
+scored full marks despite not really being an H&S. Below 2% the
+formation isn't structurally an H&S regardless of side symmetry, so the
+sub-score collapses.
 
 #### Ascending / Descending / Symmetrical triangle
 

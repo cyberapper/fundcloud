@@ -247,13 +247,18 @@ pattern name).
 ### Composition
 
 ```text
-quality = 30% * symmetry
-        + 25% * volume
-        + 25% * trendline_r2
-        + 20% * completeness
+raw = 30% * symmetry + 25% * volume + 25% * trendline_r2 + 20% * completeness
 
-(rounded; clamped to [0, 100])
+symmetry_gate = clamp(symmetry / 10, 0.1, 1.0)
+duration_gate = clamp((bar_count − 4) / 6, 0, 1)   if bar_count < 10, else 1.0
+
+quality = round(raw * symmetry_gate * duration_gate), clamped to [0, 100]
 ```
+
+The two multiplicative gates crush the composite when a structural
+prerequisite fails (near-zero symmetry, or formations shorter than the
+detector minimum). See [`docs/scoring/quality.md`](../scoring/quality.md#composite-gates)
+for the full rationale and motivating cases.
 
 ### Sub-scorers
 
