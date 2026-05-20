@@ -8,14 +8,10 @@
 //!   for triangles).
 //! - **25%** volume confirmation — declining volume during formation is a
 //!   bullish/bearish confirmation signal.
-//! - **25%** trend-line fit — averaged across attached trend lines,
-//!   per-line dispatched on touch count:
-//!   * 3+ anchors → anchor-only R² (`TrendLine::r_squared`).
-//!   * 2 anchors → boundary-respect ratio: fraction of bars in the
-//!     line's span whose high / low respects the line within 0.5%.
-//!     This recovers discrimination for double_top / double_bottom,
-//!     H&S necklines, and 2-touch triangle sides, where anchor R² is
-//!     trivially 1.0 by construction.
+//! - **25%** trend-line fit — per-line, dispatched on anchor count:
+//!   3+ anchors use anchor R² (`TrendLine::r_squared`); 2-anchor lines
+//!   use a boundary-respect ratio instead (anchor R² is trivially 1.0
+//!   for two points). See `score_trendline` for the dispatch.
 //! - **20%** completeness — duration in bars + total trend-line touches.
 //!
 //! All four sub-scorers return `0.0..=100.0`; the top-level scorer rounds
@@ -162,40 +158,18 @@ fn score_volume(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
 
 /// Trend-line fit quality.
 ///
-/// Per-line dispatch on `TrendLine::touch_count`, then averaged across
-/// all attached lines and rescaled to `0.0..=100.0`:
+/// Per-line dispatch on `TrendLine::touch_count`, averaged across attached
+/// lines and rescaled to `0.0..=100.0`:
 ///
-/// * **`touch_count >= 3`** — anchor-only R² (`TrendLine::r_squared`),
-///   a meaningful collinearity signal for triple_top / triple_bottom
-///   and well-pivoted triangle sides.
-/// * **`touch_count == 2`** — anchor R² is trivially `1.0` by
-///   construction (the line passes exactly through its two anchors),
-///   so we substitute a [`boundary_respect_ratio`]: the fraction of
-///   bars in the line's span whose high / low respects the line within
-///   a 0.5% tolerance. The line's role (resistance vs support) is
-///   auto-detected by taking the max of the upper-respect and
-///   lower-respect ratios, mirroring the max-of-three logic used
-///   elsewhere.
-/// * **`touch_count < 2`** — should not happen (`fit_trendline` rejects
-///   such inputs), but defensively scored at `50.0` (neutral) per line.
+/// * **`>= 3` anchors** — anchor-only R² (`TrendLine::r_squared`).
+/// * **`== 2` anchors** — anchor R² is trivially 1.0 by construction, so
+///   substitute [`boundary_respect_ratio`], evaluated against the line's
+///   recorded [`Role`].
+/// * **`< 2`** — defensive `50.0` (`fit_trendline` rejects this upstream).
 ///
-/// **Why both branches:** many pattern trend lines are deliberately
-/// anchored on extreme pivots — the trough level for a triple-bottom
-/// support, the peak level for a triple-top resistance, the upper /
-/// lower boundary of a triangle. By construction intermediate bars
-/// rise above or dip below such lines; they are *not* expected to hug
-/// the line. A per-bar fit collapses to ~0 against the bar-mean null
-/// model for these geometries (which is the bug `features.trendline_r2
-/// == 0` exposed). Anchor R² recovers a real signal for 3+ anchor
-/// lines, and the boundary-respect ratio recovers a real signal for
-/// 2-anchor lines — without either side claiming intermediate bars
-/// must hug the line.
-///
-/// **Calibration evidence:** before this fix, 6 of 9 catalogue
-/// patterns scored a constant +25 here (anchor R² ≡ 1.0). The
-/// boundary-respect substitution makes the component vary in
-/// `[0, 1]` for those patterns too, where 1.0 means every intermediate
-/// bar's high / low respects the line within tolerance.
+/// Per-bar `trendline_fit_r2` is *not* used here: extreme-anchor lines
+/// (triple-bottom support at the trough level, etc.) collapse it to 0 even
+/// when the anchors are perfectly collinear.
 fn score_trendline(pattern: &Pattern, ohlcv: OhlcvView<'_>) -> f64 {
     if pattern.trend_lines.is_empty() {
         return 50.0;

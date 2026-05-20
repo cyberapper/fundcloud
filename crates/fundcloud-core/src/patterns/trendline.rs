@@ -9,11 +9,8 @@ use crate::patterns::types::{Pivot, Role, TrendLine};
 
 /// Fit a least-squares line through `pivots`.
 ///
-/// `role` records whether the caller is fitting a resistance line through
-/// highs (`Role::Upper`) or a support line through lows (`Role::Lower`).
-/// The fit itself doesn't depend on the role — but downstream scoring
-/// ([`boundary_respect_ratio`]) does, so we record it at construction
-/// rather than guessing later.
+/// `role` is recorded on the returned [`TrendLine`] for downstream
+/// boundary-respect scoring — the fit itself doesn't depend on it.
 ///
 /// Returns `None` when fewer than two pivots are supplied. With exactly
 /// two pivots the fit is exact (`r² = 1.0`). When all pivot indices
@@ -74,38 +71,14 @@ pub fn fit_trendline(pivots: &[Pivot], role: Role) -> Option<TrendLine> {
     })
 }
 
-/// Goodness-of-fit of a trend line against the bars over its span.
+/// Per-bar goodness-of-fit of a trend line against intermediate bars
+/// over its span.
 ///
-/// **Not used by the geometric quality scorer.** The scorer reads the
-/// anchor-only `TrendLine::r_squared` instead — see `score_trendline`
-/// in `crate::patterns::scoring` for the rationale (per-bar fit
-/// collapses to 0 against extreme-anchor lines, e.g. triple_bottom
-/// support sitting at the trough level). Kept as a correct, tested
-/// primitive for callers that genuinely want intermediate-bar fit.
-///
-/// **This is not the same number as `TrendLine::r_squared`.** That field
-/// is the R² of the least-squares fit through the line's anchor pivots
-/// — and since the line is constructed *to fit* those anchors, that R²
-/// is essentially always ~1.0 by construction (1.0 exactly with two
-/// anchors, near-1.0 with three near-collinear anchors). It measures
-/// "did we draw the line through the points we said we'd draw it
-/// through?", which is trivially true.
-///
-/// What this function measures instead is how well the line describes
-/// the **intermediate bars** between the anchors — i.e., did price
-/// behave as if this line were structurally meaningful (acting as
-/// support / resistance) over the formation window?
-///
-/// Returns `0.0` when:
-/// * the line spans fewer than 2 bars in `prices`, or
-/// * the price series has zero variance over the span and the line
-///   does not predict that constant (no fit possible).
-///
-/// Returns `1.0` when prices are constant over the span *and* the line
-/// also predicts that constant (matching the rank-deficient convention
-/// of `fit_trendline`'s `s_yy == 0` branch).
-///
-/// Otherwise returns `1 - SS_res / SS_tot`, clamped to `[0.0, 1.0]`.
+/// **Not used by the quality scorer** — it collapses to 0 for extreme-anchor
+/// lines (e.g. triple_bottom support sitting at the trough level, where bars
+/// rise far above by design). See `score_trendline` for the dispatch the
+/// scorer uses instead. Kept as a tested primitive for callers that want
+/// intermediate-bar fit specifically.
 pub fn trendline_fit_r2(prices: &[f64], line: &TrendLine) -> f64 {
     let start = line.start_index;
     let last = line.end_index.min(prices.len().saturating_sub(1));
@@ -180,32 +153,19 @@ pub fn validate_boundaries(
 /// that is a meaningful breach of the line, not just noise.
 pub const DEFAULT_BOUNDARY_RESPECT_TOLERANCE: f64 = 0.005;
 
-/// Fraction of bars in `[line.start_index, line.end_index]` whose
-/// high / low respects the trend line within `tolerance` of the line
-/// price, **evaluated directionally per the line's [`Role`]**.
+/// Fraction of bars in the line's span whose high / low respects the
+/// line within `tolerance` of the line price, evaluated per [`Role`]:
+/// `Upper` checks highs against the line + tolerance; `Lower` checks lows
+/// against the line − tolerance.
 ///
-/// * `Role::Upper` (resistance) — bar respects iff
-///   `high[i] <= line.price_at(i) + tolerance * line.price_at(i)`.
-/// * `Role::Lower` (support) — bar respects iff
-///   `low[i] >= line.price_at(i) - tolerance * line.price_at(i)`.
+/// Substituted for anchor R² on 2-anchor lines (double_top / double_bottom,
+/// H&S necklines), where anchor R² is trivially 1.0 by construction and
+/// gives the scorer nothing to discriminate on. Reading `line.role`
+/// directly (instead of `max(upper, lower)`) is what keeps that
+/// discrimination from saturating.
 ///
-/// **No max-of-two heuristic.** Earlier versions returned
-/// `max(upper_respect, lower_respect)` to auto-detect role, but the max
-/// made the metric structurally permissive for 2-anchor patterns: if one
-/// role didn't fit, the other usually did, and the ratio saturated near
-/// 1.0. Recording `Role` on every line at construction lets us score the
-/// intended side directly.
-///
-/// This is the **discriminative scorer for 2-anchor lines.** For a
-/// double_top / double_bottom or H&S neckline the anchor-only R² is
-/// trivially 1.0, so we substitute this ratio inside `score_trendline`.
-/// For 3+ anchor lines (triple_top / triple_bottom, well-pivoted
-/// triangle sides) the scorer keeps using anchor R².
-///
-/// Returns `0.0` when the line spans fewer than 2 bars in `highs` /
-/// `lows` (no signal possible). Tolerance is interpreted as a fraction
-/// of the line price, not of the bar price — keeps the rule scale-free
-/// across price magnitudes.
+/// Tolerance is a fraction of the line price, not the bar price — scale-free
+/// across price magnitudes. Returns `0.0` if the span has fewer than 2 bars.
 pub fn boundary_respect_ratio(
     highs: &[f64],
     lows: &[f64],

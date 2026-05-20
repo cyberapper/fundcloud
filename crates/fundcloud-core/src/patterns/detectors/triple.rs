@@ -41,8 +41,6 @@ fn pct_diff(a: f64, b: f64) -> f64 {
     }
 }
 
-/// Reject the formation if any intermediate `low[i]` in `start..=end`
-/// dips below the support line by more than `tolerance * level`.
 fn respects_support(
     lows: &[f64],
     line: &TrendLine,
@@ -64,8 +62,6 @@ fn respects_support(
     true
 }
 
-/// Reject the formation if any intermediate `high[i]` in `start..=end`
-/// rises above the resistance line by more than `tolerance * level`.
 fn respects_resistance(
     highs: &[f64],
     line: &TrendLine,
@@ -96,10 +92,7 @@ pub struct TripleTopDetector {
     pub min_trough_depth: f64,
     /// Minimum bar count between the first and fifth pivot.
     pub min_bar_count: usize,
-    /// Fractional tolerance for the boundary-respect gate. A bar's high
-    /// is allowed to pierce the resistance line by up to
-    /// `boundary_tolerance * avg_peak`; anything beyond that rejects the
-    /// formation. Defaults to [`DEFAULT_BOUNDARY_TOLERANCE`].
+    /// See [`DEFAULT_BOUNDARY_TOLERANCE`].
     pub boundary_tolerance: f64,
 }
 
@@ -163,15 +156,12 @@ impl PatternDetector for TripleTopDetector {
                 continue;
             }
 
-            // Triple-top resistance through the three peaks → Upper role.
             let resistance = fit_trendline(&[p1, p3, p5], Role::Upper);
             let mut trend_lines = Vec::new();
             if let Some(tl) = resistance {
-                // Boundary-respect gate: no intermediate bar may pierce the
-                // resistance line by more than `boundary_tolerance * avg_peak`.
-                // Without this, a "triple top" can be reported even when
-                // price breaks decisively above the resistance level between
-                // the three peaks — which structurally is not a triple top.
+                // Without this gate, a "triple top" can be reported even
+                // when price decisively breaks the resistance line between
+                // peaks — structurally not a triple top.
                 if !respects_resistance(
                     ohlcv.high,
                     &tl,
@@ -209,10 +199,7 @@ pub struct TripleBottomDetector {
     pub min_peak_height: f64,
     /// Minimum bar count between the first and fifth pivot.
     pub min_bar_count: usize,
-    /// Fractional tolerance for the boundary-respect gate. A bar's low
-    /// is allowed to dip below the support line by up to
-    /// `boundary_tolerance * avg_trough`; anything beyond that rejects
-    /// the formation. Defaults to [`DEFAULT_BOUNDARY_TOLERANCE`].
+    /// See [`DEFAULT_BOUNDARY_TOLERANCE`].
     pub boundary_tolerance: f64,
 }
 
@@ -275,16 +262,12 @@ impl PatternDetector for TripleBottomDetector {
                 continue;
             }
 
-            // Triple-bottom support through the three troughs → Lower role.
             let support = fit_trendline(&[p1, p3, p5], Role::Lower);
             let mut trend_lines = Vec::new();
             if let Some(tl) = support {
-                // Boundary-respect gate: no intermediate bar may dip below
-                // the support line by more than `boundary_tolerance *
-                // avg_trough`. Without this, a "triple bottom" can be
-                // reported even when price punches decisively below the
-                // support level between troughs — which structurally is
-                // not a triple bottom.
+                // Without this gate, a "triple bottom" can be reported even
+                // when price decisively punches the support line between
+                // troughs — structurally not a triple bottom.
                 if !respects_support(
                     ohlcv.low,
                     &tl,
