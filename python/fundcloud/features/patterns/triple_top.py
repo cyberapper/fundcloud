@@ -52,13 +52,6 @@ class TripleTop(PatternIndicator):
     )
     default_params = {
         **PatternIndicator.default_params,
-        # Calibrated against a real-data corpus (~50 US large/mid-caps +
-        # ETFs + commodity/FX proxies, 2018-2026 dailies) to preserve the
-        # top-X% selectivity of the old ``min_quality=50`` floor under the
-        # current scorer. Real-data threshold is +5 points above the
-        # synthetic-GBM recommendation (66) — synthetic Brownian motion
-        # produces fewer well-shaped triples than real markets do. See
-        # ``docs/guides/patterns/knobs.md`` for the full table.
         "min_quality": 71.0,
         "peak_tolerance": 0.02,
         "min_trough_depth": 0.02,
