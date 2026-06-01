@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
 
 /// Default maximum `pct_diff` between any peak/trough and the trio's mean.
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.02;
@@ -166,6 +166,9 @@ impl PatternDetector for TripleTopDetector {
 
             let resistance = fit_trendline(&[p1, p3, p5], Role::Upper);
             let mut trend_lines = Vec::new();
+            // Long enters on a break above the resistance (upper boundary);
+            // short enters on a break below the neckline.
+            let mut long_entry = None;
             if let Some(tl) = resistance {
                 // Without this gate, a "triple top" can be reported even
                 // when price decisively breaks the resistance line between
@@ -180,16 +183,17 @@ impl PatternDetector for TripleTopDetector {
                 ) {
                     continue;
                 }
+                long_entry = Some(tl.price_at(p5.index));
                 trend_lines.push(tl);
             }
 
             out.push(Pattern {
                 name: "triple_top",
-                direction: Direction::Bearish,
                 pivots: vec![p1, p2, p3, p4, p5],
                 trend_lines,
                 formation: (p1.index, p5.index),
-                entry_price: Some(neckline),
+                long_entry,
+                short_entry: Some(neckline),
                 breakout_price: Some(neckline),
                 variant: None,
             });
@@ -272,6 +276,9 @@ impl PatternDetector for TripleBottomDetector {
 
             let support = fit_trendline(&[p1, p3, p5], Role::Lower);
             let mut trend_lines = Vec::new();
+            // Long enters on a break above the neckline; short enters on a
+            // break below the support (lower boundary).
+            let mut short_entry = None;
             if let Some(tl) = support {
                 // Without this gate, a "triple bottom" can be reported even
                 // when price decisively punches the support line between
@@ -286,16 +293,17 @@ impl PatternDetector for TripleBottomDetector {
                 ) {
                     continue;
                 }
+                short_entry = Some(tl.price_at(p5.index));
                 trend_lines.push(tl);
             }
 
             out.push(Pattern {
                 name: "triple_bottom",
-                direction: Direction::Bullish,
                 pivots: vec![p1, p2, p3, p4, p5],
                 trend_lines,
                 formation: (p1.index, p5.index),
-                entry_price: Some(neckline),
+                long_entry: Some(neckline),
+                short_entry,
                 breakout_price: Some(neckline),
                 variant: None,
             });
@@ -368,9 +376,10 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "triple_top");
-        assert_eq!(det.direction, Direction::Bearish);
         assert_eq!(det.formation, (2, 30));
-        assert_eq!(det.entry_price, Some(95.0));
+        // Short enters at the neckline; long at the resistance line @ end.
+        assert_eq!(det.short_entry, Some(95.0));
+        assert!(det.long_entry.is_some());
         assert_eq!(det.breakout_price, Some(95.0));
     }
 
@@ -412,8 +421,9 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "triple_bottom");
-        assert_eq!(det.direction, Direction::Bullish);
-        assert_eq!(det.entry_price, Some(105.0));
+        // Long enters at the neckline (highest intervening peak).
+        assert_eq!(det.long_entry, Some(105.0));
+        assert!(det.short_entry.is_some());
     }
 
     #[test]

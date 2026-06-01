@@ -82,7 +82,8 @@ def _event(
         "formation_start": fs,
         "formation_end": fe,
         "breakout_ts": fe,
-        "entry_price": 100.0,
+        "long_entry": 100.0,
+        "short_entry": 100.0,
         "breakout_price": 100.0,
         "target_price": float("nan") if target is None else target,
         "stop_price": float("nan") if stop is None else stop,
@@ -146,7 +147,8 @@ class TestAddLevels:
     def test_nan_levels_are_skipped(self) -> None:
         fig = go.Figure()
         ev = {
-            "entry_price": float("nan"),
+            "long_entry": float("nan"),
+            "short_entry": float("nan"),
             "breakout_price": float("nan"),
             "target_price": float("nan"),
             "stop_price": float("nan"),

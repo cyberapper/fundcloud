@@ -426,8 +426,9 @@ fn trendline_to_dict<'py>(py: Python<'py>, tl: &core_patterns::TrendLine) -> Bou
 fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Bound<'py, PyDict> {
     let out = PyDict::new(py);
     out.set_item("name", d.pattern.name).expect("set name");
-    out.set_item("direction", d.pattern.direction.as_str())
-        .expect("set direction");
+    // Direction is intentionally not surfaced — detection is direction-neutral
+    // and downstream Python code derives direction from pattern type via
+    // _apply_condition's classical-direction map. See _events.py:37-42.
     let pivots = PyList::empty(py);
     for p in &d.pattern.pivots {
         pivots.append(pivot_to_dict(py, p)).expect("append pivot");
@@ -444,8 +445,10 @@ fn detection_to_dict<'py>(py: Python<'py>, d: &core_patterns::Detection) -> Boun
         .expect("set formation_start");
     out.set_item("formation_end", d.pattern.formation.1)
         .expect("set formation_end");
-    out.set_item("entry_price", d.pattern.entry_price)
-        .expect("set entry_price");
+    out.set_item("long_entry", d.pattern.long_entry)
+        .expect("set long_entry");
+    out.set_item("short_entry", d.pattern.short_entry)
+        .expect("set short_entry");
     out.set_item("breakout_price", d.pattern.breakout_price)
         .expect("set breakout_price");
     out.set_item("variant", d.pattern.variant.as_deref())

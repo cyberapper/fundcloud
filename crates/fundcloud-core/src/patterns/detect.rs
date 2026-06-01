@@ -251,9 +251,10 @@ pub fn detector_for(
             if let Some(v) = get_usize(params, "min_bar_count") {
                 d.min_bar_count = v;
             }
-            if let Some(v) = get_usize(params, "prior_trend_window") {
-                d.prior_window = v;
-            }
+            // `prior_trend_window` was used for direction inference and is
+            // now ignored — detection is direction-neutral. We still accept
+            // it in `params` so legacy configs don't error.
+            let _ = get_usize(params, "prior_trend_window");
             Ok(Box::new(d))
         }
         other => Err(ScanError::UnknownPattern(other.to_string())),

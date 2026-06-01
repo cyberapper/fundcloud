@@ -13,9 +13,9 @@
 //!    tolerance because the channel collapses to zero near the apex).
 //! 6. Deduplicate overlapping detections, keeping the one with more pivots.
 
-use crate::patterns::detect::{prior_trend_slope, PatternDetector};
+use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::{fit_trendline, validate_boundaries};
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine};
 
 /// Default normalised-slope tolerance for the "flat" leg of asc/desc.
 /// 0.0005 was unrealistically tight (≈ 0.05% drift) and produced near-zero
@@ -40,10 +40,6 @@ const SYM_ABS_TOLERANCE_FRACTION: f64 = 0.05;
 /// Symmetrical-triangle minimum normalised slope magnitude (each leg must
 /// move at least this fast to count as "converging").
 const SYM_MIN_SLOPE_THRESHOLD: f64 = 0.0005;
-/// Symmetrical-triangle prior-trend look-back window (≈ one trading
-/// month on dailies). Used only to label the breakout direction
-/// (bullish vs bearish), not to gate detection.
-const SYM_PRIOR_WINDOW: usize = 20;
 
 /// Slope normalised by the average price level — makes thresholds
 /// independent of an asset's absolute price scale. Mirrors
@@ -200,16 +196,20 @@ impl PatternDetector for AscendingTriangleDetector {
                     h_subset.iter().chain(l_subset.iter()).copied().collect();
                 all_pivots.sort_by_key(|p| p.index);
 
-                let entry_price = upper.price_at(range_end);
+                // Long enters on a break above the upper line, short on a
+                // break below the lower line. breakout_price = the classical
+                // (upside) breakout level.
+                let long_entry = upper.price_at(range_end);
+                let short_entry = lower.price_at(range_end);
 
                 patterns.push(Pattern {
                     name: "ascending_triangle",
-                    direction: Direction::Bullish,
                     pivots: all_pivots,
                     trend_lines: vec![upper, lower],
                     formation: (range_start, range_end),
-                    entry_price: Some(entry_price),
-                    breakout_price: Some(entry_price),
+                    long_entry: Some(long_entry),
+                    short_entry: Some(short_entry),
+                    breakout_price: Some(long_entry),
                     variant: None,
                 });
             }
@@ -322,16 +322,20 @@ impl PatternDetector for DescendingTriangleDetector {
                     h_subset.iter().chain(l_subset.iter()).copied().collect();
                 all_pivots.sort_by_key(|p| p.index);
 
-                let entry_price = lower.price_at(range_end);
+                // Long enters on a break above the upper line, short on a
+                // break below the lower line. breakout_price = the classical
+                // (downside) breakout level.
+                let long_entry = upper.price_at(range_end);
+                let short_entry = lower.price_at(range_end);
 
                 patterns.push(Pattern {
                     name: "descending_triangle",
-                    direction: Direction::Bearish,
                     pivots: all_pivots,
                     trend_lines: vec![upper, lower],
                     formation: (range_start, range_end),
-                    entry_price: Some(entry_price),
-                    breakout_price: Some(entry_price),
+                    long_entry: Some(long_entry),
+                    short_entry: Some(short_entry),
+                    breakout_price: Some(short_entry),
                     variant: None,
                 });
             }
@@ -342,10 +346,10 @@ impl PatternDetector for DescendingTriangleDetector {
 
 /// Detect symmetrical triangles (falling resistance + rising support).
 ///
-/// Direction is inferred from the prior trend: `Bullish` after an
-/// uptrend, `Bearish` after a downtrend (defaulting to `Bullish` when
-/// the slope is exactly zero — preserves the reference Python's
-/// fallback for insufficient history).
+/// The detector is direction-neutral but tradable both ways: `long_entry`
+/// comes from the upper line and `short_entry` from the lower line, both at
+/// `formation_end`. There is no single neckline, so `breakout_price` is left
+/// `None` (no measured-move anchor).
 #[derive(Debug, Clone)]
 pub struct SymmetricalTriangleDetector {
     /// Each leg must have a normalised slope magnitude greater than this
@@ -355,8 +359,6 @@ pub struct SymmetricalTriangleDetector {
     pub min_touches: usize,
     /// Minimum bar count between formation start and end.
     pub min_bar_count: usize,
-    /// Look-back window for the prior-trend slope.
-    pub prior_window: usize,
 }
 
 impl Default for SymmetricalTriangleDetector {
@@ -365,7 +367,6 @@ impl Default for SymmetricalTriangleDetector {
             min_slope_threshold: SYM_MIN_SLOPE_THRESHOLD,
             min_touches: DEFAULT_MIN_TOUCHES,
             min_bar_count: SYM_MIN_BAR_COUNT,
-            prior_window: SYM_PRIOR_WINDOW,
         }
     }
 }
@@ -457,14 +458,13 @@ impl PatternDetector for SymmetricalTriangleDetector {
                     continue;
                 }
 
-                let direction =
-                    direction_from_prior_trend(ohlcv.close, range_start, self.prior_window);
-                let upper_end = upper.price_at(range_end);
-                let lower_end = lower.price_at(range_end);
-                let (entry, breakout) = match direction {
-                    Direction::Bearish => (lower_end, lower_end),
-                    _ => (upper_end, upper_end),
-                };
+                // Symmetric triangle has no built-in directional bias — the
+                // formation can break either way. Long enters on a break above
+                // the upper line, short on a break below the lower line, both
+                // at formation_end. There is no single neckline, so
+                // breakout_price stays None (no measured-move anchor).
+                let long_entry = upper.price_at(range_end);
+                let short_entry = lower.price_at(range_end);
 
                 let mut all_pivots: Vec<Pivot> =
                     h_subset.iter().chain(l_subset.iter()).copied().collect();
@@ -472,12 +472,12 @@ impl PatternDetector for SymmetricalTriangleDetector {
 
                 patterns.push(Pattern {
                     name: "symmetrical_triangle",
-                    direction,
                     pivots: all_pivots,
                     trend_lines: vec![upper, lower],
                     formation: (range_start, range_end),
-                    entry_price: Some(entry),
-                    breakout_price: Some(breakout),
+                    long_entry: Some(long_entry),
+                    short_entry: Some(short_entry),
+                    breakout_price: None,
                     variant: None,
                 });
             }
@@ -526,19 +526,6 @@ fn validate_boundaries_abs(
         }
     }
     true
-}
-
-/// Map prior-trend slope to a triangle direction. Defaults to `Bullish`
-/// when the slope is exactly zero (mirrors the reference Python).
-fn direction_from_prior_trend(closes: &[f64], formation_start: usize, window: usize) -> Direction {
-    let slope = prior_trend_slope(closes, formation_start, window);
-    if slope > 0.0 {
-        Direction::Bullish
-    } else if slope < 0.0 {
-        Direction::Bearish
-    } else {
-        Direction::Bullish
-    }
 }
 
 #[cfg(test)]
@@ -654,7 +641,6 @@ mod tests {
         );
         let det = &raw[0];
         assert_eq!(det.name, "ascending_triangle");
-        assert_eq!(det.direction, Direction::Bullish);
         assert_eq!(det.trend_lines.len(), 2);
     }
 
@@ -713,7 +699,6 @@ mod tests {
         );
         let det = &raw[0];
         assert_eq!(det.name, "descending_triangle");
-        assert_eq!(det.direction, Direction::Bearish);
     }
 
     #[test]
@@ -743,7 +728,11 @@ mod tests {
         );
         let det = &raw[0];
         assert_eq!(det.name, "symmetrical_triangle");
-        assert_eq!(det.direction, Direction::Bullish);
+        // Direction-neutral but tradable both ways: long = upper line @ end,
+        // short = lower line @ end. No single neckline → breakout_price None.
+        assert!(det.long_entry.is_some());
+        assert!(det.short_entry.is_some());
+        assert!(det.breakout_price.is_none());
     }
 
     #[test]

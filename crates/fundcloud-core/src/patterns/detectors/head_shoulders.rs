@@ -7,7 +7,7 @@
 
 use crate::patterns::detect::{prior_trend_slope, PatternDetector};
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind, Role};
 
 /// Window (in bars) used to infer the pre-formation trend. 20 bars
 /// (≈ one trading month on dailies) is wide enough to detect a real
@@ -114,6 +114,9 @@ impl PatternDetector for HeadShouldersDetector {
                 Some(tl) => tl.price_at(h3.index),
                 None => (l1.price + l2.price) / 2.0,
             };
+            // Long enters on a break above the shoulder resistance (upper
+            // boundary); short enters on a break below the neckline.
+            let long_entry = resistance.as_ref().map(|tl| tl.price_at(h3.index));
 
             let mut trend_lines = Vec::new();
             if let Some(tl) = neckline {
@@ -125,11 +128,11 @@ impl PatternDetector for HeadShouldersDetector {
 
             out.push(Pattern {
                 name: "head_and_shoulders",
-                direction: Direction::Bearish,
                 pivots: vec![h1, l1, h2, l2, h3],
                 trend_lines,
                 formation: (h1.index, h3.index),
-                entry_price: Some(neckline_price),
+                long_entry,
+                short_entry: Some(neckline_price),
                 breakout_price: Some(neckline_price),
                 variant: None,
             });
@@ -217,6 +220,9 @@ impl PatternDetector for InverseHeadShouldersDetector {
                 Some(tl) => tl.price_at(l3.index),
                 None => (h1.price + h2.price) / 2.0,
             };
+            // Long enters on a break above the neckline; short enters on a
+            // break below the shoulder support (lower boundary).
+            let short_entry = support.as_ref().map(|tl| tl.price_at(l3.index));
 
             let mut trend_lines = Vec::new();
             if let Some(tl) = neckline {
@@ -228,11 +234,11 @@ impl PatternDetector for InverseHeadShouldersDetector {
 
             out.push(Pattern {
                 name: "inverse_head_and_shoulders",
-                direction: Direction::Bullish,
                 pivots: vec![l1, h1, l2, h2, l3],
                 trend_lines,
                 formation: (l1.index, l3.index),
-                entry_price: Some(neckline_price),
+                long_entry: Some(neckline_price),
+                short_entry,
                 breakout_price: Some(neckline_price),
                 variant: None,
             });
@@ -337,9 +343,10 @@ mod tests {
         assert_eq!(raw.len(), 1, "expected exactly one H&S detection");
         let p = &raw[0];
         assert_eq!(p.name, "head_and_shoulders");
-        assert_eq!(p.direction, Direction::Bearish);
         assert_eq!(p.formation, (10, 30));
-        assert!(p.entry_price.is_some());
+        // Short enters at the neckline; long at the shoulder-resistance line.
+        assert!(p.short_entry.is_some());
+        assert!(p.long_entry.is_some());
     }
 
     #[test]
@@ -485,6 +492,5 @@ mod tests {
         let raw = InverseHeadShouldersDetector::default().detect(&pivots, view);
         assert_eq!(raw.len(), 1);
         assert_eq!(raw[0].name, "inverse_head_and_shoulders");
-        assert_eq!(raw[0].direction, Direction::Bullish);
     }
 }

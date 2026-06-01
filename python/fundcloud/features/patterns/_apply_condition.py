@@ -282,9 +282,9 @@ def apply_condition(
             stops.append(float("nan"))
             continue
 
+        # Measured-move target/stop anchor on the neckline (breakout_price).
+        # None for symmetrical triangles (no single neckline) → NaN levels.
         entry_raw = ev.get("breakout_price")
-        if entry_raw is None or pd.isna(entry_raw):
-            entry_raw = ev.get("entry_price")
         if entry_raw is None or pd.isna(entry_raw):
             targets.append(float("nan"))
             stops.append(float("nan"))

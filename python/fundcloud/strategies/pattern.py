@@ -25,7 +25,7 @@ Known limitations
 * Only :attr:`EntryRule.ON_BREAKOUT` and :attr:`ExitRule.TARGET_OR_STOP`
   are wired into ``decide``. Other enum values raise at construction.
 * Target / stop levels are anchored to the detector's pre-fill
-  ``entry_price`` rather than the actual market-order fill — gaps
+  ``long_entry`` rather than the actual market-order fill — gaps
   between breakout bar and fill bar will misalign thresholds. Same
   bucket as the no-slippage assumption above.
 """
@@ -125,7 +125,7 @@ class PatternStrategy(BaseStrategy):
             recs: list[dict[str, Any]] = []
             for _, ev in group.sort_values("breakout_ts").iterrows():
                 if (
-                    pd.isna(ev["entry_price"])
+                    pd.isna(ev["long_entry"])
                     or pd.isna(ev["target_price"])
                     or pd.isna(ev["stop_price"])
                 ):
@@ -133,7 +133,7 @@ class PatternStrategy(BaseStrategy):
                 recs.append({
                     "sign": 1,  # long-only (guarded by direction check above)
                     "ts": ev["breakout_ts"],
-                    "entry": float(ev["entry_price"]),
+                    "entry": float(ev["long_entry"]),
                     "target": float(ev["target_price"]),
                     "stop": float(ev["stop_price"]),
                 })

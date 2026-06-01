@@ -220,12 +220,13 @@ def _add_trend_lines(
 
 
 def _add_levels(fig: go.Figure, event: dict[str, Any], x_range: tuple[Any, Any]) -> None:
-    """Horizontal lines for entry / target / stop. Drawn across the
-    formation+padding range only, not the whole chart.
+    """Horizontal lines for long/short entry, neckline, target and stop.
+    Drawn across the formation+padding range only, not the whole chart.
     """
     levels = [
-        ("entry", event.get("entry_price"), _ENTRY_COLOR, "solid"),
-        ("breakout", event.get("breakout_price"), _ENTRY_COLOR, "solid"),
+        ("long entry", event.get("long_entry"), _TARGET_COLOR, "solid"),
+        ("short entry", event.get("short_entry"), _STOP_COLOR, "solid"),
+        ("breakout", event.get("breakout_price"), _ENTRY_COLOR, "dot"),
         ("target", event.get("target_price"), _TARGET_COLOR, "dash"),
         ("stop", event.get("stop_price"), _STOP_COLOR, "dash"),
     ]
@@ -233,8 +234,8 @@ def _add_levels(fig: go.Figure, event: dict[str, Any], x_range: tuple[Any, Any])
     for label, price, color, dash in levels:
         if price is None or pd.isna(price):
             continue
-        # Avoid drawing entry + breakout twice when they coincide (which
-        # is the v1 default).
+        # Avoid drawing two coincident levels twice (e.g. breakout == an entry
+        # boundary, the common case for reversal patterns).
         if round(float(price), 6) in seen_y:
             continue
         seen_y.add(round(float(price), 6))
@@ -483,8 +484,9 @@ def plot_pattern_event(
         Increased automatically when ``horizon`` exceeds it so the
         horizon-end marker stays visible.
     show_levels
-        If True, overlay horizontal lines for ``entry_price`` /
-        ``target_price`` / ``stop_price`` (when filled).
+        If True, overlay horizontal lines for ``long_entry`` /
+        ``short_entry`` / ``breakout_price`` / ``target_price`` /
+        ``stop_price`` (when filled).
     horizon
         If set, mark ``breakout_ts`` with a solid vertical line and
         ``breakout_ts + horizon`` with a dashed line; shade the holding

@@ -79,7 +79,10 @@ def _event_row(
         "formation_start": formation_start,
         "formation_end": breakout_ts,
         "breakout_ts": breakout_ts,
-        "entry_price": entry_price,
+        # apply_condition anchors target/stop on breakout_price; long/short
+        # entries mirror it for these synthetic fixtures.
+        "long_entry": entry_price,
+        "short_entry": entry_price,
         "breakout_price": breakout_price,
         "target_price": float("nan"),
         "stop_price": float("nan"),
@@ -376,7 +379,7 @@ class TestApplyConditionDegenerateRows:
         assert np.isnan(out.loc[0, "target_price"])
         assert np.isnan(out.loc[0, "stop_price"])
 
-    def test_breakout_price_falls_back_to_entry_price(self) -> None:
+    def test_breakout_price_drives_target(self) -> None:
         bars = _bars()
         ts = bars.index[60]
         fs = bars.index[40]
@@ -388,17 +391,18 @@ class TestApplyConditionDegenerateRows:
                     formation_start=fs,
                     breakout_ts=ts,
                     entry_price=100.0,
-                    breakout_price=None,  # forces entry_price fallback
+                    breakout_price=100.0,
                     pivots=[{"kind": "LOW", "price": 95.0}],
                 )
             ],
             columns=EVENTS_COLUMNS,
         )
         out = apply_condition(events, PatternCondition(direction=Direction.BULLISH), bars)
-        # MEASURED_MOVE: target = 100 + (100 - 95) = 105.
+        # MEASURED_MOVE anchors on the neckline (breakout_price):
+        # target = 100 + (100 - 95) = 105.
         assert out.loc[0, "target_price"] == pytest.approx(105.0)
 
-    def test_no_entry_price_at_all_yields_nan(self) -> None:
+    def test_missing_breakout_price_yields_nan(self) -> None:
         bars = _bars()
         ts = bars.index[60]
         fs = bars.index[40]
@@ -523,11 +527,10 @@ class TestApplyConditionDegenerateRows:
         assert np.isfinite(target) and target > 0
         assert np.isfinite(stop) and stop > 0
 
-    def test_negative_entry_price_triggers_precondition_nan(self) -> None:
-        # Guard A: breakout_price=None forces the entry_raw fallback at
-        # lines 285-288 onto entry_price=-0.0008. Without the precondition,
-        # the negative entry would propagate into geometry — Guard A NaNs
-        # the row before any of that runs.
+    def test_negative_breakout_price_triggers_precondition_nan(self) -> None:
+        # Guard A: a non-positive breakout_price (here -0.0008) is financially
+        # impossible. Without the precondition the negative anchor would
+        # propagate into geometry — Guard A NaNs the row before any of that runs.
         bars = _bars()
         ts = bars.index[60]
         fs = bars.index[40]
@@ -539,7 +542,7 @@ class TestApplyConditionDegenerateRows:
                     formation_start=fs,
                     breakout_ts=ts,
                     entry_price=-0.0008,
-                    breakout_price=None,
+                    breakout_price=-0.0008,
                     pivots=[{"kind": "HIGH", "price": 0.01}],
                 )
             ],
