@@ -11,7 +11,7 @@
 
 use crate::patterns::detect::PatternDetector;
 use crate::patterns::trendline::fit_trendline;
-use crate::patterns::types::{Direction, OhlcvView, Pattern, Pivot, PivotKind, Role};
+use crate::patterns::types::{OhlcvView, Pattern, Pivot, PivotKind, Role};
 
 /// Default maximum `pct_diff` between the two peaks (or troughs).
 const DEFAULT_EXTREMA_TOLERANCE: f64 = 0.015;
@@ -128,6 +128,9 @@ impl PatternDetector for DoubleTopDetector {
 
             // Resistance through the two peaks → Upper role.
             let resistance = fit_trendline(&[p1, p3], Role::Upper);
+            // Long enters on a break above the resistance (upper boundary);
+            // short enters on a break below the neckline (the trough p2).
+            let long_entry = resistance.as_ref().map(|tl| tl.price_at(p3.index));
             let mut trend_lines = Vec::new();
             if let Some(tl) = resistance {
                 trend_lines.push(tl);
@@ -140,11 +143,11 @@ impl PatternDetector for DoubleTopDetector {
 
             out.push(Pattern {
                 name: "double_top",
-                direction: Direction::Bearish,
                 pivots: vec![p1, p2, p3],
                 trend_lines,
                 formation: (p1.index, p3.index),
-                entry_price: Some(p2.price),
+                long_entry,
+                short_entry: Some(p2.price),
                 breakout_price: Some(p2.price),
                 variant: Some(variant),
             });
@@ -208,6 +211,9 @@ impl PatternDetector for DoubleBottomDetector {
 
             // Support through the two troughs → Lower role.
             let support = fit_trendline(&[p1, p3], Role::Lower);
+            // Long enters on a break above the neckline (the peak p2); short
+            // enters on a break below the support (lower boundary).
+            let short_entry = support.as_ref().map(|tl| tl.price_at(p3.index));
             let mut trend_lines = Vec::new();
             if let Some(tl) = support {
                 trend_lines.push(tl);
@@ -220,11 +226,11 @@ impl PatternDetector for DoubleBottomDetector {
 
             out.push(Pattern {
                 name: "double_bottom",
-                direction: Direction::Bullish,
                 pivots: vec![p1, p2, p3],
                 trend_lines,
                 formation: (p1.index, p3.index),
-                entry_price: Some(p2.price),
+                long_entry: Some(p2.price),
+                short_entry,
                 breakout_price: Some(p2.price),
                 variant: Some(variant),
             });
@@ -296,10 +302,13 @@ mod tests {
         assert_eq!(raw.len(), 1);
         let det = &raw[0];
         assert_eq!(det.name, "double_top");
-        assert_eq!(det.direction, Direction::Bearish);
         assert_eq!(det.formation, (2, 12));
         assert!(det.variant.as_deref().unwrap().starts_with("STRICT_"));
-        assert_eq!(det.entry_price, Some(95.0));
+        // Short enters at the neckline (trough); long at the resistance line
+        // through the two peaks, evaluated at formation_end.
+        assert_eq!(det.short_entry, Some(95.0));
+        assert_eq!(det.long_entry, Some(100.0));
+        assert_eq!(det.breakout_price, Some(95.0));
     }
 
     #[test]
@@ -352,7 +361,6 @@ mod tests {
         let raw = DoubleBottomDetector::default().detect(&pivots, v);
         assert_eq!(raw.len(), 1);
         assert_eq!(raw[0].name, "double_bottom");
-        assert_eq!(raw[0].direction, Direction::Bullish);
         assert_eq!(raw[0].formation, (2, 12));
         assert!(raw[0].variant.as_deref().unwrap().starts_with("STRICT_"));
     }

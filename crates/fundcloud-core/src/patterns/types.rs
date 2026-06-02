@@ -114,13 +114,17 @@ impl TrendLine {
 }
 
 /// A detected pattern *before* quality scoring.
+///
+/// Detection emits **geometry + pattern type only** — there is no `direction`
+/// field. Direction is a strategy concern resolved downstream by
+/// `apply_condition` and the outcome evaluator, not a property of the
+/// formation. See `python/fundcloud/features/patterns/_events.py` for the
+/// canonical statement of this contract.
 #[derive(Debug, Clone)]
 pub struct Pattern {
     /// Stable identifier (e.g. `"head_and_shoulders"`, `"double_top"`).
     /// Lowercase `snake_case`; matches the Python `Pattern` enum value.
     pub name: &'static str,
-    /// Resolved direction.
-    pub direction: Direction,
     /// Pivots that anchor the formation, in chronological order.
     pub pivots: Vec<Pivot>,
     /// Trend lines (necklines, channels, triangle sides) — empty for
@@ -128,10 +132,15 @@ pub struct Pattern {
     pub trend_lines: Vec<TrendLine>,
     /// First and last bar index of the formation, inclusive.
     pub formation: (usize, usize),
-    /// Reference price the detector calls "entry" — usually the breakout
-    /// pivot or the neckline level.
-    pub entry_price: Option<f64>,
-    /// Price at which the breakout occurred (None if not yet confirmed).
+    /// Long-side entry: the formation's **upper** boundary price at
+    /// `formation.1` (resistance / neckline-above / upper triangle line).
+    /// `None` only when the geometry can't produce it.
+    pub long_entry: Option<f64>,
+    /// Short-side entry: the formation's **lower** boundary price at
+    /// `formation.1` (support / neckline-below / lower triangle line).
+    pub short_entry: Option<f64>,
+    /// Neckline / classical breakout level, kept as the measured-move target
+    /// anchor. `None` for symmetrical triangles (no single neckline).
     pub breakout_price: Option<f64>,
     /// Optional sub-classification (e.g. `"STRICT_ADAM_ADAM"` for double
     /// tops). `None` when the pattern family has no variants.

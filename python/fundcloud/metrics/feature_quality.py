@@ -17,8 +17,10 @@ the feature's effectiveness.
 
 * **Forward path** = bars ``[breakout_ts + 1, breakout_ts + h]``. The
   breakout bar itself is excluded so we don't double-count its move
-  into the realised return. Entry price = ``events["breakout_price"]``
-  with a fallback to ``events["entry_price"]`` if the former is NaN.
+  into the realised return. Entry price is the direction's boundary:
+  ``events["long_entry"]`` for ``trade_direction="long"`` and
+  ``events["short_entry"]`` for ``"short"`` (both set by the detector at
+  formation_end).
 * **Hit rate** is *close-based*: a bar at horizon ``h`` is a "hit" if
   the directional close-to-entry return is positive. Path-based
   outcomes (target-hit before stop-hit) are reported separately when
@@ -252,9 +254,10 @@ def _build_event_paths(
         end_pos = min(pos + max_horizon, len(ab) - 1)
         forward = ab.iloc[pos + 1 : end_pos + 1]
 
-        entry_raw = ev.get("breakout_price")
-        if entry_raw is None or pd.isna(entry_raw):
-            entry_raw = ev.get("entry_price")
+        # Per-direction boundary entry: long enters at the upper boundary,
+        # short at the lower boundary (both computed by the detector at
+        # formation_end). The opposite field is unused for this direction.
+        entry_raw = ev.get("long_entry") if trade_direction == "long" else ev.get("short_entry")
         if entry_raw is None or pd.isna(entry_raw):
             continue
         entry = float(entry_raw)

@@ -266,7 +266,7 @@ fn score_completeness(pattern: &Pattern) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::patterns::types::{Direction, Pivot, PivotKind, Role, TrendLine};
+    use crate::patterns::types::{Pivot, PivotKind, Role, TrendLine};
 
     fn pv(index: usize, price: f64, kind: PivotKind) -> Pivot {
         Pivot {
@@ -313,7 +313,6 @@ mod tests {
     fn double_top_symmetry_perfect_when_peaks_match() {
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, 100.0, PivotKind::High),
                 pv(5, 90.0, PivotKind::Low),
@@ -321,7 +320,8 @@ mod tests {
             ],
             trend_lines: vec![],
             formation: (0, 10),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -332,7 +332,6 @@ mod tests {
     fn double_top_symmetry_zero_when_peaks_far_off() {
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, 100.0, PivotKind::High),
                 pv(5, 90.0, PivotKind::Low),
@@ -340,7 +339,8 @@ mod tests {
             ],
             trend_lines: vec![],
             formation: (0, 10),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -351,7 +351,6 @@ mod tests {
     fn head_shoulders_symmetry_uses_shoulders_and_neckline() {
         let p = Pattern {
             name: "head_and_shoulders",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, 100.0, PivotKind::High),  // left shoulder
                 pv(5, 90.0, PivotKind::Low),    // neckline left
@@ -361,7 +360,8 @@ mod tests {
             ],
             trend_lines: vec![],
             formation: (0, 20),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -379,11 +379,11 @@ mod tests {
         let v = view(&close, &volumes, &high, &low);
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![],
             formation: (0, 3),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -399,11 +399,11 @@ mod tests {
         let v = view(&close, &volumes, &high, &low);
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![],
             formation: (0, 3),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -414,11 +414,11 @@ mod tests {
     fn completeness_zero_for_under_5_bar_formation() {
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![],
             formation: (0, 3),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -439,11 +439,11 @@ mod tests {
         };
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![line.clone(), line],
             formation: (0, 30),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -464,7 +464,6 @@ mod tests {
         };
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, 100.0, PivotKind::High),
                 pv(15, 90.0, PivotKind::Low),
@@ -472,7 +471,8 @@ mod tests {
             ],
             trend_lines: vec![line],
             formation: (0, 30),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -520,7 +520,6 @@ mod tests {
     fn double_top(p0: f64, p2: f64) -> Pattern {
         Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, p0, PivotKind::High),
                 pv(5, 90.0, PivotKind::Low),
@@ -528,7 +527,8 @@ mod tests {
             ],
             trend_lines: vec![],
             formation: (0, 10),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         }
@@ -537,7 +537,6 @@ mod tests {
     fn head_shoulders(left: f64, head: f64, right: f64, neck_l: f64, neck_r: f64) -> Pattern {
         Pattern {
             name: "head_and_shoulders",
-            direction: Direction::Bearish,
             pivots: vec![
                 pv(0, left, PivotKind::High),
                 pv(5, neck_l, PivotKind::Low),
@@ -547,7 +546,8 @@ mod tests {
             ],
             trend_lines: vec![],
             formation: (0, 20),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         }
@@ -571,11 +571,11 @@ mod tests {
         }
         Pattern {
             name: "symmetrical_triangle",
-            direction: Direction::Neutral,
             pivots,
             trend_lines: vec![],
             formation: (0, idx),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         }
@@ -584,7 +584,6 @@ mod tests {
     fn pattern_with_trendline(r_squared: f64, touch_count: u8, formation_len: usize) -> Pattern {
         Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![TrendLine {
                 start_index: 0,
@@ -596,7 +595,8 @@ mod tests {
                 role: Role::Upper,
             }],
             formation: (0, formation_len),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         }
@@ -660,11 +660,11 @@ mod tests {
         // Volume confirmation score must monotonically decrease.
         let p = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![],
             formation: (0, 7),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -709,11 +709,11 @@ mod tests {
                 };
                 let pattern = Pattern {
                     name: "double_top",
-                    direction: Direction::Bearish,
                     pivots: vec![],
                     trend_lines: vec![line],
                     formation: (0, 29),
-                    entry_price: None,
+                    long_entry: None,
+                    short_entry: None,
                     breakout_price: None,
                     variant: None,
                 };
@@ -749,7 +749,6 @@ mod tests {
         };
         let pattern = Pattern {
             name: "triple_bottom",
-            direction: Direction::Bullish,
             // Anchors at the trough level (100); detector built this line.
             pivots: vec![
                 pv(0, 100.0, PivotKind::Low),
@@ -758,7 +757,8 @@ mod tests {
             ],
             trend_lines: vec![line],
             formation: (0, 29),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -796,11 +796,11 @@ mod tests {
         };
         let pattern = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![line],
             formation: (0, 29),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -836,11 +836,11 @@ mod tests {
         };
         let pattern = Pattern {
             name: "double_top",
-            direction: Direction::Bearish,
             pivots: vec![],
             trend_lines: vec![line],
             formation: (0, 29),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };
@@ -883,11 +883,11 @@ mod tests {
         };
         let pattern = Pattern {
             name: "triple_bottom",
-            direction: Direction::Bullish,
             pivots: vec![],
             trend_lines: vec![line],
             formation: (0, 29),
-            entry_price: None,
+            long_entry: None,
+            short_entry: None,
             breakout_price: None,
             variant: None,
         };

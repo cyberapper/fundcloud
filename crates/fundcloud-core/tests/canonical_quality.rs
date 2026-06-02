@@ -18,8 +18,7 @@
 //! (revert).
 
 use fundcloud_core::patterns::{
-    fit_trendline, Direction, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role,
-    TrendLine,
+    fit_trendline, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine,
 };
 
 #[derive(Clone, Copy)]
@@ -182,7 +181,6 @@ fn weak_trendline(end: usize, touches: u8, role: Role) -> TrendLine {
 fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -190,7 +188,8 @@ fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5, Role::Upper)],
         formation: (0, 30),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -201,7 +200,6 @@ fn double_top_textbook() -> (Pattern, OwnedOhlcv) {
 fn double_top_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 92.0, PivotKind::Low),
@@ -210,7 +208,8 @@ fn double_top_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 4, Role::Upper)],
         formation: (0, 30),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -221,7 +220,6 @@ fn double_top_good() -> (Pattern, OwnedOhlcv) {
 fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(7, 92.0, PivotKind::Low),
@@ -230,7 +228,8 @@ fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(14, 2, Role::Upper)],
         formation: (0, 14),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -241,7 +240,6 @@ fn double_top_marginal() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),  // left shoulder
             pv(10, 92.0, PivotKind::Low),   // neckline left
@@ -252,7 +250,8 @@ fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
         // Resistance line through the shoulder level (intercept 100).
         trend_lines: vec![solid_trendline(40, 5, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -263,7 +262,6 @@ fn h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -273,7 +271,8 @@ fn h_and_s_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -296,7 +295,6 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
     .expect("two pivots always produce a line");
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(5, 93.0, PivotKind::Low),
@@ -306,7 +304,8 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![neckline],
         formation: (0, 20),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -319,7 +318,6 @@ fn h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
 fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -330,7 +328,8 @@ fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
         // Triple-top resistance through the three peaks → Upper.
         trend_lines: vec![solid_trendline(40, 6, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -341,7 +340,6 @@ fn triple_top_textbook() -> (Pattern, OwnedOhlcv) {
 fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "symmetrical_triangle",
-        direction: Direction::Neutral,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 95.0, PivotKind::Low),
@@ -355,7 +353,8 @@ fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
             solid_trendline(40, 5, Role::Lower),
         ],
         formation: (0, 40),
-        entry_price: Some(98.0),
+        long_entry: Some(98.0),
+        short_entry: Some(98.0),
         breakout_price: None,
         variant: None,
     };
@@ -366,7 +365,6 @@ fn triangle_textbook() -> (Pattern, OwnedOhlcv) {
 fn triangle_poor() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "symmetrical_triangle",
-        direction: Direction::Neutral,
         // Spacings 3, 18, 5, 14 → high coefficient of variation.
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
@@ -378,7 +376,8 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
         // Single weak upper boundary — a poorly-fit symmetrical triangle.
         trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(98.0),
+        long_entry: Some(98.0),
+        short_entry: Some(98.0),
         breakout_price: None,
         variant: None,
     };
@@ -393,7 +392,6 @@ fn triangle_poor() -> (Pattern, OwnedOhlcv) {
 fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(10, 100.0, PivotKind::High),
@@ -412,7 +410,8 @@ fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
             role: Role::Lower,
         }],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -423,7 +422,6 @@ fn triple_bottom_collinear_anchors() -> (Pattern, OwnedOhlcv) {
 fn double_bottom_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(15, 100.0, PivotKind::High),
@@ -431,7 +429,8 @@ fn double_bottom_textbook() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5, Role::Lower)],
         formation: (0, 30),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -442,7 +441,6 @@ fn double_bottom_textbook() -> (Pattern, OwnedOhlcv) {
 fn double_bottom_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(15, 100.0, PivotKind::High),
@@ -450,7 +448,8 @@ fn double_bottom_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 4, Role::Lower)],
         formation: (0, 30),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -461,7 +460,6 @@ fn double_bottom_good() -> (Pattern, OwnedOhlcv) {
 fn double_bottom_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(7, 100.0, PivotKind::High),
@@ -469,7 +467,8 @@ fn double_bottom_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(14, 2, Role::Lower)],
         formation: (0, 14),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -480,7 +479,6 @@ fn double_bottom_marginal() -> (Pattern, OwnedOhlcv) {
 fn inverse_h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "inverse_head_and_shoulders",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 90.0, PivotKind::Low),    // left shoulder
             pv(10, 100.0, PivotKind::High), // neckline left
@@ -491,7 +489,8 @@ fn inverse_h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
         // Neckline through the two intervening highs — Upper role.
         trend_lines: vec![solid_trendline(40, 5, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -502,7 +501,6 @@ fn inverse_h_and_s_textbook() -> (Pattern, OwnedOhlcv) {
 fn inverse_h_and_s_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "inverse_head_and_shoulders",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 90.0, PivotKind::Low),
             pv(10, 100.0, PivotKind::High),
@@ -512,7 +510,8 @@ fn inverse_h_and_s_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -530,7 +529,6 @@ fn inverse_h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
     .expect("two pivots always produce a line");
     let p = Pattern {
         name: "inverse_head_and_shoulders",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 90.0, PivotKind::Low),
             pv(5, 99.0, PivotKind::High),
@@ -540,7 +538,8 @@ fn inverse_h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![neckline],
         formation: (0, 20),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -551,7 +550,6 @@ fn inverse_h_and_s_marginal() -> (Pattern, OwnedOhlcv) {
 fn triple_top_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -561,7 +559,8 @@ fn triple_top_good() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(40, 4, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -572,7 +571,6 @@ fn triple_top_good() -> (Pattern, OwnedOhlcv) {
 fn triple_top_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(5, 95.0, PivotKind::Low),
@@ -591,7 +589,8 @@ fn triple_top_marginal() -> (Pattern, OwnedOhlcv) {
             role: Role::Upper,
         }],
         formation: (0, 20),
-        entry_price: Some(95.0),
+        long_entry: Some(95.0),
+        short_entry: Some(95.0),
         breakout_price: None,
         variant: None,
     };
@@ -602,7 +601,6 @@ fn triple_top_marginal() -> (Pattern, OwnedOhlcv) {
 fn triple_bottom_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(10, 100.0, PivotKind::High),
@@ -620,7 +618,8 @@ fn triple_bottom_good() -> (Pattern, OwnedOhlcv) {
             role: Role::Lower,
         }],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -631,7 +630,6 @@ fn triple_bottom_good() -> (Pattern, OwnedOhlcv) {
 fn triple_bottom_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "triple_bottom",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 92.0, PivotKind::Low),
             pv(5, 100.0, PivotKind::High),
@@ -649,7 +647,8 @@ fn triple_bottom_marginal() -> (Pattern, OwnedOhlcv) {
             role: Role::Lower,
         }],
         formation: (0, 20),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -660,7 +659,6 @@ fn triple_bottom_marginal() -> (Pattern, OwnedOhlcv) {
 fn ascending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "ascending_triangle",
-        direction: Direction::Bullish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -683,7 +681,8 @@ fn ascending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
             },
         ],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -694,7 +693,6 @@ fn ascending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
 fn ascending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "ascending_triangle",
-        direction: Direction::Bullish,
         // Spacings 3, 18, 5, 14 — high coefficient of variation (mirrors triangle_poor).
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
@@ -705,7 +703,8 @@ fn ascending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(100.0),
+        long_entry: Some(100.0),
+        short_entry: Some(100.0),
         breakout_price: None,
         variant: None,
     };
@@ -716,7 +715,6 @@ fn ascending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
 fn descending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "descending_triangle",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(10, 92.0, PivotKind::Low),
@@ -739,7 +737,8 @@ fn descending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
             solid_trendline(40, 5, Role::Lower),
         ],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -750,7 +749,6 @@ fn descending_triangle_textbook() -> (Pattern, OwnedOhlcv) {
 fn descending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "descending_triangle",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(3, 92.0, PivotKind::Low),
@@ -760,7 +758,8 @@ fn descending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(40, 2, Role::Upper)],
         formation: (0, 40),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -771,7 +770,6 @@ fn descending_triangle_marginal() -> (Pattern, OwnedOhlcv) {
 fn symmetrical_triangle_good() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "symmetrical_triangle",
-        direction: Direction::Neutral,
         // Spacings 9, 11, 11, 9 — small coefficient of variation.
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
@@ -785,7 +783,8 @@ fn symmetrical_triangle_good() -> (Pattern, OwnedOhlcv) {
             solid_trendline(40, 4, Role::Lower),
         ],
         formation: (0, 40),
-        entry_price: Some(98.0),
+        long_entry: Some(98.0),
+        short_entry: Some(98.0),
         breakout_price: None,
         variant: None,
     };
@@ -799,7 +798,6 @@ fn symmetrical_triangle_good() -> (Pattern, OwnedOhlcv) {
 fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(15, 80.0, PivotKind::Low),
@@ -808,7 +806,8 @@ fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(30, 5, Role::Upper)],
         formation: (0, 30),
-        entry_price: Some(80.0),
+        long_entry: Some(80.0),
+        short_entry: Some(80.0),
         breakout_price: None,
         variant: None,
     };
@@ -820,7 +819,6 @@ fn double_top_broken_symmetry() -> (Pattern, OwnedOhlcv) {
 fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "double_top",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(2, 92.0, PivotKind::Low),
@@ -828,7 +826,8 @@ fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![solid_trendline(4, 3, Role::Upper)],
         formation: (0, 4),
-        entry_price: Some(92.0),
+        long_entry: Some(92.0),
+        short_entry: Some(92.0),
         breakout_price: None,
         variant: None,
     };
@@ -840,7 +839,6 @@ fn double_top_too_short() -> (Pattern, OwnedOhlcv) {
 fn h_and_s_degenerate_head() -> (Pattern, OwnedOhlcv) {
     let p = Pattern {
         name: "head_and_shoulders",
-        direction: Direction::Bearish,
         pivots: vec![
             pv(0, 100.0, PivotKind::High),
             pv(2, 95.0, PivotKind::Low),
@@ -850,7 +848,8 @@ fn h_and_s_degenerate_head() -> (Pattern, OwnedOhlcv) {
         ],
         trend_lines: vec![weak_trendline(8, 2, Role::Upper)],
         formation: (0, 8),
-        entry_price: Some(95.0),
+        long_entry: Some(95.0),
+        short_entry: Some(95.0),
         breakout_price: None,
         variant: None,
     };
