@@ -60,9 +60,10 @@ _PATTERN_COLORS: dict[str, str] = {
     "symmetrical_triangle": "#e377c2",  # pink
 }
 
-# Horizon-window shading: green-tinted for bullish, red-tinted for bearish.
-_HORIZON_FILL_BULLISH = "rgba(44, 160, 44, 0.05)"
-_HORIZON_FILL_BEARISH = "rgba(214, 39, 40, 0.05)"
+# Horizon-window shading. Neutral grey: detection is direction-neutral, so the
+# chart marks the evaluation window without asserting a bullish/bearish bias
+# (that's an empirical outcome, not a property the chart can know at draw time).
+_HORIZON_FILL = "rgba(127, 127, 127, 0.05)"
 _HORIZON_LINE = "rgba(0, 0, 0, 0.4)"
 
 
@@ -267,18 +268,16 @@ def _shade_formation(
 
 
 def _build_title(event: dict[str, Any]) -> str:
-    """Single-line title: 'DOUBLE_TOP / SPY / Bearish / 1995-04-12 / Q=68'."""
+    """Single-line title: 'DOUBLE_TOP / SPY / 1995-04-12 / Q=68'."""
     pattern = event.get("pattern")
     pattern_str = pattern.value if hasattr(pattern, "value") else str(pattern)
-    direction = event.get("direction")
-    direction_str = direction.value if hasattr(direction, "value") else str(direction)
     asset = event.get("asset", "?")
     breakout = event.get("breakout_ts")
     breakout_str = pd.Timestamp(breakout).strftime("%Y-%m-%d") if breakout is not None else ""
     quality = event.get("quality")
     q_str = f"Q={quality:.0f}" if quality is not None and not pd.isna(quality) else ""
     variant = event.get("variant")
-    bits = [pattern_str, asset, direction_str, breakout_str, q_str]
+    bits = [pattern_str, asset, breakout_str, q_str]
     if variant:
         bits.append(str(variant))
     return " · ".join(b for b in bits if b)
@@ -291,11 +290,6 @@ def _event_to_dict(event: pd.Series | dict[str, Any]) -> dict[str, Any]:
         return event
     msg = f"event must be a Series or dict, got {type(event).__name__}"
     raise TypeError(msg)
-
-
-def _direction_str(event: dict[str, Any]) -> str:
-    d = event.get("direction")
-    return d.value if hasattr(d, "value") else str(d).lower()
 
 
 def _pattern_str(event: dict[str, Any]) -> str:
@@ -345,8 +339,8 @@ def _add_pattern_shape(
     triangle markers.
 
     The polyline is drawn on top of the candles with a slight transparency
-    so OHLC bars stay readable under it. Hover shows pattern + direction
-    + breakout date + quality + variant.
+    so OHLC bars stay readable under it. Hover shows pattern + breakout date
+    + quality + variant.
     """
     pivots = event.get("pivots") or []
     if len(pivots) < 2:
@@ -361,7 +355,7 @@ def _add_pattern_shape(
     q_str = f"Q={quality:.0f}" if quality is not None and not pd.isna(quality) else ""
     variant = event.get("variant") or ""
     hover = (
-        f"<b>{pattern_label}</b> ({_direction_str(event)})<br>"
+        f"<b>{pattern_label}</b><br>"
         f"breakout: {breakout}<br>"
         f"{q_str}{(' · ' + variant) if variant else ''}"
     )
@@ -389,8 +383,8 @@ def _add_horizon_markers(
     legendgroup: str | None = None,
 ) -> None:
     """Draw vertical lines at ``breakout_ts`` and ``breakout_ts + horizon``,
-    plus a faint direction-coloured shade between them. Lets the reader
-    see exactly where the metric grades the trade outcome.
+    plus a faint neutral shade between them. Lets the reader see exactly
+    where the metric grades the trade outcome.
 
     Uses ``add_shape`` rather than ``add_vline`` because the latter has a
     plotly bug with tz-aware datetime axes (TypeError on shape padding).
@@ -401,12 +395,10 @@ def _add_horizon_markers(
     horizon_end = _bar_offset_ts(bars_full, str(event["asset"]), breakout, horizon)
     if horizon_end is None:
         return
-    direction = _direction_str(event)
-    fill = _HORIZON_FILL_BULLISH if direction == "bullish" else _HORIZON_FILL_BEARISH
     fig.add_vrect(
         x0=breakout,
         x1=horizon_end,
-        fillcolor=fill,
+        fillcolor=_HORIZON_FILL,
         line_width=0,
         layer="below",
     )
@@ -562,7 +554,7 @@ def plot_asset_patterns(
         matching :func:`fundcloud.features.patterns.PatternIndicator`.
     horizon
         If set, shade the ``[breakout_ts, breakout_ts + horizon]``
-        window faintly (direction-coloured) for the most-recent
+        window faintly for the most-recent
         ``show_horizon_for_top`` events. ``None`` (default) suppresses
         all shading — recommended on multi-pattern charts because
         drawing per-event horizon rectangles for hundreds of events
@@ -678,18 +670,16 @@ def _add_horizon_markers_silent(
 ) -> None:
     """Like ``_add_horizon_markers`` but without the per-event vertical
     lines + annotations (those would clutter a multi-pattern overview).
-    Just the faint direction-coloured shade.
+    Just the faint neutral shade.
     """
     breakout = pd.Timestamp(event["breakout_ts"])
     horizon_end = _bar_offset_ts(bars_full, str(event["asset"]), breakout, horizon)
     if horizon_end is None:
         return
-    direction = _direction_str(event)
-    fill = _HORIZON_FILL_BULLISH if direction == "bullish" else _HORIZON_FILL_BEARISH
     fig.add_vrect(
         x0=breakout,
         x1=horizon_end,
-        fillcolor=fill,
+        fillcolor=_HORIZON_FILL,
         line_width=0,
         layer="below",
     )

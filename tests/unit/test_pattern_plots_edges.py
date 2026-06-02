@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import pytest
-from fundcloud.features.patterns import EVENTS_COLUMNS, Direction, Pattern
+from fundcloud.features.patterns import EVENTS_COLUMNS, Pattern
 from fundcloud.plots.patterns import (
     _add_horizon_markers,
     _add_horizon_markers_silent,
@@ -56,7 +56,6 @@ def _event(
     bars: pd.DataFrame,
     *,
     asset: str = "AAA",
-    direction: Direction = Direction.BULLISH,
     pattern: Pattern = Pattern.DOUBLE_BOTTOM,
     formation_idx: tuple[int, int] = (80, 100),
     target: float | None = 105.0,
@@ -78,7 +77,6 @@ def _event(
     return {
         "pattern": pattern,
         "asset": asset,
-        "direction": direction,
         "formation_start": fs,
         "formation_end": fe,
         "breakout_ts": fe,
@@ -222,7 +220,6 @@ class TestAddPatternShape:
             {
                 "pivots": [{"ts": pd.Timestamp("2020-01-01"), "price": 1.0, "kind": "HIGH"}],
                 "pattern": Pattern.DOUBLE_TOP,
-                "direction": Direction.BEARISH,
                 "breakout_ts": pd.Timestamp("2020-01-02"),
                 "quality": float("nan"),
                 "variant": None,
@@ -275,12 +272,12 @@ class TestAddHorizonMarkersSilent:
         # the function should bail before adding it.
         assert not fig.layout.shapes
 
-    def test_renders_vrect_for_bearish_direction(self) -> None:
+    def test_renders_vrect_for_horizon_window(self) -> None:
         bars = _bars(n=200)
-        ev = _event(bars, direction=Direction.BEARISH, formation_idx=(50, 70))
+        ev = _event(bars, formation_idx=(50, 70))
         fig = go.Figure()
         _add_horizon_markers_silent(fig, ev, bars, horizon=10)
-        assert fig.layout.shapes  # vrect added
+        assert fig.layout.shapes  # neutral vrect added
 
 
 # ---------------------------------------------------------------------------

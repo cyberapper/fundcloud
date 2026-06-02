@@ -10,7 +10,7 @@ import fundcloud  # noqa: F401  — registers the .fc accessor
 import numpy as np
 import pandas as pd
 import pytest
-from fundcloud.features.patterns import EVENTS_COLUMNS, Direction, Pattern
+from fundcloud.features.patterns import EVENTS_COLUMNS, Pattern
 from fundcloud.plots.patterns import plot_pattern_event, plot_patterns_overview
 
 
@@ -37,7 +37,6 @@ def _event(bars: pd.DataFrame, asset: str = "AAA") -> dict:
     return {
         "pattern": Pattern.DOUBLE_BOTTOM,
         "asset": asset,
-        "direction": Direction.BULLISH,
         "formation_start": fs,
         "formation_end": fe,
         "breakout_ts": fe,
@@ -174,7 +173,6 @@ def test_plot_pattern_event_rejects_flat_dataframe() -> None:
                 "breakout_ts": flat.index[1],
                 "pivots": [],
                 "meta": {},
-                "direction": Direction.BULLISH,
                 "pattern": Pattern.DOUBLE_BOTTOM,
                 "long_entry": 1.0,
                 "short_entry": 1.0,
