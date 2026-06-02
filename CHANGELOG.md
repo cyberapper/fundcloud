@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0](https://github.com/cyberapper/fundcloud/compare/v0.7.0...v0.8.0) (2026-06-02)
+
+
+### ### Added
+
+* **patterns:** direction-neutral detection with geometric long/short entries ([fb57c5d](https://github.com/cyberapper/fundcloud/commit/fb57c5dc8b02168bd5c91a0ff2980616c1c67699))
+
+
+### ### Fixed
+
+* **plots:** drop deprecated event["direction"] from pattern charts ([f3256f9](https://github.com/cyberapper/fundcloud/commit/f3256f935639b0fe5749ed35152539fe46b8399c))
+
 ## [0.7.0](https://github.com/cyberapper/fundcloud/compare/v0.6.0...v0.7.0) (2026-05-20)
 
 
