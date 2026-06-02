@@ -1,0 +1,3324 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Portfolio research, end-to-end, with a Rust core.">
+      
+      
+        <meta name="author" content="Fundcloud Authors">
+      
+      
+        <link rel="canonical" href="https://cyberapper.github.io/fundcloud/latest/guides/patterns/pattern-detection/">
+      
+      
+        <link rel="prev" href="../../sim/performance/">
+      
+      
+        <link rel="next" href="../knobs/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Pattern detection - Fundcloud</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+  
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+    
+      
+      
+    
+  
+  
+  <style>:root{--md-admonition-icon--note:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22m14.06%209%20.94.94L5.92%2019H5v-.92zm3.6-6c-.25%200-.51.1-.7.29l-1.83%201.83%203.75%203.75%201.83-1.83c.39-.39.39-1.04%200-1.41l-2.34-2.34c-.2-.2-.45-.29-.71-.29m-3.6%203.19L3%2017.25V21h3.75L17.81%209.94z%22/%3E%3C/svg%3E');--md-admonition-icon--tip:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17%208C8%2010%205.9%2016.17%203.82%2021.34l1.89.66.95-2.3c.48.17.98.3%201.34.3C19%2020%2022%203%2022%203c-1%202-8%202.25-13%203.25S2%2011.5%202%2013.5s1.75%203.75%201.75%203.75C7%208%2017%208%2017%208%22/%3E%3C/svg%3E');--md-admonition-icon--warning:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M12%202%201%2021h22M12%206l7.53%2013H4.47M11%2010v4h2v-4m-2%206v2h2v-2%22/%3E%3C/svg%3E');--md-admonition-icon--danger:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M17.66%2011.2c-.23-.3-.51-.56-.77-.82-.67-.6-1.43-1.03-2.07-1.66C13.33%207.26%2013%204.85%2013.95%203c-.95.23-1.78.75-2.49%201.32-2.59%202.08-3.61%205.75-2.39%208.9.04.1.08.2.08.33%200%20.22-.15.42-.35.5-.23.1-.47.04-.66-.12a.6.6%200%200%201-.14-.17c-1.13-1.43-1.31-3.48-.55-5.12C5.78%2010%204.87%2012.3%205%2014.47c.06.5.12%201%20.29%201.5.14.6.41%201.2.71%201.73%201.08%201.73%202.95%202.97%204.96%203.22%202.14.27%204.43-.12%206.07-1.6%201.83-1.66%202.47-4.32%201.53-6.6l-.13-.26c-.21-.46-.77-1.26-.77-1.26m-3.16%206.3c-.28.24-.74.5-1.1.6-1.12.4-2.24-.16-2.9-.82%201.19-.28%201.9-1.16%202.11-2.05.17-.8-.15-1.46-.28-2.23-.12-.74-.1-1.37.17-2.06.19.38.39.76.63%201.06.77%201%201.98%201.44%202.24%202.8.04.14.06.28.06.43.03.82-.33%201.72-.93%202.27%22/%3E%3C/svg%3E');--md-admonition-icon--example:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%2019a1%201%200%200%200%201%201h12a1%201%200%200%200%201-1c0-.21-.07-.41-.18-.57L13%208.35V4h-2v4.35L5.18%2018.43c-.11.16-.18.36-.18.57m1%203a3%203%200%200%201-3-3c0-.6.18-1.16.5-1.63L9%207.81V6a1%201%200%200%201-1-1V4a2%202%200%200%201%202-2h4a2%202%200%200%201%202%202v1a1%201%200%200%201-1%201v1.81l5.5%209.56c.32.47.5%201.03.5%201.63a3%203%200%200%201-3%203zm7-6%201.34-1.34L16.27%2018H7.73l2.66-4.61zm-.5-4a.5.5%200%200%201%20.5.5.5.5%200%200%201-.5.5.5.5%200%200%201-.5-.5.5.5%200%200%201%20.5-.5%22/%3E%3C/svg%3E');}</style>
+
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+    
+    
+  
+  <meta name="theme-color" content="#003a70">
+  <meta property="og:type" content="website">
+  
+  
+  <meta property="og:title" content="Pattern detection — Fundcloud">
+  <meta property="og:description" content="Portfolio research, end-to-end, with a Rust core.">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://rsms.me" crossorigin>
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#chart-pattern-detection" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+        <aside class="md-banner">
+          <div class="md-banner__inner md-grid md-typeset">
+            
+              <button class="md-banner__button md-icon" aria-label="Don't show this again">
+                
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+              </button>
+            
+            
+  <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;font-size:0.72rem;letter-spacing:0.02em;">
+    <span style="display:inline-block;width:6px;height:6px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    Put this workflow to work on your own portfolio.
+    <a href="https://fundcloud.com" style="color:inherit;text-decoration:underline;">Create your account →</a>
+  </div>
+
+          </div>
+          
+            <script>var el=document.querySelector("[data-md-component=announce]");if(el){var content=el.querySelector(".md-typeset");__md_hash(content.innerHTML)===__md_get("__announce")&&(el.hidden=!0)}</script>
+          
+        </aside>
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="Fundcloud" class="md-header__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fundcloud
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Pattern detection
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../install/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Install
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../portfolio/returns-analysis/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../reference/data/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="Fundcloud" class="md-nav__button md-logo" aria-label="Fundcloud" data-md-component="logo">
+      
+  <img src="../../../assets/logo-light.svg" alt="logo">
+
+    </a>
+    Fundcloud
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/cyberapper/fundcloud" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    cyberapper/fundcloud
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Install
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_1" id="__nav_4_1_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing Returns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analysing Returns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/returns-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Returns analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/metrics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio metrics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../metrics/benchmark/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark analytics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Strategies & Simulation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Strategies & Simulation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../strategies/dca/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DCA & Hold strategies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/simulator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/bracket-orders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bracket orders (stop-loss + take-profit)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/performance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulator performance (Rust kernel)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chart Patterns
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Chart Patterns
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pattern detection
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pattern detection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works, end to end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-four-step-research-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four-step research workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The four-step research workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-detect-see-what-the-pattern-fires-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Detect — see what the pattern fires on
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-evaluate-is-this-feature-any-good" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Evaluate — is this feature any good?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-bucket-by-quality-does-the-scorer-earn-its-weight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bucket by quality — does the scorer earn its weight?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-backtest-turn-it-into-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Backtest — turn it into a strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualize-what-was-detected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualize what was detected
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualize what was detected">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#single-detection-the-textbook-m-w-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Single detection — the textbook M / W view
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#every-detection-of-one-pattern-on-one-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every detection of one pattern on one asset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everything-on-one-ticker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything on one ticker
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inverse-direction-trading-fading-the-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inverse-direction trading: fading the pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stratified-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratified diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-with-featurepipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing with FeaturePipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-hit-rate-vs-expectancy-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading hit rate vs expectancy together
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estimated-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimated runtime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#near-term-pr-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Near-term (PR-scoped)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term-one-pr-per-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-term (one-PR-per-feature)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-scope-by-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of scope by design
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run the examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../knobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Detector & scorer knobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../scoring/quality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Geometric quality score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio Optimisation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Portfolio Optimisation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../portfolio/optimization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Portfolio optimisation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../interop/sklearn/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    sklearn & skfolio interop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/backends-and-catalog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pulling and caching market data
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/clickhouse/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reading from ClickHouse
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Accounts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Accounts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../accounts/fundcloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing a FundCloud fund
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../accounts/ib/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analysing an Interactive Brokers account
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reporting
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reporting
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reports/tearsheets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tear sheets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../plots/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Plots
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_8" id="__nav_4_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference & Internals
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference & Internals
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../accelerators/rust-kernels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rust kernels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../using-python-help/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Using Python help()
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../../../reference/data/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works-end-to-end" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works, end to end
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported patterns
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-four-step-research-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The four-step research workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The four-step research workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-detect-see-what-the-pattern-fires-on" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Detect — see what the pattern fires on
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-evaluate-is-this-feature-any-good" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Evaluate — is this feature any good?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-bucket-by-quality-does-the-scorer-earn-its-weight" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Bucket by quality — does the scorer earn its weight?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-backtest-turn-it-into-a-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Backtest — turn it into a strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#visualize-what-was-detected" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visualize what was detected
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Visualize what was detected">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#single-detection-the-textbook-m-w-view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Single detection — the textbook M / W view
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#every-detection-of-one-pattern-on-one-asset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Every detection of one pattern on one asset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#everything-on-one-ticker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Everything on one ticker
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inverse-direction-trading-fading-the-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inverse-direction trading: fading the pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stratified-diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stratified diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composing-with-featurepipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing with FeaturePipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reading-hit-rate-vs-expectancy-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading hit rate vs expectancy together
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#estimated-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Estimated runtime
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#roadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Roadmap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Roadmap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#near-term-pr-scoped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Near-term (PR-scoped)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#medium-term-one-pr-per-feature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Medium-term (one-PR-per-feature)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#out-of-scope-by-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Out of scope by design
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run-the-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Run the examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+  <nav class="md-path" aria-label="Navigation" >
+    <ol class="md-path__list">
+      
+        
+  
+  
+    <li class="md-path__item">
+      <a href="../../.." class="md-path__link">
+        
+  <span class="md-ellipsis">
+    Home
+  </span>
+
+      </a>
+    </li>
+  
+
+      
+      
+        
+  
+  
+    
+    
+      
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="../../portfolio/returns-analysis/" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Guides
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+    
+    
+      <li class="md-path__item">
+        <a href="./" class="md-path__link">
+          
+  <span class="md-ellipsis">
+    Chart Patterns
+  </span>
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ol>
+  </nav>
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/cyberapper/fundcloud/edit/main/docs/guides/patterns/pattern-detection.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="chart-pattern-detection">Chart pattern detection<a class="headerlink" href="#chart-pattern-detection" title="Anchor link to this section">&para;</a></h1>
+<p><code>fundcloud.features.patterns</code> is a feature surface for classical chart
+patterns — Head and Shoulders, Double / Triple Top and Bottom, the
+three triangles. Detection runs in pure Rust under <code>fundcloud._core</code>;
+the Python layer wraps each detector as an
+<a href="../../../reference/patterns/#patternindicatorindicatorspec"><code>IndicatorSpec</code></a>
+subclass so patterns compose with the rest of the feature pipeline,
+the simulator, and the <code>.fc</code> accessor.</p>
+<p>This guide is the end-to-end recipe book — what the pipeline does, what
+patterns it ships with, how to use them, what they cost to run, and
+what's coming next. For the formal contract (every metric definition,
+every Rust detector's validation rules, the exact output schemas) see
+the <a href="../../../reference/patterns/">reference</a>. Every tunable knob is
+documented in <a href="../knobs/">knobs</a> — start there if a default is too
+strict or too loose for your asset class.</p>
+<h2 id="how-it-works-end-to-end">How it works, end to end<a class="headerlink" href="#how-it-works-end-to-end" title="Anchor link to this section">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    A[OHLCV bars&lt;br/&gt;MultiIndex frame] --&gt; B[Multi-tier pivots&lt;br/&gt;orders 3,5,8 / 13,21 / 34,55]
+    B --&gt; C[Per-detector scan&lt;br/&gt;Rust]
+    C --&gt; D[GeometricScorer&lt;br/&gt;0–100 quality]
+    D --&gt; E[Events frame&lt;br/&gt;14 columns]
+    E --&gt; F1[transform → signal panel]
+    E --&gt; F2[apply_condition → entries/exits/stops]
+    F2 --&gt; G[PatternStrategy → Simulator]
+    E --&gt; F3[evaluate_pattern → hit_rate / IC / MAE]
+    E --&gt; F4[plot_pattern_event / plot_asset_patterns]</code></pre>
+<p>A scan is one function call, but five things happen:</p>
+<ol>
+<li><strong>Pivots.</strong> For each asset, the Rust core finds local minima and
+   maxima at multiple <code>pivot_orders</code>. The default is <em>three disjoint
+   tiers</em> — <code>(3,5,8)</code>, <code>(13,21)</code>, <code>(34,55)</code> — unioned, so short and
+   long formations both surface in one pass.</li>
+<li><strong>Detect.</strong> Each detector slides a fixed-shape pivot window
+   (3 pivots for double tops, 5 for H&amp;S, etc.) over the merged pivot
+   list, applies its structural rules (peak symmetry, neckline slope,
+   prior-trend direction, …) and emits a candidate.</li>
+<li><strong>Score.</strong> Every candidate is scored 0–100 by <code>GeometricScorer</code>:
+   <code>0.30 × symmetry + 0.25 × volume + 0.25 × trendline_r² + 0.20 ×
+   completeness</code>. The score measures <em>textbookness only</em> — it is <strong>not</strong>
+   a prediction of future return. Outcome modeling lives downstream
+   (see <a href="#roadmap">Roadmap</a>).</li>
+<li><strong>Filter.</strong> Detections below <code>min_quality</code> are dropped. Surviving
+   events are returned as a 14-column dataframe (pivots, breakout
+   level, formation window, quality, direction, variant tag).</li>
+<li><strong>Project.</strong> <code>transform()</code> collapses events into a per-bar signal
+   panel using <code>signal_mode</code> (<code>BREAKOUT</code>, <code>FORMATION</code>, or <code>DECAY</code>).
+   <code>apply_condition()</code> fills target / stop / time-stop levels for use
+   by <code>PatternStrategy</code>.</li>
+</ol>
+<p>The whole pipeline is pure — no RNG, no clock, no I/O — so identical
+input produces identical output across runs and machines.</p>
+<h2 id="supported-patterns">Supported patterns<a class="headerlink" href="#supported-patterns" title="Anchor link to this section">&para;</a></h2>
+<p>Nine tier-1 reversal/continuation detectors. All share the same
+multi-tier pivot scan, the same scorer, and the same events schema —
+the only differences are the structural rules each detector applies and
+the default <code>condition</code> it ships with.</p>
+<table>
+<thead>
+<tr>
+<th>Family</th>
+<th>Class</th>
+<th>Direction</th>
+<th>Default <code>condition</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Reversal — top</td>
+<td><code>HeadAndShoulders</code></td>
+<td>bearish</td>
+<td><code>MEASURED_MOVE</code>, <code>ABOVE_NECKLINE_PEAK</code> stop</td>
+</tr>
+<tr>
+<td>Reversal — top</td>
+<td><code>DoubleTop</code></td>
+<td>bearish</td>
+<td><code>MEASURED_MOVE</code>, <code>ABOVE_PIVOT</code> stop</td>
+</tr>
+<tr>
+<td>Reversal — top</td>
+<td><code>TripleTop</code></td>
+<td>bearish</td>
+<td><code>MEASURED_MOVE</code>, <code>BELOW_PIVOT</code> stop (resolver flips to recent high for bearish)</td>
+</tr>
+<tr>
+<td>Reversal — bottom</td>
+<td><code>InverseHeadAndShoulders</code></td>
+<td>bullish</td>
+<td><code>MEASURED_MOVE</code>, <code>BELOW_NECKLINE_TROUGH</code> stop</td>
+</tr>
+<tr>
+<td>Reversal — bottom</td>
+<td><code>DoubleBottom</code></td>
+<td>bullish</td>
+<td><code>MEASURED_MOVE</code>, <code>BELOW_PIVOT</code> stop</td>
+</tr>
+<tr>
+<td>Reversal — bottom</td>
+<td><code>TripleBottom</code></td>
+<td>bullish</td>
+<td><code>MEASURED_MOVE</code>, <code>BELOW_PIVOT</code> stop</td>
+</tr>
+<tr>
+<td>Continuation</td>
+<td><code>AscendingTriangle</code></td>
+<td>bullish</td>
+<td><code>HEIGHT_PROJECTED</code>, <code>BELOW_PIVOT</code> stop</td>
+</tr>
+<tr>
+<td>Continuation</td>
+<td><code>DescendingTriangle</code></td>
+<td>bearish</td>
+<td><code>HEIGHT_PROJECTED</code>, <code>ABOVE_PIVOT</code> stop</td>
+</tr>
+<tr>
+<td>Bilateral</td>
+<td><code>SymmetricalTriangle</code></td>
+<td>direction-of-prior-trend</td>
+<td><code>HEIGHT_PROJECTED</code>, <code>ABOVE/BELOW_PIVOT</code> stop</td>
+</tr>
+</tbody>
+</table>
+<p>Each detector's structural rules — minimum bar counts, shoulder-tolerance
+bounds, flat-side slope thresholds, prior-trend windows, and Bulkowski
+variant tags — are documented in the
+<a href="../../../reference/patterns/#detector-reference">reference</a>.</p>
+<h2 id="the-four-step-research-workflow">The four-step research workflow<a class="headerlink" href="#the-four-step-research-workflow" title="Anchor link to this section">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fundcloud</span>  <span class="c1"># registers the .fc accessor</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.patterns</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">Pattern</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">PatternCondition</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">StopMethod</span><span class="p">,</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">TargetMethod</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">feature_quality</span> <span class="k">as</span> <span class="n">fq</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">bars</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="s2">&quot;ohlcv.parquet&quot;</span><span class="p">)</span>  <span class="c1"># MultiIndex (field, asset) columns</span>
+</span></code></pre></div>
+<h3 id="1-detect-see-what-the-pattern-fires-on">1. Detect — see what the pattern fires on<a class="headerlink" href="#1-detect-see-what-the-pattern-fires-on" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">events</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">pattern_events</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_BOTTOM</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">events</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Returns the canonical 14-column events table — one row per detected
+formation, across every asset in <code>bars</code>. Each row carries the pivots,
+the entry / breakout level, the geometric quality score, the
+direction enum, and a Bulkowski-style <code>variant</code> tag where applicable
+(e.g., <code>"STRICT_ADAM_ADAM"</code> for double tops).</p>
+<p>The companion <code>bars.fc.detect_pattern(...)</code> returns a wide <em>signal</em>
+panel — one column per asset, ones on breakout bars — that plugs
+straight into <code>Simulator.run_signals(entries, exits)</code>.</p>
+<h3 id="2-evaluate-is-this-feature-any-good">2. Evaluate — is this feature any good?<a class="headerlink" href="#2-evaluate-is-this-feature-any-good" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">panel</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">evaluate_pattern</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_BOTTOM</span><span class="p">,</span> <span class="n">horizons</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="mi">60</span><span class="p">))</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">panel</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>n_events</th>
+<th>hit_rate</th>
+<th>baseline_hit</th>
+<th>expectancy</th>
+<th>edge_ratio</th>
+<th>mfe_atr</th>
+<th>mae_atr</th>
+<th>mae_p95_atr</th>
+<th>ic</th>
+<th>icir</th>
+<th>throwback</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5</td>
+<td>793</td>
+<td>0.289</td>
+<td>0.558</td>
+<td>-0.823</td>
+<td>0.232</td>
+<td>0.565</td>
+<td>2.431</td>
+<td>4.519</td>
+<td>-0.023</td>
+<td>0.051</td>
+<td>0.994</td>
+</tr>
+<tr>
+<td>60</td>
+<td>783</td>
+<td>0.584</td>
+<td>0.656</td>
+<td>1.272</td>
+<td>1.000</td>
+<td>5.005</td>
+<td>5.006</td>
+<td>12.301</td>
+<td>0.013</td>
+<td>0.089</td>
+<td>0.994</td>
+</tr>
+</tbody>
+</table>
+<p>Read the row at your intended holding period. The two columns to
+<em>always</em> compare:</p>
+<ul>
+<li><strong><code>hit_rate</code></strong> — fraction of events where the directional close-to-
+  entry move went in your favour at horizon <code>h</code>.</li>
+<li><strong><code>baseline_hit</code></strong> — fraction of <em>random</em> h-bar windows on the same
+  assets that went the same direction. The fair "would a random entry
+  have done the same?" yardstick.</li>
+</ul>
+<p>If <code>hit_rate &lt; baseline_hit</code>, the feature is <em>anti-predictive</em> on this
+universe — fading it (see step 3) may be the trade. If
+<code>hit_rate &gt; baseline_hit + 5pp</code> and <code>expectancy &gt; 0</code>, the feature
+is at least worth tuning.</p>
+<p><code>expectancy</code> is in <strong>R-multiples</strong>: average realised close-to-entry
+move divided by the <strong>stop distance</strong>. Without a <code>condition=</code> argument
+the stop unit is <code>1×ATR(14)</code> at the breakout bar; pass a
+<code>PatternCondition</code> to use the real stop level (step 4).</p>
+<p><code>mae_p95_atr</code> is the <strong>stop-sizing reference number</strong> — the 95<sup>th</sup>
+percentile of adverse excursion. Use this, not the <em>mean</em> MAE, to size
+real stops: 5% of trades draw down at least this much against you.</p>
+<h3 id="3-bucket-by-quality-does-the-scorer-earn-its-weight">3. Bucket by quality — does the scorer earn its weight?<a class="headerlink" href="#3-bucket-by-quality-does-the-scorer-earn-its-weight" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">events</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">pattern_events</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">INVERSE_HEAD_AND_SHOULDERS</span><span class="p">,</span> <span class="n">min_quality</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fq</span><span class="o">.</span><span class="n">quality_buckets</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">bars</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">n_buckets</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>bucket</th>
+<th>quality_min</th>
+<th>quality_max</th>
+<th>n_events</th>
+<th>hit_rate</th>
+<th>expectancy</th>
+<th>edge_ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q1</td>
+<td>42.0</td>
+<td>60.0</td>
+<td>82</td>
+<td>0.476</td>
+<td>-0.252</td>
+<td>0.656</td>
+</tr>
+<tr>
+<td>Q2</td>
+<td>61.0</td>
+<td>66.0</td>
+<td>64</td>
+<td>0.391</td>
+<td>-1.022</td>
+<td>0.488</td>
+</tr>
+<tr>
+<td>Q3</td>
+<td>67.0</td>
+<td>73.0</td>
+<td>78</td>
+<td>0.410</td>
+<td>-0.399</td>
+<td>0.660</td>
+</tr>
+<tr>
+<td>Q4</td>
+<td>74.0</td>
+<td>78.0</td>
+<td>64</td>
+<td>0.516</td>
+<td>-0.137</td>
+<td>0.840</td>
+</tr>
+<tr>
+<td>Q5</td>
+<td>79.0</td>
+<td>91.0</td>
+<td>70</td>
+<td>0.557</td>
+<td>+0.301</td>
+<td>0.911</td>
+</tr>
+</tbody>
+</table>
+<p>A monotonic Q1 → Q5 climb in <code>expectancy</code> and <code>hit_rate</code> means the
+geometric scorer's <code>30% symmetry + 25% volume + 25% trendline_r2 +
+20% completeness</code> weighting is doing real work — high-quality events
+<em>are</em> more profitable than low-quality ones. Use the floor of the
+best bucket (e.g., 79 above) as your <code>min_quality</code> cutoff.</p>
+<p>If the buckets are flat — or worse, anti-monotonic — the scorer needs
+recalibration for that pattern. We've observed this for <code>DoubleTop</code>
+and <code>DoubleBottom</code> on US mega-cap equities: the
+<code>pct_diff(p1, p3) ≤ 0.015</code> symmetry rule rewards tight peak / trough
+matches that often signal <em>continuation</em> in a trending market, not
+reversal.</p>
+<h3 id="4-backtest-turn-it-into-a-strategy">4. Backtest — turn it into a strategy<a class="headerlink" href="#4-backtest-turn-it-into-a-strategy" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.patterns</span><span class="w"> </span><span class="kn">import</span> <span class="n">StopMethod</span><span class="p">,</span> <span class="n">TargetMethod</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">condition</span> <span class="o">=</span> <span class="n">PatternCondition</span><span class="p">(</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">target_method</span><span class="o">=</span><span class="n">TargetMethod</span><span class="o">.</span><span class="n">MEASURED_MOVE</span><span class="p">,</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">stop_method</span><span class="o">=</span><span class="n">StopMethod</span><span class="o">.</span><span class="n">BELOW_PIVOT</span><span class="p">,</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">time_stop_bars</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">)</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">run_pattern</span><span class="p">(</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_BOTTOM</span><span class="p">,</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="n">condition</span><span class="o">=</span><span class="n">condition</span><span class="p">,</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="n">size</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="n">min_quality</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="p">)</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</span></code></pre></div>
+<p>This is <code>PatternStrategy</code> under the hood. It runs the indicator once
+in <code>init</code>, fills target / stop levels per the condition via
+<code>apply_condition</code>, then walks each bar — opening trades on event
+timestamps and closing on intraday target hit, intraday stop hit, or
+the optional <code>time_stop_bars</code> deadline.</p>
+<p>Three sizing knobs that move performance in our experience:</p>
+<ul>
+<li><strong><code>min_quality</code></strong> — usually 50 (the events table default) is too low.
+  Step 3's quality buckets show the cutoff that earns its keep.</li>
+<li><strong><code>time_stop_bars</code></strong> — without it, losing trades drift forever.
+  Default <code>None</code> (no time stop) is rarely the right choice.</li>
+<li><strong><code>size</code></strong> — fraction-of-equity per trade. <code>0.1</code> is a reasonable
+  starting point; the tradeable strategy needs concurrent positions to
+  smooth out single-trade variance.</li>
+</ul>
+<h2 id="visualize-what-was-detected">Visualize what was detected<a class="headerlink" href="#visualize-what-was-detected" title="Anchor link to this section">&para;</a></h2>
+<p>Numbers tell you whether a feature has edge; charts tell you whether
+the detector is finding the <em>thing you have in your head</em>. Three views,
+one accessor each.</p>
+<h3 id="single-detection-the-textbook-m-w-view">Single detection — the textbook M / W view<a class="headerlink" href="#single-detection-the-textbook-m-w-view" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">events</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">pattern_events</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_TOP</span><span class="p">,</span> <span class="n">min_quality</span><span class="o">=</span><span class="mi">70</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">plot_pattern_event</span><span class="p">(</span><span class="n">events</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>  <span class="c1"># padding=20, horizon=20</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">fig</span><span class="o">.</span><span class="n">write_html</span><span class="p">(</span><span class="s2">&quot;double_top_detail.html&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Renders one event with: the formation shape (pivots connected by a
+polyline), the neckline / target / stop levels, the formation window
+shaded, and a vertical marker at <code>breakout_ts + horizon</code>. This is the
+view that matches the textbook double-top picture — single M with the
+breakdown line drawn in.</p>
+<h3 id="every-detection-of-one-pattern-on-one-asset">Every detection of one pattern on one asset<a class="headerlink" href="#every-detection-of-one-pattern-on-one-asset" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">events</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">pattern_events</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">HEAD_AND_SHOULDERS</span><span class="p">)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">events</span> <span class="o">=</span> <span class="n">events</span><span class="p">[</span><span class="n">events</span><span class="p">[</span><span class="s2">&quot;asset&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;SPY&quot;</span><span class="p">]</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">plot_patterns</span><span class="p">(</span><span class="n">Pattern</span><span class="o">.</span><span class="n">HEAD_AND_SHOULDERS</span><span class="p">,</span> <span class="n">asset</span><span class="o">=</span><span class="s2">&quot;SPY&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>One asset, one pattern, every detection drawn with its formation shape.
+Use this to spot clustering ("how many H&amp;Ss has this name printed in
+the last year?") and regime shifts.</p>
+<h3 id="everything-on-one-ticker">Everything on one ticker<a class="headerlink" href="#everything-on-one-ticker" title="Anchor link to this section">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">plot_asset_patterns</span><span class="p">(</span><span class="s2">&quot;AAPL&quot;</span><span class="p">,</span> <span class="n">min_quality</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">fig</span><span class="o">.</span><span class="n">write_html</span><span class="p">(</span><span class="s2">&quot;aapl_all_patterns.html&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Single candlestick chart, every pattern overlaid in its own colour,
+legend toggle per pattern. The "what's been happening on AAPL?" view.</p>
+<p>A note on what you'll see: the default <code>pivot_orders=(3, 5, 8)</code> runs
+detection at <strong>three pivot scales</strong> simultaneously, and the sliding
+3-pivot windows over the merged pivot list can produce overlapping
+detections that share endpoints. On a busy ticker, the polylines stitch
+together into a zigzag rather than discrete Ms / Ws — that's expected.
+To see clean individual formations, use <code>plot_pattern_event</code> (above) or
+narrow the scope:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Single pattern, one scale, high-quality only — clean Ms / Ws</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">plot_asset_patterns</span><span class="p">(</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="s2">&quot;AAPL&quot;</span><span class="p">,</span> <span class="n">patterns</span><span class="o">=</span><span class="p">[</span><span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_TOP</span><span class="p">],</span> <span class="n">min_quality</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>For a runnable end-to-end gallery (top-quality detection per pattern,
+per-asset overviews, all-patterns charts for QQQ + SPY + Mag7) see
+<a href="https://github.com/cyberapper/fundcloud/blob/main/examples/35_pattern_visualization.py"><code>examples/35_pattern_visualization.py</code></a>.
+HTML files land in <code>examples/out/charts/</code> and open in any browser.</p>
+<h2 id="inverse-direction-trading-fading-the-pattern">Inverse-direction trading: fading the pattern<a class="headerlink" href="#inverse-direction-trading-fading-the-pattern" title="Anchor link to this section">&para;</a></h2>
+<p>When step 2 shows <code>hit_rate &lt; baseline_hit</code>, the pattern is more often
+wrong than right — and the simple "flip the trade" hypothesis is worth
+testing:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">inv</span> <span class="o">=</span> <span class="n">bars</span><span class="o">.</span><span class="n">fc</span><span class="o">.</span><span class="n">evaluate_pattern</span><span class="p">(</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">Pattern</span><span class="o">.</span><span class="n">DOUBLE_TOP</span><span class="p">,</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">horizons</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,),</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">trade_direction</span><span class="o">=</span><span class="s2">&quot;inverse&quot;</span><span class="p">,</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The baseline transforms in lockstep, so the comparison stays honest.
+On our SPY/AAPL/MSFT/etc. universe the natural Double Top loses
+~14pp to baseline at h=20; the inverse trade wins +14pp. That's the
+math — they're complementary by construction.</p>
+<p>What's <em>not</em> free: the implied stop. A long trade taken from a Double
+Top setup wants a stop <em>above</em> the recent peak (not below the original
+neckline). The expectancy column in the inverse panel uses the natural
+direction's stop distance for R, which understates the real risk on
+the flipped trade. To grade the inverse trade with a proper stop,
+build a bullish event from the same pivots and run <code>apply_condition</code>
+with the bullish <code>BELOW_PIVOT</code> rule — the <code>PatternStrategy</code> flow with
+<code>inverse=True</code> does this for the strategy side automatically.</p>
+<h2 id="stratified-diagnostics">Stratified diagnostics<a class="headerlink" href="#stratified-diagnostics" title="Anchor link to this section">&para;</a></h2>
+<p>Two view helpers. Both consume the same events table you already have.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">fq</span><span class="o">.</span><span class="n">per_asset</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">bars</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>         <span class="c1"># one row per asset</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">fq</span><span class="o">.</span><span class="n">time_stability</span><span class="p">(</span><span class="n">events</span><span class="p">,</span> <span class="n">bars</span><span class="p">,</span> <span class="n">horizon</span><span class="o">=</span><span class="mi">20</span><span class="p">)</span>    <span class="c1"># 5 chronological folds</span>
+</span></code></pre></div>
+<p><code>per_asset</code> is a discovery tool — a feature working on AAPL but not
+META is normal, not a sanity-check failure. Use it to build an
+asset-specific deployment list (filter by <code>expectancy &gt; 0.2R</code>).</p>
+<p><code>time_stability</code> is the regime-risk gate. If the pattern only worked
+in one fold (say 2010-2014) and is flat everywhere else, the apparent
+edge is regime-bound and risky to deploy forward.</p>
+<h2 id="composing-with-featurepipeline">Composing with <code>FeaturePipeline</code><a class="headerlink" href="#composing-with-featurepipeline" title="Anchor link to this section">&para;</a></h2>
+<p>Pattern indicators are <code>IndicatorSpec</code> subclasses — they slot into
+<code>FeaturePipeline</code> alongside TA-Lib indicators with no special-casing:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features</span><span class="w"> </span><span class="kn">import</span> <span class="n">FeaturePipeline</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.indicators</span><span class="w"> </span><span class="kn">import</span> <span class="n">RSI</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fundcloud.features.patterns</span><span class="w"> </span><span class="kn">import</span> <span class="n">HeadAndShoulders</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">pipe</span> <span class="o">=</span> <span class="n">FeaturePipeline</span><span class="p">([</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="p">(</span><span class="s2">&quot;rsi&quot;</span><span class="p">,</span> <span class="n">RSI</span><span class="p">(</span><span class="n">timeperiod</span><span class="o">=</span><span class="mi">14</span><span class="p">)),</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="p">(</span><span class="s2">&quot;hns&quot;</span><span class="p">,</span> <span class="n">HeadAndShoulders</span><span class="p">(</span><span class="n">min_quality</span><span class="o">=</span><span class="mi">70</span><span class="p">)),</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">])</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="n">panel</span> <span class="o">=</span> <span class="n">pipe</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">bars</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The feature pipeline's hash includes the indicator's serialized
+configuration, so swapping a <code>min_quality</code> knob produces a different
+cache key — useful when grid-searching parameters via <code>PurgedKFold</code>.</p>
+<h2 id="reading-hit-rate-vs-expectancy-together">Reading hit rate vs expectancy together<a class="headerlink" href="#reading-hit-rate-vs-expectancy-together" title="Anchor link to this section">&para;</a></h2>
+<p>A counterintuitive but important read: <code>hit_rate &lt; baseline</code> and
+<code>expectancy &gt; 0</code> can co-exist. It means the pattern fires <em>less often
+than baseline would predict</em> — but when it does win, it wins <em>bigger
+than the asymmetric loss of when it loses</em>. Look at the ratio of
+<code>mfe_atr / mae_atr</code> (= <code>edge_ratio</code>): values above ~1.3 indicate the
+payoff asymmetry is doing the heavy lifting. Patterns with edge ratio
+≥ 1.5 and modest hit-rate edge can outperform patterns with strong
+hit-rate edge but symmetric payoffs — Kelly and bet-sizing math is on
+the asymmetric side.</p>
+<p>For full metric definitions, edge cases, and the design tradeoffs
+behind each one, see the
+<a href="../../../reference/patterns/">Chart Patterns reference</a>.</p>
+<h2 id="estimated-runtime">Estimated runtime<a class="headerlink" href="#estimated-runtime" title="Anchor link to this section">&para;</a></h2>
+<p>The Rust core is fast; for typical academic-scale studies the bottleneck
+is post-processing in Python (events frame construction, projection to
+signals, evaluation across horizons), not detection.</p>
+<p>Reference numbers, measured on a single Apple-silicon laptop core
+against a synthetic OHLCV panel of <strong>10 assets × 5 years of daily
+bars</strong> (~12,600 bar-rows total):</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Time</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>One detector, <code>events()</code> (e.g. <code>DoubleTop</code>)</td>
+<td>4–6 ms</td>
+<td>Reversal patterns</td>
+</tr>
+<tr>
+<td>One detector, <code>events()</code> (e.g. <code>HeadAndShoulders</code>, triangles)</td>
+<td>15–17 ms</td>
+<td>More expensive — 5-pivot windows or trendline-fitting</td>
+</tr>
+<tr>
+<td>All 9 patterns, sequential</td>
+<td>~75 ms</td>
+<td>~1.5 ms per asset-year</td>
+</tr>
+<tr>
+<td><code>evaluate_pattern(... horizons=(5,10,20,60))</code></td>
+<td>~35 ms</td>
+<td>Includes baseline-hit computation</td>
+</tr>
+<tr>
+<td><code>run_pattern(...)</code> full backtest</td>
+<td>~165 ms</td>
+<td>Indicator scan + simulator walk</td>
+</tr>
+</tbody>
+</table>
+<p>How that scales:</p>
+<ul>
+<li><strong>Linear in bar count.</strong> Doubling the look-back doubles the time.</li>
+<li><strong>Linear in asset count.</strong> Each asset is scanned independently.</li>
+<li><strong>Sub-linear in <code>pivot_tiers</code>.</strong> Adding a tier costs less than a full
+  re-scan because the detector window slides over the union of pivots,
+  not the bars themselves. Disabling tiering (<code>pivot_tiers=()</code>) shaves
+  ~20 % at the cost of missing multi-month formations.</li>
+<li><strong><code>min_quality</code> is post-filter only</strong> — raising it does not speed up
+  detection.</li>
+</ul>
+<p>For a hypothetical universe of <strong>500 US equities × 10 years of daily
+bars</strong> (~1.25 M bar-rows), expect ~10 s for one detector and ~75–90 s
+for all nine — well within an interactive notebook. Daily refresh in
+production fits comfortably in a single CPU minute.</p>
+<p>For tick-by-tick / streaming, see <a href="#roadmap">Roadmap</a> — the current
+implementation is batch-only.</p>
+<h2 id="roadmap">Roadmap<a class="headerlink" href="#roadmap" title="Anchor link to this section">&para;</a></h2>
+<p>The shipped surface (Rust core + 9 detectors + scorer + Python wrappers
++ events frame + condition descriptor + strategy + accessors + plots)
+is what the library guarantees today. Items below are in priority order
+and are <em>not</em> committed delivery dates — they're the design seams left
+open in the current codebase.</p>
+<h3 id="near-term-pr-scoped">Near-term (PR-scoped)<a class="headerlink" href="#near-term-pr-scoped" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li><strong>Confirmed-breakout mode.</strong> Today <code>breakout_ts</code> fires on
+  <code>formation_end</code>. This systematically inflates <code>throwback_rate</code> and
+  fires one or two bars before the textbook entry. An opt-in
+  <code>EntryRule.CONFIRMED_BREAKOUT</code> will require a close-through-neckline
+  bar before emitting the event timestamp.</li>
+<li><strong>Auto-scaled <code>prior_trend_window</code>.</strong> Today's <code>10-bar</code> default is
+  daily-bar-shaped; on weekly bars it covers two months. A planned
+  auto-derive will set the window from the input timeframe.</li>
+<li><strong>Native short side in <code>PatternStrategy</code>.</strong> Bearish events are
+  currently long-via-<code>inverse=True</code>. Direct shorting depends on
+  simulator support for naked shorts — tracked there.</li>
+</ul>
+<h3 id="medium-term-one-pr-per-feature">Medium-term (one-PR-per-feature)<a class="headerlink" href="#medium-term-one-pr-per-feature" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li><strong><code>ReliabilityScorer</code>.</strong> A second scorer that blends
+  <code>GeometricScorer</code> with empirical hit-rate per
+  <code>(direction × timeframe × regime × asset_bucket)</code>. Output is an
+  outcome-aware confidence — strictly <strong>separate</strong> from the geometric
+  quality score (which stays a pure-geometry measure).</li>
+<li><strong><code>MLScorer</code>.</strong> XGBoost predictor of realised R-multiple at a 20-bar
+  horizon, trained off the events frame plus standard features.
+  Independent from the geometric scorer.</li>
+<li><strong>Streaming / tick-by-tick path.</strong> The PyO3 layer has the seams for
+  an <code>update_one_bar(...)</code> style API; today's scan is batch-only.</li>
+</ul>
+<h3 id="out-of-scope-by-design">Out of scope by design<a class="headerlink" href="#out-of-scope-by-design" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li><strong>Calibration loops, hand-rating workflows, human-in-the-loop
+  feedback.</strong> The library exposes the knobs and the scorer; calibration
+  belongs in user code.</li>
+<li><strong>Tuning the geometric scorer against future returns.</strong> The geometric
+  score is a pure-geometry measure; outcome predictiveness is the job
+  of <code>ReliabilityScorer</code> / <code>MLScorer</code>. See
+  <a href="../../../scoring/quality/">Quality score</a> for the rationale.</li>
+</ul>
+<p>For the full inventory of <em>known</em> limitations (<code>pivot.order</code> is
+recorded but unused, <code>breakout_ts</code> semantics, no regime-aware scorer,
+no streaming, etc.), see the
+<a href="../../../reference/patterns/#limitations-and-future-work">reference's "Limitations and future work" section</a>.</p>
+<h2 id="run-the-examples">Run the examples<a class="headerlink" href="#run-the-examples" title="Anchor link to this section">&para;</a></h2>
+<p>Five runnable scripts mirror this guide end-to-end. Run them in order
+the first time — example 32 caches the OHLCV parquet that 33 / 34 / 35
+read from.</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>What it produces</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>examples/31_head_and_shoulders_detection.py</code></td>
+<td>API tour on synthetic SPY data — <code>fit_transform</code>, events table, <code>SignalMode</code> swap, <code>PatternCondition.override</code>, <code>min_quality</code>, <code>FeaturePipeline</code> composition</td>
+</tr>
+<tr>
+<td><code>examples/32_pattern_scan_real_data.py</code></td>
+<td>Downloads QQQ + SPY + Mag7 daily history via <code>yfinance</code>, caches <code>examples/out/pattern_scan_bars.parquet</code></td>
+</tr>
+<tr>
+<td><code>examples/33_pattern_strategy_backtest.py</code></td>
+<td><code>evaluate_pattern</code>, <code>trade_direction='inverse'</code>, <code>quality_buckets</code>, <code>apply_condition</code>, full <code>run_pattern</code> backtest</td>
+</tr>
+<tr>
+<td><code>examples/34_pattern_leaderboard.py</code></td>
+<td>Cross-asset × pattern × direction leaderboard with a "tradeable" filter</td>
+</tr>
+<tr>
+<td><code>examples/35_pattern_visualization.py</code></td>
+<td>HTML chart gallery in <code>examples/out/charts/</code> (per-pattern, per-asset, all-patterns)</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/31_head_and_shoulders_detection.py
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/32_pattern_scan_real_data.py<span class="w">    </span><span class="c1"># generates the parquet</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/33_pattern_strategy_backtest.py
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/34_pattern_leaderboard.py
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>examples/35_pattern_visualization.py
+</span></code></pre></div>
+<p><code>32</code> accepts <code>--refresh</code>, <code>--min-quality</code>, <code>--tickers</code>, <code>--start</code> flags
+if you want to override the cached universe.</p>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  <form class="md-feedback" name="feedback" hidden>
+    <fieldset>
+      <legend class="md-feedback__title">
+        Was this page useful?
+      </legend>
+      <div class="md-feedback__inner">
+        <div class="md-feedback__list">
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="True" data-md-value="1">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5 9v12H1V9zm4 12a2 2 0 0 1-2-2V9c0-.55.22-1.05.59-1.41L14.17 1l1.06 1.06c.27.27.44.64.44 1.05l-.03.32L14.69 8H21a2 2 0 0 1 2 2v2c0 .26-.05.5-.14.73l-3.02 7.05C19.54 20.5 18.83 21 18 21zm0-2h9.03L21 12v-2h-8.79l1.13-5.32L9 9.03z"/></svg>
+            </button>
+          
+            <button class="md-feedback__icon md-icon" type="submit" title="False" data-md-value="0">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 15V3h4v12zM15 3a2 2 0 0 1 2 2v10c0 .55-.22 1.05-.59 1.41L9.83 23l-1.06-1.06c-.27-.27-.44-.64-.44-1.06l.03-.31.95-4.57H3a2 2 0 0 1-2-2v-2c0-.26.05-.5.14-.73l3.02-7.05C4.46 3.5 5.17 3 6 3zm0 2H5.97L3 12v2h8.78l-1.13 5.32L15 14.97z"/></svg>
+            </button>
+          
+        </div>
+        <div class="md-feedback__note">
+          
+            <div data-md-value="1" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Thanks — glad it helped.
+            </div>
+          
+            <div data-md-value="0" hidden>
+              
+              
+                
+              
+              
+              
+                
+                
+              
+              Sorry. Please <a href="https://github.com/cyberapper/fundcloud/issues/new?labels=docs&title=Docs+improvement" target="_blank" rel="noopener">open a docs issue</a> and we'll fix it.
+            </div>
+          
+        </div>
+      </div>
+    </fieldset>
+  </form>
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../../sim/performance/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Simulator performance (Rust kernel)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Simulator performance (Rust kernel)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../knobs/" class="md-footer__link md-footer__link--next" aria-label="Next: Detector &amp; scorer knobs">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Detector & scorer knobs
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      
+<div class="md-copyright" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:0.6rem;">
+    <span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:linear-gradient(135deg,#00d4aa,#2e7cf6);"></span>
+    <span style="font-weight:500;letter-spacing:-0.005em;">
+      Copyright © 2026 Fundcloud Authors · MIT License
+    </span>
+  </div>
+  
+    <div class="md-copyright__highlight" style="opacity:0.7;font-size:0.72rem;">
+      Built with
+      <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener" style="color:inherit;">Material for MkDocs</a>
+      · theme by Fundcloud
+    </div>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="https://github.com/cyberapper/fundcloud" target="_blank" rel="noopener" title="Fundcloud on GitHub" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://pypi.org/project/fundcloud/" target="_blank" rel="noopener" title="Fundcloud on PyPI" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["announce.dismiss", "navigation.instant", "navigation.instant.progress", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.indexes", "navigation.top", "navigation.tracking", "navigation.path", "navigation.prune", "navigation.footer", "toc.follow", "content.tabs.link", "content.code.copy", "content.code.select", "content.code.annotate", "content.action.edit", "content.tooltips", "search.suggest", "search.highlight", "search.share"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../../../javascripts/extra.js"></script>
+      
+    
+  </body>
+</html>
