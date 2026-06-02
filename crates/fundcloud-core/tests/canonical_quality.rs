@@ -18,8 +18,7 @@
 //! (revert).
 
 use fundcloud_core::patterns::{
-    fit_trendline, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role,
-    TrendLine,
+    fit_trendline, GeometricScorer, OhlcvView, Pattern, Pivot, PivotKind, Role, TrendLine,
 };
 
 #[derive(Clone, Copy)]
