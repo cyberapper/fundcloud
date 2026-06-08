@@ -191,6 +191,8 @@ nav:
           - Pattern detection: guides/patterns/pattern-detection.md
           - Detector & scorer knobs: guides/patterns/knobs.md
           - Geometric quality score: scoring/quality.md
+      - Research:
+          - Event registry: guides/research/event-registry.md
       - Portfolio Optimisation:
           - Portfolio optimisation: guides/portfolio/optimization.md
           - sklearn & skfolio interop: guides/interop/sklearn.md

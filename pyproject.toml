@@ -212,6 +212,7 @@ module = [
   "fundcloud.data.*",
   "fundcloud.features.indicators.*",
   "fundcloud.metrics.*",
+  "fundcloud.research.*",
   "fundcloud.accessors.*",
   "fundcloud.optimize.*",
   "fundcloud.portfolio.*",
