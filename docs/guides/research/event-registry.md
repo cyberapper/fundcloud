@@ -16,22 +16,37 @@ history for them.
 
 ## Detector contract (causal rules every event must obey)
 
+Every event carries **four timestamps** that separate *known* from *allowed to act* from
+*filled* — the discipline that keeps the research leak-free:
+
+| timestamp | meaning |
+|---|---|
+| `formation_end_ts` | last bar the pattern logic reads |
+| `observable_ts` (≡ `confirmed_ts`) | first bar at which **all** inputs are knowable — the leak-free anchor; path metrics are measured strictly *after* this |
+| `decision_ts` | first bar a strategy may act, `= observable_ts + 1` |
+| `execution_ts` | assumed fill bar, `= decision_ts` (next-bar open by default) |
+
 1. **Causal detection.** An event at bar `t` may use information from bars `≤ t` only.
-2. **`confirmed_ts` = the first bar at which the event is fully knowable.** Path metrics are
-   always measured *after* `confirmed_ts`. This is the leak-free anchor.
-3. **Pivot neighbour-lock (the load-bearing rule).** A pivot of order `k` is
+2. **Pivot neighbour-lock (the load-bearing rule).** A pivot of order `k` is
    `pivot_high(p, k) = (high[p] == max(high[p-k … p+k]))` — it uses `k` *future* bars, so it
    is only confirmable at `p + k`. Any event whose logic rests on a pivot/level/swing must set
-   `confirmed_ts ≥ pivot_index + k`. Bar-local events (FVG, displacement) need no lock; every
-   pivot-derived family (S/R, sweeps, VCP swings, trendlines, cup rims) does.
-4. **Sides are separate records.** Bullish and bearish variants are distinct events even when
+   `observable_ts ≥ ts[pivot_index + k]`. Bar-local events (FVG, displacement) confirm at `t`;
+   every pivot-derived family (S/R, sweeps, VCP swings, trendlines, cup rims) neighbour-locks.
+3. **Prefix-invariance test (mandatory — the proof, not the promise).** A spec does not close a
+   leak; a test does. For every detector, running it on `bars[0:T]` must yield the events with
+   `observable_ts ≤ ts[T−1]` **identical** to running it on the full series. If a detector peeks
+   forward, the truncated run differs and the test fails. This is the gate every detector must
+   pass — it mechanically guarantees no future bar leaked, far stronger than eyeballing the logic.
+4. **Measure the path from the execution price.** MFE / MAE / returns are computed against
+   `open[execution_ts]` (the assumed fill), **never** the signal-bar close — otherwise you book a
+   fill you could not have gotten.
+5. **Sides are separate records.** Bullish and bearish variants are distinct events even when
    they share geometry.
-5. **Entry convention (default).** Execution is the **next-bar open**: `entry_ref_ts =
-   confirmed_ts + 1`, `entry_ref_price = open[entry_ref_ts]`. The signal is decided at
-   `confirmed_ts`; the fill price at `t+1` is execution, not look-ahead.
 6. **Cost.** 6 bps round-trip (3 in + 3 out) applied to any trade-like return.
-7. **Versioning.** Every event carries a `logic_version` (bump on any change to formation or
-   `confirmed_ts`) and a `params_hash` so re-definitions never pool incomparable samples.
+7. **Versioning.** Every event carries a `logic_version` (bump on any change to formation or the
+   timestamp rules) and a `params_hash` so re-definitions never pool incomparable samples.
+
+Per-event specs below say `confirmed_ts = t` as shorthand for `observable_ts = ts[t]`.
 
 ## Status legend
 
@@ -171,14 +186,14 @@ consumes it unchanged. Columns are split by leak boundary.
 | `event_id` | str | catalog id (e.g. `ev_gap_imb_3c`) |
 | `asset` | str | symbol — **maps to `EVENTS_COLUMNS.asset`** |
 | `timeframe` | str | `"1D"` for now |
-| `event_time` | datetime64[ns, UTC] | formation/anchor bar (charting) |
-| `confirmed_ts` | datetime64[ns, UTC] | leak-free anchor — **maps to `EVENTS_COLUMNS.breakout_ts`** |
-| `entry_ref_ts` | datetime64[ns, UTC] | `= confirmed_ts + 1` (next-bar open) |
+| `formation_end_ts` | datetime64[ns, UTC] | last bar the pattern reads (charting anchor) |
+| `confirmed_ts` (≡ `observable_ts`) | datetime64[ns, UTC] | leak-free anchor — **maps to `EVENTS_COLUMNS.breakout_ts`** |
+| `execution_ts` (≡ `decision_ts`) | datetime64[ns, UTC] | `= confirmed_ts + 1`, assumed fill bar (next-bar open) |
 | `direction` | str | `bullish` / `bearish` |
 | `params` | str (JSON) | resolved parameters incl. pivot order / scale |
 | `logic_version` | int | bumped on any redefinition |
 | `params_hash` | str | hash of `(event_id, params, logic_version)` |
-| `entry_ref_price` | float | `open[entry_ref_ts]` — **maps to `long_entry` / `short_entry`** |
+| `entry_ref_price` | float | `open[execution_ts]` (the fill) — **maps to `long_entry` / `short_entry`** |
 | `stop_ref_price` | float | structural stop, NaN ⇒ ATR fallback — **maps to `stop_price`** |
 | `zone_lo`, `zone_hi` | float | gap/OB/level zone bounds (NaN for non-zone events) |
 | `quality` | float | optional textbookness score — **maps to `EVENTS_COLUMNS.quality`** |
@@ -207,7 +222,8 @@ labels.
 
 1. **(done)** Clean daily data feed — `fundcloud.research.load_bars` / `clean_panel`.
 2. **(this page)** Event catalog + observation schema.
-3. Code the three immediate causal detectors (`ev_disp_bar`, `ev_gap_imb_3c`, `ev_sweep_fail`).
+3. Code the three immediate causal detectors (`ev_disp_bar`, `ev_gap_imb_3c`, `ev_sweep_fail`) —
+   each gated by the **prefix-invariance test** (contract rule 3).
 4. Wire them through `feature_quality.evaluate()` + a frozen train/validation/holdout split.
 5. Add the missing inference: triple-barrier, block bootstrap, permutation, Deflated Sharpe, PBO.
 6. Pivot-based families, interaction mining, then a portfolio decision layer over holdout survivors.
