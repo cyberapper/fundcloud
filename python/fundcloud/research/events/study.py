@@ -29,7 +29,14 @@ import pandas as pd
 
 from fundcloud.research.events.detectors import (
     detect_displacement,
+    detect_donchian,
     detect_fvg,
+    detect_inside_bar,
+    detect_key_reversal,
+    detect_nr_squeeze,
+    detect_opening_gap,
+    detect_order_block,
+    detect_sr_touch_bounce,
     detect_sweep_fail,
     scan_panel,
 )
@@ -37,8 +44,11 @@ from fundcloud.research.events.schema import build_observations, params_hash
 
 __all__ = [
     "DEFAULT_GRIDS",
+    "FULL_GRIDS",
     "STUDY_HORIZONS",
     "Variant",
+    "count_variants",
+    "decode_params",
     "default_variants",
     "expand_grid",
     "scan_variants",
@@ -48,18 +58,176 @@ __all__ = [
 #: registry grid (``docs/guides/research/event-registry.md``). Fixed before mining.
 STUDY_HORIZONS: tuple[int, ...] = (1, 3, 5, 10, 20, 40, 60)
 
-#: First-batch parameter grids per detector — a deliberately small slice of the
-#: registry's pre-registered grids so the initial run stays tractable. Each value
-#: is ``(detector, grid)`` where ``grid`` maps a kwarg name to the values swept.
-#: Keyed by the detector **base id** (``ev_disp_bar`` / ``ev_gap_imb_3c`` /
-#: ``ev_sweep_fail``) — the same id the detector feeds to ``params_hash`` — so a
-#: variant's ``params_hash`` aligns with the per-branch (``_up`` / ``_dn``)
-#: observations the detector pools under one shared hash.
+#: Per-detector parameter grids — a deliberately small slice of each detector's
+#: pre-registered grid so the default run stays tractable (see :data:`FULL_GRIDS`
+#: for the registry-wide grids). Each value is ``(detector, grid)`` where ``grid``
+#: maps a kwarg name to the values swept. Keyed by the detector **base id** (the
+#: same id the detector feeds to ``params_hash``) — so a variant's ``params_hash``
+#: aligns with the per-branch (``_up`` / ``_dn``) observations the detector pools
+#: under one shared hash. Neutral detectors (``ev_inside_bar``, ``ev_nr_squeeze``)
+#: emit a single suffix-less id but key the hash on the same base id identically.
 DEFAULT_GRIDS: dict[str, tuple[Callable[..., pd.DataFrame], dict[str, list[Any]]]] = {
     "ev_disp_bar": (detect_displacement, {"z_body": [1.0, 1.5], "clv_min": [0.7]}),
     "ev_gap_imb_3c": (detect_fvg, {"body_min": [0.5, 0.6], "z_imp": [1.0]}),
     "ev_sweep_fail": (detect_sweep_fail, {"pivot_k": [3, 5], "eps": [0.10]}),
+    "ev_donchian_break": (detect_donchian, {"N": [20, 40], "buf": [0.0]}),
+    "ev_outside_reversal": (detect_key_reversal, {"clv_min": [0.6, 0.7]}),
+    "ev_opening_gap": (detect_opening_gap, {"k": [0.5, 1.0]}),
+    "ev_inside_bar": (detect_inside_bar, {"strict": [False, True]}),
+    "ev_nr_squeeze": (detect_nr_squeeze, {"n": [4, 7]}),
+    "ev_sr_touch_bounce": (detect_sr_touch_bounce, {"pivot_k": [3, 5], "eps": [0.10]}),
+    "ev_ob_impulse_last_opp": (detect_order_block, {"m": [3, 5]}),
 }
+
+#: The **full** pre-registered grids from the registry (``event-registry.md``
+#: §"Pre-registered parameter grids" + the per-event spec blocks). Same shape as
+#: :data:`DEFAULT_GRIDS` but sweeping the registry's complete value lists, so a
+#: serious scan can tune every parameter. It is *not* the default precisely
+#: because it is large: expanding it is a deliberate choice (each variant is a
+#: separate trial, and more trials inflate the multiple-testing burden the engine
+#: is built to respect). Use :func:`count_variants` to see the trial count first
+#: and the ``max_variants`` guard on :func:`default_variants` to fail loud rather
+#: than mine thousands of trials by accident. ``clv_min`` follows the displacement
+#: spec block's ``{0.6, 0.7, 0.8}`` (it has no row in the summary grid table).
+FULL_GRIDS: dict[str, tuple[Callable[..., pd.DataFrame], dict[str, list[Any]]]] = {
+    "ev_disp_bar": (
+        detect_displacement,
+        {
+            "z_body": [0.8, 1.0, 1.25, 1.5, 2.0],
+            "clv_min": [0.6, 0.7, 0.8],
+            "z_vol": [None, 1.0, 1.25, 1.5, 2.0],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+    "ev_gap_imb_3c": (
+        detect_fvg,
+        {
+            "body_min": [0.5, 0.6, 0.7, 0.8],
+            "z_imp": [0.0, 1.0, 1.25, 1.5],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+    "ev_sweep_fail": (
+        detect_sweep_fail,
+        {
+            "pivot_k": [2, 3, 5, 10],
+            "eps": [0.0, 0.05, 0.10, 0.25, 0.50],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+    "ev_donchian_break": (
+        detect_donchian,
+        {
+            "N": [10, 20, 40, 60, 120, 252],
+            "buf": [0.0, 0.05, 0.10, 0.25],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+    "ev_outside_reversal": (
+        detect_key_reversal,
+        {"clv_min": [0.6, 0.7, 0.8], "atr_n": [10, 14, 20]},
+    ),
+    "ev_opening_gap": (
+        detect_opening_gap,
+        {"k": [0.25, 0.5, 1.0, 1.5], "atr_n": [10, 14, 20]},
+    ),
+    "ev_inside_bar": (
+        detect_inside_bar,
+        {"strict": [False, True], "atr_n": [10, 14, 20]},
+    ),
+    "ev_nr_squeeze": (
+        detect_nr_squeeze,
+        {"n": [4, 7, 10], "atr_n": [10, 14, 20]},
+    ),
+    "ev_sr_touch_bounce": (
+        detect_sr_touch_bounce,
+        {
+            "pivot_k": [2, 3, 5, 10],
+            "eps": [0.0, 0.05, 0.10, 0.25, 0.50],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+    "ev_ob_impulse_last_opp": (
+        detect_order_block,
+        {
+            "m": [3, 5, 10],
+            "r": [1, 2, 3],
+            "z_body": [1.0, 1.25, 1.5],
+            "atr_n": [10, 14, 20],
+        },
+    ),
+}
+
+
+def count_variants(
+    grids: Mapping[str, tuple[Callable[..., pd.DataFrame], Mapping[str, Sequence[Any]]]],
+) -> int:
+    """Total variant (trial) count a grid set expands to, *before* scanning.
+
+    Each detector contributes the Cartesian-product size of its grid (an empty
+    grid counts as one parameter-free variant, matching :func:`expand_grid`).
+    Knowing the count up front is the precondition for honest multiple-testing
+    correction — call this before :func:`default_variants` / :func:`scan_variants`
+    to see the burden a wide grid (e.g. :data:`FULL_GRIDS`) implies.
+
+    Parameters
+    ----------
+    grids
+        A mapping of detector base id to ``(detector, grid)``, shaped like
+        :data:`DEFAULT_GRIDS` / :data:`FULL_GRIDS`.
+
+    Returns
+    -------
+    int
+        The number of variants the grids expand to.
+    """
+    total = 0
+    for _detect, grid in grids.values():
+        combos = 1
+        for values in grid.values():
+            combos *= len(values)
+        total += combos
+    return total
+
+
+def decode_params(obs: pd.DataFrame) -> pd.DataFrame:
+    """Map each ``params_hash`` in an observation frame back to its params.
+
+    Every view groups by ``params_hash`` (a SHA-1 digest) so distinct
+    parameterisations stay separate — but a digest is unreadable. This recovers
+    the human-readable parameters by deduping the observation frame's own
+    ``params`` column (no recomputation): one row per ``params_hash`` with the
+    ``params`` dict flattened into one column per parameter. Both ``_up`` / ``_dn``
+    branches of a detector call share one hash *and* one params dict, so they
+    collapse to a single row correctly. Joining this onto an evidence table (see
+    :func:`fundcloud.research.events.variant_leaderboard`) is what lets a human
+    read which parameters a row used.
+
+    Parameters
+    ----------
+    obs
+        Observation frame (:func:`scan_variants` output) carrying ``params`` and
+        ``params_hash``.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per distinct ``params_hash`` with a ``params_hash`` column plus
+        one column per parameter key (union across detectors; a key absent for a
+        detector — or an off optional gate like ``z_vol=None`` — reads as ``NaN``,
+        never coerced). Param columns are sorted for determinism. Empty / params-
+        free input yields a frame with just ``params_hash``.
+    """
+    if obs.empty:
+        return pd.DataFrame(columns=["params_hash"])
+    sub = obs.loc[obs["params"].notna(), ["params_hash", "params"]]
+    if sub.empty:
+        return pd.DataFrame(columns=["params_hash"])
+    first = sub.groupby("params_hash", sort=True)["params"].first()
+    flat = pd.DataFrame(list(first.to_numpy()), index=first.index)
+    flat = flat.reindex(sorted(flat.columns), axis=1)
+    flat.insert(0, "params_hash", first.index.to_numpy())
+    return flat.reset_index(drop=True)
 
 
 @dataclass(frozen=True)
@@ -153,10 +321,49 @@ def expand_grid(
     ]
 
 
-def default_variants() -> list[Variant]:
-    """Expand :data:`DEFAULT_GRIDS` into the full first-batch variant list."""
+def default_variants(
+    grids: Mapping[str, tuple[Callable[..., pd.DataFrame], Mapping[str, Sequence[Any]]]]
+    | None = None,
+    *,
+    max_variants: int | None = None,
+) -> list[Variant]:
+    """Expand a grid set into a flat variant list, with an optional trial cap.
+
+    Parameters
+    ----------
+    grids
+        The grid set to expand. Defaults to the tractable :data:`DEFAULT_GRIDS`;
+        pass :data:`FULL_GRIDS` (or a custom dict of the same shape) to tune more
+        parameters. This is how a caller "tunes parameters in scanning" — by
+        choosing the grid, never by silently widening the default.
+    max_variants
+        If set and the grids expand to more than this many variants, raise
+        :class:`ValueError` rather than mining the trials. A guard against an
+        accidental blow-up (each variant is a separate trial — more trials inflate
+        the multiple-testing burden). Call :func:`count_variants` to see the count
+        beforehand.
+
+    Returns
+    -------
+    list[Variant]
+        One variant per parameter combination across all detectors.
+
+    Raises
+    ------
+    ValueError
+        If ``max_variants`` is set and the expansion exceeds it.
+    """
+    chosen = DEFAULT_GRIDS if grids is None else grids
+    total = count_variants(chosen)
+    if max_variants is not None and total > max_variants:
+        msg = (
+            f"grid expansion yields {total} variants, exceeding max_variants="
+            f"{max_variants}; pass a smaller grid or raise the cap (each variant is "
+            f"a separate trial, so more trials inflate the multiple-testing burden)"
+        )
+        raise ValueError(msg)
     variants: list[Variant] = []
-    for event_id, (detect, grid) in DEFAULT_GRIDS.items():
+    for event_id, (detect, grid) in chosen.items():
         variants.extend(expand_grid(event_id, detect, grid))
     return variants
 

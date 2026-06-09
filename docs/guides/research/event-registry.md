@@ -70,10 +70,20 @@ one detector call share one hash.
 | `ev_gap_dn` | Fair Value Gap down (3-candle imbalance) | price_action | down | `ev_gap_imb_3c` | **implemented** (`research.detect_fvg`) |
 | `ev_sweep_up` | Liquidity sweep / failed breakout (support) | price_action | up | `ev_sweep_fail` | **implemented** (`research.detect_sweep_fail`) |
 | `ev_sweep_dn` | Liquidity sweep / failed breakout (resistance) | price_action | down | `ev_sweep_fail` | **implemented** (`research.detect_sweep_fail`) |
-| `ev_ob_impulse_last_opp` | Order block (last opposing candle) | price_action | both | — | proposed |
+| `ev_donchian_up` | Donchian N-day breakout (up) | volatility | up | `ev_donchian_break` | **implemented** (`research.detect_donchian`) |
+| `ev_donchian_dn` | Donchian N-day breakout (down) | volatility | down | `ev_donchian_break` | **implemented** (`research.detect_donchian`) |
+| `ev_keyrev_up` | Outside-bar key reversal (up) | price_action | up | `ev_outside_reversal` | **implemented** (`research.detect_key_reversal`) |
+| `ev_keyrev_dn` | Outside-bar key reversal (down) | price_action | down | `ev_outside_reversal` | **implemented** (`research.detect_key_reversal`) |
+| `ev_opengap_up` | Opening-gap continuation (up) | price_action | up | `ev_opening_gap` | **implemented** (`research.detect_opening_gap`) |
+| `ev_opengap_dn` | Opening-gap continuation (down) | price_action | down | `ev_opening_gap` | **implemented** (`research.detect_opening_gap`) |
+| `ev_inside_bar` | Inside bar (compression) | volatility | neutral | `ev_inside_bar` | **implemented** (`research.detect_inside_bar`) |
+| `ev_nr_squeeze` | NRn range contraction | volatility | neutral | `ev_nr_squeeze` | **implemented** (`research.detect_nr_squeeze`) |
+| `ev_sr_bounce_up` | Support/resistance touch + hold (up) | structure | up | `ev_sr_touch_bounce` | **implemented** (`research.detect_sr_touch_bounce`) |
+| `ev_sr_bounce_dn` | Support/resistance touch + hold (down) | structure | down | `ev_sr_touch_bounce` | **implemented** (`research.detect_sr_touch_bounce`) |
+| `ev_ob_up` | Order block (bullish, last opposing candle) | price_action | up | `ev_ob_impulse_last_opp` | **implemented** (`research.detect_order_block`) |
+| `ev_ob_dn` | Order block (bearish, last opposing candle) | price_action | down | `ev_ob_impulse_last_opp` | **implemented** (`research.detect_order_block`) |
 | `ev_vcp_contract` | Volatility contraction | volatility | long | — | proposed |
 | `ev_pivot_break` | Pivot/base breakout | volatility | long | — | proposed |
-| `ev_sr_touch_bounce` | Support/resistance touch + reject | structure | both | — | proposed |
 | `ev_sr_break_retest` | Break and retest | structure | both | — | proposed |
 | `ev_retrace_ratio` | Fibonacci/retracement-to-zone | structure | both | — | proposed |
 | `ev_cup_u` | Cup (rounded base) | classical | long | — | proposed |
@@ -86,6 +96,14 @@ The 9 classical patterns already ship as Rust detectors (`fundcloud.features.pat
 are listed here so this page is the one registry. Their v1 `breakout_ts = formation_end`
 (`features/patterns/_events.py:85`) is **not** strictly neighbour-locked for pivot patterns —
 when consumed by the event engine they must be re-anchored to `formation_end + max_pivot_order`.
+
+The **`neutral`** branch (e.g. `ev_inside_bar`, `ev_nr_squeeze`) is for events with no inherent
+geometric side — a range contraction precedes an expansion of *unknown* sign. A neutral event
+carries a **single, suffix-less `event_id`**. It is first-class in the evidence layer
+(`forward_paths` / `outcome_profile` read only the realised path, so `side="auto"` decides its
+direction from the data); it is **excluded by design** from the legacy `to_events_frame` →
+`feature_quality` bridge, which keys the long/short entry off the `_up` / `_dn` suffix. Forcing a
+fake suffix would invent a phantom trade mandate the doctrine forbids.
 
 ## Catalog — full specifications
 
@@ -125,12 +143,75 @@ when consumed by the event engine they must be re-anchored to `formation_end + m
 - **confirmed_ts:** `= t`, **provided** every pivot forming `L` satisfies `pivot_index + pivot_k ≤ t`
   (neighbour-lock). Levels not yet locked at `t` are ineligible.
 
+### Implemented batch 2 (bar-local + reused pivot machinery)
+
+#### `ev_donchian_break` — N-day channel breakout (`ev_donchian_up` / `ev_donchian_dn`)
+- **family / direction:** volatility / up + down. **`research.detect_donchian`.**
+- **formation_logic:** trailing channel over the **half-open** window `[t−N, t)` (excludes `t`):
+  `hi_prior = max(high[t−N … t−1])`, `lo_prior = min(low[t−N … t−1])`. Up: `close[t] > hi_prior +
+  buf · ATR_n(t−1)`; down: `close[t] < lo_prior − buf · ATR_n(t−1)`. Stop = the opposite boundary.
+- **parameters:** `N ∈ {10,20,40,60,120,252}` (252 ≈ 52-week); `buf ∈ {0.0,0.05,0.10,0.25}` ATR;
+  `atr_n ∈ {10,14,20}`.
+- **confirmed_ts:** `= t`. A **trailing** rolling extreme is *not* a centred pivot, so there is **no
+  neighbour-lock** and no future read — the key contrast with the pivot families.
+
+#### `ev_outside_reversal` — outside-bar key reversal (`ev_keyrev_up` / `ev_keyrev_dn`)
+- **family / direction:** price_action / up + down. **`research.detect_key_reversal`.**
+- **formation_logic:** outside bar `high[t] > high[t−1]` **and** `low[t] < low[t−1]`; up adds
+  `close[t] > high[t−1]` and `CLV ≥ clv_min`; down adds `close[t] < low[t−1]` and `CLV ≤ 1 − clv_min`.
+  Stop = `low[t]` (up) / `high[t]` (down).
+- **parameters:** `clv_min ∈ {0.6,0.7,0.8}`; `atr_n ∈ {10,14,20}`.
+- **confirmed_ts:** `= t` — bars `t−1, t` only, no pivots.
+
+#### `ev_opening_gap` — overnight-gap continuation (`ev_opengap_up` / `ev_opengap_dn`)
+- **family / direction:** price_action / up + down. **`research.detect_opening_gap`.**
+- **formation_logic:** up: `open[t] > close[t−1] + k · ATR_n(t−1)` **and** `close[t] > open[t]`; down
+  mirrors. Zone = the gap void `[close[t−1], open[t]]` (up). Stop = `low[t]` / `high[t]`. Must run on
+  the **adjusted / cleaned** panel (gap geometry is split/dividend-sensitive).
+- **parameters:** `k ∈ {0.25,0.5,1.0,1.5}` ATR; `atr_n ∈ {10,14,20}`.
+- **confirmed_ts:** `= t` — `open[t]` vs `close[t−1]`, both known at `t`'s close. No neighbour-lock.
+
+#### `ev_inside_bar` — inside-bar compression (**neutral**)
+- **family / direction:** volatility / **neutral** (single suffix-less id). **`research.detect_inside_bar`.**
+- **formation_logic:** `high[t] ≤ high[t−1]` **and** `low[t] ≥ low[t−1]` (strict variant uses `<` / `>`).
+  Zone = the mother-bar range `[low[t−1], high[t−1]]`.
+- **parameters:** `strict ∈ {False,True}`; `atr_n ∈ {10,14,20}`.
+- **confirmed_ts:** `= t`. No neighbour-lock. Side is decided by `side="auto"` (see the neutral note).
+
+#### `ev_nr_squeeze` — NRn range contraction (**neutral**)
+- **family / direction:** volatility / **neutral**. **`research.detect_nr_squeeze`.**
+- **formation_logic:** `range[t] ≤ min(range[t−n+1 … t−1])` — the narrowest range of the last `n` bars
+  (inclusive `≤`, so a tie fires). No zone / stop.
+- **parameters:** `n ∈ {4,7,10}` (NR4 / NR7 / NR10); `atr_n ∈ {10,14,20}`.
+- **confirmed_ts:** `= t`. Pure trailing window, no neighbour-lock.
+
+#### `ev_sr_touch_bounce` — support/resistance touch + hold (`ev_sr_bounce_up` / `ev_sr_bounce_dn`)
+- **family / direction:** structure / up + down. **`research.detect_sr_touch_bounce`.** Same skeleton as
+  `ev_sweep_fail` (neighbour-locked levels from `confirmed_pivots`, nearest eligible level), with a
+  different trigger: a **touch-and-hold** rather than a pierce-and-reclaim.
+- **formation_logic:** up, support `L`: `low[t] ≤ L + eps · ATR_n(t−1)` (a touch, not necessarily a
+  pierce) **and** `close[t] > L`; down mirrors with a resistance `R`. Zone = touch band
+  `[L − eps · ATR, L + eps · ATR]`. Stop = `low[t]` / `high[t]`.
+- **parameters:** `pivot_k ∈ {2,3,5,10}`; `eps ∈ {0.0,0.05,0.10,0.25,0.50}` ATR; `atr_n ∈ {10,14,20}`.
+  v1 ships **without** level clustering (`cluster_tol` deferred).
+- **confirmed_ts:** `= t`, **provided** every pivot forming the level is neighbour-locked
+  (`pivot_index + pivot_k ≤ t`).
+
+#### `ev_ob_impulse_last_opp` — order block (`ev_ob_up` / `ev_ob_dn`)
+- **family / direction:** price_action / up + down. **`research.detect_order_block`.**
+- **formation_logic (bullish):** at a candidate impulse-close bar `c` with a bullish displacement
+  `(close[c] − open[c]) > z_body · ATR_n(c−1)`, find `j` = the **most-recent bearish candle** in
+  `[c−m, c−1]`, and require `close[c] > max(high[j−r … j])`. Zone = candle `j`'s body (or its full range
+  when `wick=True`); stop = `low[j]`. Bearish mirrors.
+- **parameters:** `m ∈ {3,5,10}` (impulse lookback); `r ∈ {1,2,3}` (clearance window);
+  `z_body ∈ {1.0,1.25,1.5}` ATR; `atr_n ∈ {10,14,20}`; `wick ∈ {False,True}`.
+- **confirmed_ts:** `= c` (the impulse-close bar, **not** `j`). The detector is **impulse-bar-driven**
+  (iterates over `c`, scans *backward* for `j`), so every read is `≤ c` ⇒ **no neighbour-lock** and
+  prefix-invariance holds. An opposing-candle-driven loop (over `j`, scanning forward) would leak and is
+  forbidden.
+
 ### Proposed (logic + `confirmed_ts` specified; detector deferred)
 
-- **`ev_ob_impulse_last_opp` (Order block).** Bullish: the most recent bearish candle `j` before a
-  bullish displacement that, within `m` bars, closes above `max(high[j … j−r])`. Zone = body
-  `[min(open[j],close[j]), max(open[j],close[j])]` (wick variant available). **confirmed_ts =**
-  the impulse-close bar (not candle `j`) — causal, no future bars beyond the impulse.
 - **`ev_vcp_contract` (Volatility contraction).** Over window `W`, ≥ `m_pull` successive swing
   pullbacks of decreasing amplitude `a_1 > a_2 > … > a_m`, declining `ATR/price`, flat/down volume.
   Swings are pivot-derived → **neighbour-lock**: confirmed_ts = last contraction's locked pivot
@@ -138,8 +219,6 @@ when consumed by the event engine they must be re-anchored to `formation_end + m
 - **`ev_pivot_break` (Base/pivot breakout).** `pivot = max(high over base)`; at `t`,
   `close[t] > pivot + buf · ATR`, `volume[t] ≥ z_vol · median(volume, base)`, close in top `q` of
   day range. confirmed_ts = `t`, with the base's defining pivots neighbour-locked.
-- **`ev_sr_touch_bounce`.** Build horizontal levels from clustered pivots; bullish at `t` if
-  `low[t] ≤ level + eps·ATR` and `close[t] > level`. confirmed_ts = `t`, levels neighbour-locked.
 - **`ev_sr_break_retest`.** Break at `t0` (`close[t0] > level + buf·ATR`), then within `r` bars a
   retest `low[t] ≤ level + eps·ATR` with `close[t] > level`. confirmed_ts = the retest bar `t`.
 - **`ev_retrace_ratio` (Fib / retracement-to-zone).** After an impulse `s0 → s1`,
@@ -178,6 +257,11 @@ multiple-testing correction (FDR, Deflated Sharpe, PBO) meaningful.
 | Cup depth | {8%, 12%, 15%, 20%, 25%, 33%, 50%} |
 | Handle depth (frac of cup) | {0.2, 0.33, 0.5} |
 | Fib levels | {0.236, 0.382, 0.5, 0.618, 0.705, 0.786} |
+| Donchian channel `N` | {10, 20, 40, 60, 120, 252} (reuses the lookback `W` grid; 252 ≈ 52-week) |
+| Gap size `k` | {0.25, 0.5, 1.0, 1.5} ATR |
+| NR lookback `n` | {4, 7, 10} |
+| Order-block lookback `m` | {3, 5, 10} |
+| Order-block clearance `r` | {1, 2, 3} |
 | Event horizons `h` (bars) | {1, 3, 5, 10, 20, 40, 60} |
 | ATR barriers | {0.5, 1.0, 1.5, 2.0, 3.0} ATR |
 
@@ -242,5 +326,13 @@ labels.
    `event_portfolio`, `evidence_table`). Direction is decided from the measured forward path
    (`side="auto"`), never from the geometric label. Frozen train/validation/holdout split via
    `research.frozen_split`.
-5. Add the missing inference: triple-barrier, block bootstrap, permutation, Deflated Sharpe, PBO.
-6. Pivot-based families, interaction mining, then a portfolio decision layer over holdout survivors.
+5. **(done — batch 2)** Catalog expansion + legible per-variant evaluation: seven new detectors
+   (`ev_donchian_break`, `ev_outside_reversal`, `ev_opening_gap`, `ev_inside_bar`, `ev_nr_squeeze`,
+   `ev_sr_touch_bounce`, `ev_ob_impulse_last_opp`), each gated by the prefix-invariance test; the
+   first **neutral** events; `research.variant_leaderboard` + `research.decode_params` to compare
+   parameterisations side-by-side (params decoded into columns, not an opaque hash); and configurable
+   grids — `DEFAULT_GRIDS` (tractable) vs `FULL_GRIDS` (registry-wide) with `count_variants` +
+   a `max_variants` cap so a wide sweep is always an explicit choice.
+6. Add the missing inference: triple-barrier, block bootstrap, permutation, Deflated Sharpe, PBO.
+7. Remaining pivot/structure families (VCP, cup, trendline, retrace, Wyckoff, break-retest),
+   interaction mining, then a portfolio decision layer over holdout survivors.

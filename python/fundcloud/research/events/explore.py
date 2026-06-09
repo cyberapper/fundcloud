@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from fundcloud.research.events.study import STUDY_HORIZONS
+from fundcloud.research.events.study import STUDY_HORIZONS, decode_params
 
 __all__ = [
     "event_portfolio",
@@ -45,6 +45,7 @@ __all__ = [
     "portfolio_by_event",
     "return_distribution",
     "tag_episodes",
+    "variant_leaderboard",
 ]
 
 _TRADING_DAYS = 252
@@ -666,3 +667,92 @@ def evidence_table(
                "avg_breadth", "bh_cagr", "bh_max_drawdown"]
     merged = profile[keep_profile].merge(pf[keep_pf], on=list(by), how="outer")
     return merged.sort_values(list(by)).reset_index(drop=True)[out_cols]
+
+
+def variant_leaderboard(
+    obs: pd.DataFrame,
+    panel: pd.DataFrame,
+    *,
+    horizon: int = 20,
+    event_id: str | None = None,
+    sort_by: str = "sharpe",
+    ascending: bool = False,
+    steady_band: float = 0.5,
+    cost_bps: float = 6.0,
+) -> pd.DataFrame:
+    """Rank parameter variants of an event with their params decoded into columns.
+
+    This is the **legible** answer to "scan event/param1 and event/param2 and
+    evaluate them separately": the evidence layer already keeps variants apart by
+    ``params_hash``, but a hash is unreadable. This calls :func:`evidence_table`
+    (one row per ``(event_id, params_hash)`` — the existing math, not recomputed)
+    and left-joins :func:`fundcloud.research.events.decode_params` so the swept
+    parameters appear as their own columns next to the metrics, then sorts by a
+    chosen metric. A human reads ``z_body=1.0 → sharpe 0.3`` vs ``z_body=1.5 →
+    sharpe 0.6`` directly off the table.
+
+    Parameters
+    ----------
+    obs
+        Observation frame (e.g. :func:`fundcloud.research.events.scan_variants`),
+        typically pooling several variants.
+    panel
+        The ``(field, symbol)`` panel the events were detected on.
+    horizon
+        Forward/holding horizon in bars (default 20).
+    event_id
+        If given, restrict to this ``event_id`` so the parameter columns are
+        homogeneous (every variant of one event shares the same param keys). When
+        ``None`` the table pools detectors and the non-shared param columns read
+        ``NaN`` for variants that do not use them — honest, not hidden.
+    sort_by
+        Metric column to rank by (default ``"sharpe"``). Raises if absent.
+    ascending
+        Sort direction (default ``False`` → best metric on top); ``NaN`` keys sink.
+    steady_band
+        Half-width (ATR units) of the steady zone, forwarded to the outcome view.
+    cost_bps
+        Round-trip cost in basis points, forwarded to the portfolio view.
+
+    Returns
+    -------
+    pandas.DataFrame
+        One row per ``(event_id, params_hash)``, column-ordered
+        ``event_id, params_hash, <decoded params>, <evidence + portfolio metrics>``
+        and sorted by ``sort_by``. Empty obs yields the empty
+        :func:`evidence_table` frame (the parameter columns are unknowable with no
+        rows).
+
+    Raises
+    ------
+    ValueError
+        If ``sort_by`` is not a column of the assembled table.
+    """
+    by = ("event_id", "params_hash")
+    scoped = obs if event_id is None else obs[obs["event_id"] == event_id]
+    table = evidence_table(scoped, panel, horizon=horizon, by=by,
+                           steady_band=steady_band, cost_bps=cost_bps)
+    if table.empty:
+        return table
+
+    key_cols = ["event_id", "params_hash"]
+    metric_cols = [c for c in table.columns if c not in key_cols]
+
+    decoded = decode_params(scoped)
+    # A parameter can share a name with a metric column — e.g. the NR lookback
+    # ``n`` collides with the episode-count metric ``n``. Prefix only the
+    # colliding param(s) with ``param_`` so the join stays unambiguous and no
+    # metric is shadowed; every other param keeps its plain, readable name.
+    collisions = {c for c in decoded.columns if c in set(metric_cols)}
+    if collisions:
+        decoded = decoded.rename(columns={c: f"param_{c}" for c in collisions})
+    param_cols = [c for c in decoded.columns if c != "params_hash"]
+    merged = table.merge(decoded, on="params_hash", how="left")
+    merged = merged[[*key_cols, *param_cols, *metric_cols]]
+
+    if sort_by not in merged.columns:
+        msg = f"unknown sort_by: {sort_by!r}; valid metric columns: {metric_cols}"
+        raise ValueError(msg)
+    return merged.sort_values(sort_by, ascending=ascending, na_position="last").reset_index(
+        drop=True
+    )

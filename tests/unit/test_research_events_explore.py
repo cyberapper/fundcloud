@@ -18,6 +18,7 @@ from fundcloud.research.events.explore import (
     portfolio_by_event,
     return_distribution,
     tag_episodes,
+    variant_leaderboard,
 )
 from fundcloud.research.events.schema import build_observations
 
@@ -293,3 +294,126 @@ def test_empty_obs_yields_empty_views() -> None:
     assert return_distribution(forward_paths(empty, panel)).empty
     assert portfolio_by_event(empty, panel, horizon=10).empty
     assert evidence_table(empty, panel, horizon=10).empty
+
+
+# --- variant leaderboard: legible per-parameter-variant comparison ----------
+
+
+def _obs_two_variants(panel: pd.DataFrame) -> pd.DataFrame:
+    """Two variants of one event_id on the up-drift panel, distinct params_hash.
+
+    Hand-built (no detector firing needed) so the leaderboard's decode + sort
+    logic is exercised deterministically: each variant carries a real ``params``
+    dict and its own ``params_hash``.
+    """
+    idx = panel.index
+
+    def _rows(positions: list[int], phash: str, params: dict[str, object]) -> list[dict]:
+        out = []
+        for p in positions:
+            out.append({
+                "event_id": "ev_test",
+                "asset": "AAA",
+                "timeframe": "1D",
+                "formation_end_ts": idx[p],
+                "confirmed_ts": idx[p],
+                "execution_ts": idx[p + 1],
+                "params": params,
+                "logic_version": 1,
+                "params_hash": phash,
+                "entry_ref_price": float(panel[("open", "AAA")].iloc[p + 1]),
+                "stop_ref_price": float("nan"),
+                "zone_lo": float("nan"),
+                "zone_hi": float("nan"),
+                "quality": float("nan"),
+                "atr_at_confirm": 1.0,
+            })
+        return out
+
+    rows = _rows(list(range(5, 40, 5)), "h_lo", {"z_body": 1.0})
+    rows += _rows(list(range(6, 40, 5)), "h_hi", {"z_body": 1.5})
+    return build_observations(rows)
+
+
+def test_variant_leaderboard_one_row_per_variant_with_decoded_params() -> None:
+    panel = _panel_up_drift()
+    obs = _obs_two_variants(panel)
+
+    board = variant_leaderboard(obs, panel, horizon=10, sort_by="cagr")
+
+    assert len(board) == 2  # one row per (event_id, params_hash)
+    # Keys first, then the decoded params (the legibility win), then metrics.
+    assert list(board.columns[:3]) == ["event_id", "params_hash", "z_body"]
+    assert set(board["z_body"]) == {1.0, 1.5}
+    assert {"sharpe", "cagr", "frac_up", "suggested", "side", "max_drawdown"} <= set(board.columns)
+
+
+def test_variant_leaderboard_sorts_by_chosen_metric() -> None:
+    panel = _panel_up_drift()
+    obs = _obs_two_variants(panel)
+
+    by_cagr = variant_leaderboard(obs, panel, horizon=10, sort_by="cagr")
+    assert by_cagr["cagr"].iloc[0] >= by_cagr["cagr"].iloc[1]  # best on top
+
+    by_sharpe = variant_leaderboard(obs, panel, horizon=10, sort_by="sharpe", ascending=True)
+    assert by_sharpe["sharpe"].iloc[0] <= by_sharpe["sharpe"].iloc[1]  # ascending flips it
+
+
+def test_variant_leaderboard_invalid_sort_by_raises() -> None:
+    panel = _panel_up_drift()
+    obs = _obs_two_variants(panel)
+    with pytest.raises(ValueError, match="unknown sort_by"):
+        variant_leaderboard(obs, panel, horizon=10, sort_by="nope")
+
+
+def test_variant_leaderboard_event_id_filter() -> None:
+    panel = _panel_up_drift()
+    obs = _obs_two_variants(panel)
+
+    kept = variant_leaderboard(obs, panel, horizon=10, event_id="ev_test")
+    assert len(kept) == 2
+
+    missing = variant_leaderboard(obs, panel, horizon=10, event_id="ev_missing")
+    assert missing.empty
+
+
+def test_variant_leaderboard_empty_obs() -> None:
+    panel = _panel_up_drift()
+    board = variant_leaderboard(build_observations([]), panel, horizon=10)
+    assert board.empty
+
+
+def test_variant_leaderboard_param_name_collision_with_metric() -> None:
+    # The NR lookback param is literally named "n" — it collides with the
+    # episode-count metric "n". The leaderboard must prefix the colliding param to
+    # "param_n" and keep the metric "n" intact, not crash on the merge.
+    panel = _panel_up_drift()
+    idx = panel.index
+    rows = []
+    for phash, n_val, positions in (("h4", 4, range(5, 40, 5)), ("h7", 7, range(6, 40, 5))):
+        for p in positions:
+            rows.append({
+                "event_id": "ev_nr_squeeze",
+                "asset": "AAA",
+                "timeframe": "1D",
+                "formation_end_ts": idx[p],
+                "confirmed_ts": idx[p],
+                "execution_ts": idx[p + 1],
+                "params": {"n": n_val, "atr_n": 14},
+                "logic_version": 1,
+                "params_hash": phash,
+                "entry_ref_price": float(panel[("open", "AAA")].iloc[p + 1]),
+                "stop_ref_price": float("nan"),
+                "zone_lo": float("nan"),
+                "zone_hi": float("nan"),
+                "quality": float("nan"),
+                "atr_at_confirm": 1.0,
+            })
+    obs = build_observations(rows)
+
+    board = variant_leaderboard(obs, panel, horizon=10, event_id="ev_nr_squeeze")
+
+    assert "param_n" in board.columns  # the colliding param was prefixed
+    assert "n" in board.columns  # the episode-count metric survived intact
+    assert set(board["param_n"]) == {4, 7}
+    assert len(board) == 2

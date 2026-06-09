@@ -24,7 +24,14 @@ from fundcloud.research.events._causality import (
 )
 from fundcloud.research.events.detectors import (
     detect_displacement,
+    detect_donchian,
     detect_fvg,
+    detect_inside_bar,
+    detect_key_reversal,
+    detect_nr_squeeze,
+    detect_opening_gap,
+    detect_order_block,
+    detect_sr_touch_bounce,
     detect_sweep_fail,
     scan_panel,
 )
@@ -36,6 +43,7 @@ from fundcloud.research.events.explore import (
     portfolio_by_event,
     return_distribution,
     tag_episodes,
+    variant_leaderboard,
 )
 from fundcloud.research.events.schema import (
     OBSERVATION_COLUMNS,
@@ -46,8 +54,11 @@ from fundcloud.research.events.schema import (
 from fundcloud.research.events.split import FrozenSplit, frozen_split
 from fundcloud.research.events.study import (
     DEFAULT_GRIDS,
+    FULL_GRIDS,
     STUDY_HORIZONS,
     Variant,
+    count_variants,
+    decode_params,
     default_variants,
     expand_grid,
     scan_variants,
@@ -55,6 +66,7 @@ from fundcloud.research.events.study import (
 
 __all__ = [
     "DEFAULT_GRIDS",
+    "FULL_GRIDS",
     "OBSERVATION_COLUMNS",
     "STUDY_HORIZONS",
     "FrozenSplit",
@@ -62,9 +74,18 @@ __all__ = [
     "assert_prefix_invariant",
     "build_observations",
     "confirmed_pivots",
+    "count_variants",
+    "decode_params",
     "default_variants",
     "detect_displacement",
+    "detect_donchian",
     "detect_fvg",
+    "detect_inside_bar",
+    "detect_key_reversal",
+    "detect_nr_squeeze",
+    "detect_opening_gap",
+    "detect_order_block",
+    "detect_sr_touch_bounce",
     "detect_sweep_fail",
     "event_portfolio",
     "evidence_table",
@@ -79,5 +100,6 @@ __all__ = [
     "scan_variants",
     "tag_episodes",
     "to_events_frame",
+    "variant_leaderboard",
     "wilder_atr",
 ]

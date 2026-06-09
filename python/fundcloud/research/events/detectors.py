@@ -14,13 +14,27 @@ from typing import Any
 import pandas as pd
 
 from fundcloud.research.events._displacement import detect_displacement
+from fundcloud.research.events._donchian import detect_donchian
 from fundcloud.research.events._fvg import detect_fvg
+from fundcloud.research.events._inside_bar import detect_inside_bar
+from fundcloud.research.events._nr_squeeze import detect_nr_squeeze
+from fundcloud.research.events._opening_gap import detect_opening_gap
+from fundcloud.research.events._order_block import detect_order_block
+from fundcloud.research.events._reversal import detect_key_reversal
+from fundcloud.research.events._sr_touch import detect_sr_touch_bounce
 from fundcloud.research.events._sweep import detect_sweep_fail
 from fundcloud.research.events.schema import build_observations
 
 __all__ = [
     "detect_displacement",
+    "detect_donchian",
     "detect_fvg",
+    "detect_inside_bar",
+    "detect_key_reversal",
+    "detect_nr_squeeze",
+    "detect_opening_gap",
+    "detect_order_block",
+    "detect_sr_touch_bounce",
     "detect_sweep_fail",
     "scan_panel",
 ]
