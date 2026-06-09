@@ -1,20 +1,40 @@
 """Research utilities for the event-study engine.
 
-Step 1 ships the data layer only: leak-free extraction of clean daily OHLCV from the
+Step 1 ships the data layer: leak-free extraction of clean daily OHLCV from the
 ClickHouse ``md_ohlcv_data`` feed (:func:`load_bars`, :func:`load_universe`) and a
 quality gate + cleaner (:func:`check_quality`, :func:`clean_panel`) to run before any
 research touches the data.
+
+The event layer adds the single-asset detectors (:func:`detect_displacement`,
+:func:`detect_fvg`, :func:`detect_sweep_fail`), the :func:`scan_panel` helper that
+runs a detector across a ``(field, symbol)`` panel, and the schema surface
+(:data:`OBSERVATION_COLUMNS`, :func:`to_events_frame`) needed to feed detected
+events to :func:`fundcloud.metrics.feature_quality.evaluate`.
 """
 
 from __future__ import annotations
 
+from fundcloud.research.events import (
+    OBSERVATION_COLUMNS,
+    detect_displacement,
+    detect_fvg,
+    detect_sweep_fail,
+    scan_panel,
+    to_events_frame,
+)
 from fundcloud.research.loader import load_bars, load_universe
 from fundcloud.research.quality import QualityReport, check_quality, clean_panel
 
 __all__ = [
+    "OBSERVATION_COLUMNS",
     "QualityReport",
     "check_quality",
     "clean_panel",
+    "detect_displacement",
+    "detect_fvg",
+    "detect_sweep_fail",
     "load_bars",
     "load_universe",
+    "scan_panel",
+    "to_events_frame",
 ]

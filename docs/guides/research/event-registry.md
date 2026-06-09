@@ -59,9 +59,9 @@ Per-event specs below say `confirmed_ts = t` as shorthand for `observable_ts = t
 
 | event_id | name | family | direction | status |
 |---|---|---|---|---|
-| `ev_disp_bar` | Displacement bar | price_action | both | proposed |
-| `ev_gap_imb_3c` | Fair Value Gap (3-candle imbalance) | price_action | both | proposed |
-| `ev_sweep_fail` | Liquidity sweep / failed breakout | price_action | both | proposed |
+| `ev_disp_bar` | Displacement bar | price_action | both | **implemented** (`research.detect_displacement`) |
+| `ev_gap_imb_3c` | Fair Value Gap (3-candle imbalance) | price_action | both | **implemented** (`research.detect_fvg`) |
+| `ev_sweep_fail` | Liquidity sweep / failed breakout | price_action | both | **implemented** (`research.detect_sweep_fail`) |
 | `ev_ob_impulse_last_opp` | Order block (last opposing candle) | price_action | both | proposed |
 | `ev_vcp_contract` | Volatility contraction | volatility | long | proposed |
 | `ev_pivot_break` | Pivot/base breakout | volatility | long | proposed |
@@ -222,8 +222,9 @@ labels.
 
 1. **(done)** Clean daily data feed — `fundcloud.research.load_bars` / `clean_panel`.
 2. **(this page)** Event catalog + observation schema.
-3. Code the three immediate causal detectors (`ev_disp_bar`, `ev_gap_imb_3c`, `ev_sweep_fail`) —
-   each gated by the **prefix-invariance test** (contract rule 3).
+3. **(done)** Code the three immediate causal detectors (`ev_disp_bar`, `ev_gap_imb_3c`,
+   `ev_sweep_fail`) in `fundcloud.research.events` — each gated by the **prefix-invariance test**
+   (contract rule 3).
 4. Wire them through `feature_quality.evaluate()` + a frozen train/validation/holdout split.
 5. Add the missing inference: triple-barrier, block bootstrap, permutation, Deflated Sharpe, PBO.
 6. Pivot-based families, interaction mining, then a portfolio decision layer over holdout survivors.
