@@ -1,6 +1,6 @@
-"""Tests for the three-candle fair-value-gap detector (``ev_gap_imb_3c``).
+"""Tests for the three-candle fair-value-gap detector (``ev_gap_up`` / ``ev_gap_dn``).
 
-Covers a guaranteed bullish trigger, a guaranteed bearish trigger, a flat
+Covers a guaranteed up-gap trigger, a guaranteed down-gap trigger, a flat
 non-triggering frame, and the mandatory prefix-invariance proof that the
 detector reads no future bars.
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from fundcloud.research.events._causality import assert_prefix_invariant
-from fundcloud.research.events._fvg import EVENT_ID, detect_fvg
+from fundcloud.research.events._fvg import EVENT_ID_DN, EVENT_ID_UP, detect_fvg
 from fundcloud.research.events.schema import OBSERVATION_COLUMNS
 
 
@@ -53,8 +53,7 @@ def test_bullish_gap_fires() -> None:
     assert list(out.columns) == list(OBSERVATION_COLUMNS)
     assert len(out) == 1
     ev = out.iloc[0]
-    assert ev["event_id"] == EVENT_ID
-    assert ev["direction"] == "bullish"
+    assert ev["event_id"] == EVENT_ID_UP
     assert ev["confirmed_ts"] == bars.index[5]
     assert ev["formation_end_ts"] == bars.index[5]
     assert ev["zone_lo"] == 100.5  # high[t-2]
@@ -76,7 +75,7 @@ def test_bearish_gap_fires() -> None:
 
     assert len(out) == 1
     ev = out.iloc[0]
-    assert ev["direction"] == "bearish"
+    assert ev["event_id"] == EVENT_ID_DN
     assert ev["confirmed_ts"] == bars.index[5]
     assert ev["zone_lo"] == 99.0  # high[t]
     assert ev["zone_hi"] == 99.5  # low[t-2]
@@ -95,7 +94,7 @@ def test_execution_fields_when_next_bar_exists() -> None:
 
     assert len(out) == 1
     ev = out.iloc[0]
-    assert ev["direction"] == "bullish"
+    assert ev["event_id"] == EVENT_ID_UP
     assert ev["confirmed_ts"] == bars.index[5]
     assert ev["execution_ts"] == bars.index[6]
     assert ev["entry_ref_price"] == 112.0  # open[t+1]
@@ -141,8 +140,8 @@ def test_prefix_invariance_no_future_leak() -> None:
     rows.extend(_flat(5, level=100.0))  # 25..29
     bars = _bars(rows)
 
-    # Sanity: at least one of each direction is present in the full run.
+    # Sanity: at least one of each geometric branch is present in the full run.
     full = detect_fvg(bars, asset="TEST", atr_n=14)
-    assert set(full["direction"]) >= {"bullish", "bearish"}
+    assert set(full["event_id"]) >= {EVENT_ID_UP, EVENT_ID_DN}
 
     assert_prefix_invariant(detect_fvg, bars, asset="TEST", atr_n=14)

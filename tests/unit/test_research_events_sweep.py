@@ -53,9 +53,8 @@ def test_bullish_support_sweep_fires() -> None:
     assert list(out.columns) == list(OBSERVATION_COLUMNS)
     assert len(out) == 1
     row = out.iloc[0]
-    assert row["direction"] == "bullish"
     assert row["asset"] == "AAA"
-    assert row["event_id"] == "ev_sweep_fail"
+    assert row["event_id"] == "ev_sweep_up"
     assert row["confirmed_ts"] == bars.index[4]
     assert row["formation_end_ts"] == bars.index[4]
     # Last bar -> no next bar to execute on.
@@ -85,7 +84,7 @@ def test_bearish_resistance_sweep_fires() -> None:
 
     assert len(out) == 1
     row = out.iloc[0]
-    assert row["direction"] == "bearish"
+    assert row["event_id"] == "ev_sweep_dn"
     assert row["confirmed_ts"] == bars.index[4]
     assert row["zone_lo"] == 102.0
     assert row["zone_hi"] > 102.0

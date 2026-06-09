@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from fundcloud.metrics.feature_quality import evaluate
 from fundcloud.research.events.detectors import detect_fvg, scan_panel
+from fundcloud.research.events.explore import forward_paths
 from fundcloud.research.events.schema import (
     OBSERVATION_COLUMNS,
     build_observations,
@@ -25,13 +26,12 @@ def _row() -> dict[str, object]:
     """A single observation dict with every schema key populated."""
     ts = pd.Timestamp("2020-01-05", tz="UTC")
     return {
-        "event_id": "ev_gap_imb_3c",
+        "event_id": "ev_gap_up",
         "asset": "AAA",
         "timeframe": "1D",
         "formation_end_ts": ts,
         "confirmed_ts": ts,
         "execution_ts": ts + pd.Timedelta(days=1),
-        "direction": "bullish",
         "params": {"body_min": 0.6},
         "logic_version": 1,
         "params_hash": "deadbeef0000",
@@ -59,6 +59,22 @@ def test_build_observations_columns_and_ts_dtypes() -> None:
     for col in ("formation_end_ts", "confirmed_ts", "execution_ts"):
         assert isinstance(out[col].dtype, pd.DatetimeTZDtype)
         assert str(out[col].dtype) == "datetime64[ns, UTC]"
+
+
+def test_to_events_frame_routes_by_event_id_suffix() -> None:
+    # _up suffix -> long_entry populated, short_entry NaN.
+    up = build_observations([_row()])  # event_id "ev_gap_up"
+    events_up = to_events_frame(up)
+    assert events_up["long_entry"].iloc[0] == 101.0
+    assert pd.isna(events_up["short_entry"].iloc[0])
+
+    # _dn suffix -> short_entry populated, long_entry NaN.
+    dn_row = _row()
+    dn_row["event_id"] = "ev_gap_dn"
+    dn = build_observations([dn_row])
+    events_dn = to_events_frame(dn)
+    assert events_dn["short_entry"].iloc[0] == 101.0
+    assert pd.isna(events_dn["long_entry"].iloc[0])
 
 
 def test_params_hash_stable_and_order_independent() -> None:
@@ -133,3 +149,45 @@ def test_end_to_end_scan_to_evaluate() -> None:
     result = evaluate(events, panel, horizons=(5, 10), atr_window=3)
     assert not result.empty
     assert (result["n_events"] > 0).any()
+
+
+def _panel_late_listed(pad: int = 5) -> pd.DataFrame:
+    """Panel where ``BBB`` lists ``pad`` bars after the panel start (leading NaN).
+
+    ``AAA`` is valid across the whole index; ``BBB`` is NaN for the first ``pad``
+    bars then carries the FVG fixture. Mirrors a real late-IPO symbol in a panel
+    that starts earlier.
+    """
+    arr = _asset_rows()
+    n = len(arr)
+    idx = _index(pad + n)
+    flat = np.array([(100.0, 100.5, 99.5, 100.0)] * (pad + n), dtype=float)
+    bbb = np.full((pad + n, 4), np.nan)
+    bbb[pad:] = arr
+    data: dict[tuple[str, str], pd.Series] = {}
+    for sym, rows in (("AAA", flat), ("BBB", bbb)):
+        data[("open", sym)] = pd.Series(rows[:, 0], index=idx)
+        data[("high", sym)] = pd.Series(rows[:, 1], index=idx)
+        data[("low", sym)] = pd.Series(rows[:, 2], index=idx)
+        data[("close", sym)] = pd.Series(rows[:, 3], index=idx)
+        data[("volume", sym)] = pd.Series(np.ones(pad + n), index=idx)
+    df = pd.DataFrame(data, index=idx)
+    df.columns = pd.MultiIndex.from_tuples(df.columns)
+    return df.sort_index(axis=1)
+
+
+def test_late_listed_symbol_is_not_silently_dropped() -> None:
+    # Regression: a symbol that lists after the panel start has leading-NaN bars.
+    # Feeding those to the detector poisons Wilder's ATR seed (all-NaN ATR), so
+    # every event's atr_at_confirm came back NaN and forward_paths dropped the
+    # whole symbol. scan_panel must dropna per symbol before detecting.
+    panel = _panel_late_listed(pad=5)
+
+    obs = scan_panel(panel, detect_fvg, atr_n=3)
+    bbb = obs[obs["asset"] == "BBB"]
+
+    assert not bbb.empty  # the late-listed symbol produces events
+    assert bbb["atr_at_confirm"].notna().all()  # ATR is real, not NaN-poisoned
+    # and the events survive into the forward-path layer (not silently dropped).
+    paths = forward_paths(obs, panel, horizons=(5,))
+    assert (paths["asset"] == "BBB").any()

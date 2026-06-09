@@ -28,23 +28,56 @@ from fundcloud.research.events.detectors import (
     detect_sweep_fail,
     scan_panel,
 )
+from fundcloud.research.events.explore import (
+    event_portfolio,
+    evidence_table,
+    forward_paths,
+    outcome_profile,
+    portfolio_by_event,
+    return_distribution,
+    tag_episodes,
+)
 from fundcloud.research.events.schema import (
     OBSERVATION_COLUMNS,
     build_observations,
     params_hash,
     to_events_frame,
 )
+from fundcloud.research.events.split import FrozenSplit, frozen_split
+from fundcloud.research.events.study import (
+    DEFAULT_GRIDS,
+    STUDY_HORIZONS,
+    Variant,
+    default_variants,
+    expand_grid,
+    scan_variants,
+)
 
 __all__ = [
+    "DEFAULT_GRIDS",
     "OBSERVATION_COLUMNS",
+    "STUDY_HORIZONS",
+    "FrozenSplit",
+    "Variant",
     "assert_prefix_invariant",
     "build_observations",
     "confirmed_pivots",
+    "default_variants",
     "detect_displacement",
     "detect_fvg",
     "detect_sweep_fail",
+    "event_portfolio",
+    "evidence_table",
+    "expand_grid",
+    "forward_paths",
+    "frozen_split",
+    "outcome_profile",
     "params_hash",
+    "portfolio_by_event",
+    "return_distribution",
     "scan_panel",
+    "scan_variants",
+    "tag_episodes",
     "to_events_frame",
     "wilder_atr",
 ]

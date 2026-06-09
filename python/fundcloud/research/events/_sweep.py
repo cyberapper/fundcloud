@@ -1,18 +1,22 @@
-"""Liquidity-sweep failure detector (``ev_sweep_fail``).
+"""Liquidity-sweep failure detector (``ev_sweep_up`` / ``ev_sweep_dn``).
 
 A *sweep failure* is a stop-run that immediately reverses: price pierces a known
 swing level by a volatility-scaled margin, then closes back on the original side
 within the same bar. The pierced level is liquidity; the close-back is the
 rejection that names the bar a sweep, not a breakout.
 
-* **bullish** (support sweep) — an eligible pivot-low support ``L`` is taken out
-  below (``low[t] < L - eps * atr[t-1]``) but the bar closes back above it
+* ``ev_sweep_up`` (support sweep) — an eligible pivot-low support ``L`` is taken
+  out below (``low[t] < L - eps * atr[t-1]``) but the bar closes back above it
   (``close[t] > L``). The reversal is up; the structural stop sits under the
   wick (``stop_ref_price = low[t]``).
-* **bearish** (resistance sweep) — an eligible pivot-high resistance ``R`` is
+* ``ev_sweep_dn`` (resistance sweep) — an eligible pivot-high resistance ``R`` is
   taken out above (``high[t] > R + eps * atr[t-1]``) but the bar closes back
   below it (``close[t] < R``). The reversal is down; the stop sits above the
   wick (``stop_ref_price = high[t]``).
+
+The two geometric branches are distinct events (their ``event_id`` *is* the
+detection equation), emitted as separate rows that share one ``params_hash``
+(keyed on the detector base id :data:`BASE_EVENT_ID`).
 
 Causality (``docs/guides/research/event-registry.md``): levels are
 pivot-derived, so each neighbour-locks. A pivot of order ``k`` at index ``p`` is
@@ -20,8 +24,7 @@ only knowable at ``p + k``; the level it builds is *eligible* at bar ``t`` only
 when ``p + k <= t``. The sweep margin uses the *prior* bar's ATR (``atr[t-1]``),
 which is fully knowable at ``t``. ``confirmed_ts`` is therefore bar ``t`` with no
 forward read; ``execution_ts`` / ``entry_ref_price`` legitimately reference the
-next bar's open (NaT / NaN on the final bar). Bullish and bearish are separate
-rows.
+next bar's open (NaT / NaN on the final bar).
 """
 
 from __future__ import annotations
@@ -34,7 +37,13 @@ from fundcloud.research.events.schema import build_observations, params_hash
 
 __all__ = ["detect_sweep_fail"]
 
-EVENT_ID = "ev_sweep_fail"
+#: Event id for the support-sweep (bullish-geometry) branch.
+EVENT_ID_UP = "ev_sweep_up"
+#: Event id for the resistance-sweep (bearish-geometry) branch.
+EVENT_ID_DN = "ev_sweep_dn"
+#: Detector base id — used ONLY to key ``params_hash`` so both branches of one
+#: call share a single hash. It never appears as an emitted ``event_id``.
+BASE_EVENT_ID = "ev_sweep_fail"
 _TIMEFRAME = "1D"
 
 
@@ -74,9 +83,9 @@ def detect_sweep_fail(
     pandas.DataFrame
         Observation frame with exactly
         :data:`fundcloud.research.events.schema.OBSERVATION_COLUMNS`. At most one
-        row per ``(bar, direction)``, using the nearest swept level on ties.
-        Empty input — or no sweep failures — yields an empty frame with those
-        columns.
+        row per ``(bar, branch)`` (``ev_sweep_up`` / ``ev_sweep_dn``), using the
+        nearest swept level on ties. Empty input — or no sweep failures — yields
+        an empty frame with those columns.
     """
     if bars.empty:
         return build_observations([])
@@ -92,7 +101,7 @@ def detect_sweep_fail(
     pivot_highs, pivot_lows = confirmed_pivots(high, low, pivot_k)
 
     params = {"pivot_k": int(pivot_k), "eps": float(eps), "atr_n": int(atr_n)}
-    phash = params_hash(EVENT_ID, params, logic_version)
+    phash = params_hash(BASE_EVENT_ID, params, logic_version)
 
     rows: list[dict[str, object]] = []
     for t in range(n):
@@ -111,7 +120,7 @@ def detect_sweep_fail(
                     t=t,
                     n=n,
                     open_=open_,
-                    direction="bullish",
+                    event_id=EVENT_ID_UP,
                     zone_lo=level - margin,
                     zone_hi=level,
                     stop_ref_price=low[t],
@@ -132,7 +141,7 @@ def detect_sweep_fail(
                     t=t,
                     n=n,
                     open_=open_,
-                    direction="bearish",
+                    event_id=EVENT_ID_DN,
                     zone_lo=level,
                     zone_hi=level + margin,
                     stop_ref_price=high[t],
@@ -199,7 +208,7 @@ def _make_row(
     t: int,
     n: int,
     open_: np.ndarray,
-    direction: str,
+    event_id: str,
     zone_lo: float,
     zone_hi: float,
     stop_ref_price: float,
@@ -213,13 +222,12 @@ def _make_row(
     execution_ts = index[t + 1] if has_next else None
     entry_ref_price = float(open_[t + 1]) if has_next else np.nan
     return {
-        "event_id": EVENT_ID,
+        "event_id": event_id,
         "asset": asset,
         "timeframe": _TIMEFRAME,
         "formation_end_ts": index[t],
         "confirmed_ts": index[t],
         "execution_ts": execution_ts,
-        "direction": direction,
         "params": params,
         "logic_version": int(logic_version),
         "params_hash": phash,

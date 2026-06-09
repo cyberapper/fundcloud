@@ -1,4 +1,4 @@
-"""Three-candle fair-value-gap / imbalance detector (``ev_gap_imb_3c``).
+"""Three-candle fair-value-gap / imbalance detector (``ev_gap_up`` / ``ev_gap_dn``).
 
 A fair-value gap (FVG) is a three-bar imbalance: the middle bar's range is so
 wide that the outer two bars do not overlap, leaving an unfilled price void.
@@ -15,8 +15,11 @@ The gap is qualified two ways so noise gaps drop out:
 * **Impulse** — the middle bar's range, measured in ATR units at ``t-1``, must
   reach ``z_imp``, i.e. an actual volatility expansion.
 
-Bullish and bearish gaps are emitted as separate rows. See
-``docs/guides/research/event-registry.md`` for the registry contract.
+The two geometric branches are distinct events (their ``event_id`` *is* the
+detection equation): the up-gap ``low[t] > high[t-2]`` emits ``ev_gap_up`` and
+the down-gap ``high[t] < low[t-2]`` emits ``ev_gap_dn``, on separate rows that
+share one ``params_hash`` (keyed on the detector base id :data:`BASE_EVENT_ID`).
+See ``docs/guides/research/event-registry.md`` for the registry contract.
 """
 
 from __future__ import annotations
@@ -30,8 +33,13 @@ from fundcloud.research.events.schema import build_observations, params_hash
 
 __all__ = ["detect_fvg"]
 
-#: Catalog id for the three-candle imbalance event.
-EVENT_ID = "ev_gap_imb_3c"
+#: Event id for the up-gap (bullish-geometry) branch.
+EVENT_ID_UP = "ev_gap_up"
+#: Event id for the down-gap (bearish-geometry) branch.
+EVENT_ID_DN = "ev_gap_dn"
+#: Detector base id — used ONLY to key ``params_hash`` so both branches of one
+#: call share a single hash. It never appears as an emitted ``event_id``.
+BASE_EVENT_ID = "ev_gap_imb_3c"
 
 
 def detect_fvg(
@@ -49,9 +57,9 @@ def detect_fvg(
     by body fraction and ATR-relative impulse, and a gap fires when the outer
     bars (``t-2`` and ``t``) fail to overlap in the gap direction:
 
-    * **bullish** — ``low[t] > high[t-2]`` (an up-gap); the void is
+    * ``ev_gap_up`` — ``low[t] > high[t-2]`` (an up-gap); the void is
       ``zone_lo = high[t-2]`` to ``zone_hi = low[t]``.
-    * **bearish** — ``high[t] < low[t-2]`` (a down-gap); the void is
+    * ``ev_gap_dn`` — ``high[t] < low[t-2]`` (a down-gap); the void is
       ``zone_lo = high[t]`` to ``zone_hi = low[t-2]``.
 
     Each qualifying gap also requires ``body_frac >= body_min`` and
@@ -106,7 +114,7 @@ def detect_fvg(
         "z_imp": z_imp,
         "atr_n": atr_n,
     }
-    phash = params_hash(EVENT_ID, params, logic_version)
+    phash = params_hash(BASE_EVENT_ID, params, logic_version)
     timeframe = "1D"
 
     rows: list[dict[str, Any]] = []
@@ -121,11 +129,11 @@ def detect_fvg(
             continue
 
         if low[t] > high[t - 2]:
-            direction = "bullish"
+            event_id = EVENT_ID_UP
             zone_lo = float(high[t - 2])
             zone_hi = float(low[t])
         elif high[t] < low[t - 2]:
-            direction = "bearish"
+            event_id = EVENT_ID_DN
             zone_lo = float(high[t])
             zone_hi = float(low[t - 2])
         else:
@@ -138,13 +146,12 @@ def detect_fvg(
 
         rows.append(
             {
-                "event_id": EVENT_ID,
+                "event_id": event_id,
                 "asset": asset,
                 "timeframe": timeframe,
                 "formation_end_ts": confirmed_ts,
                 "confirmed_ts": confirmed_ts,
                 "execution_ts": execution_ts,
-                "direction": direction,
                 "params": params,
                 "logic_version": logic_version,
                 "params_hash": phash,

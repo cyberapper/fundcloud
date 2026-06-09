@@ -3,9 +3,9 @@
 Builds tiny single-asset OHLCV frames where the displacement condition is
 hand-controllable, then asserts:
 
-* a strong bullish bar fires exactly one ``bullish`` row with the right
+* a strong up bar fires exactly one ``ev_disp_up`` row with the right
   ``confirmed_ts`` and NaN zone/stop,
-* a strong bearish bar fires exactly one ``bearish`` row,
+* a strong down bar fires exactly one ``ev_disp_dn`` row,
 * a quiet, noiseless frame fires nothing,
 * the volume gate suppresses an otherwise-qualifying bar,
 * :func:`assert_prefix_invariant` passes — the proof there is no future-bar leak.
@@ -56,8 +56,7 @@ def test_bullish_displacement_fires() -> None:
     assert list(out.columns) == list(OBSERVATION_COLUMNS)
     assert len(out) == 1
     row = out.iloc[0]
-    assert row["direction"] == "bullish"
-    assert row["event_id"] == "ev_disp_bar"
+    assert row["event_id"] == "ev_disp_up"
     assert row["asset"] == "AAA"
     assert row["confirmed_ts"] == bars.index[t]
     assert row["formation_end_ts"] == bars.index[t]
@@ -82,8 +81,27 @@ def test_bearish_displacement_fires() -> None:
 
     assert len(out) == 1
     row = out.iloc[0]
-    assert row["direction"] == "bearish"
+    assert row["event_id"] == "ev_disp_dn"
     assert row["confirmed_ts"] == bars.index[t]
+
+
+def test_both_branches_share_one_params_hash() -> None:
+    # A strong up bar at t=6 and a strong down bar at t=8 -> one of each branch,
+    # both from the same detector call, so they share one params_hash.
+    cols = _flat_bars(12)
+    cols["open"][6] = 100.0
+    cols["low"][6] = 99.9
+    cols["high"][6] = 105.0
+    cols["close"][6] = 105.0
+    cols["open"][8] = 100.0
+    cols["high"][8] = 100.1
+    cols["low"][8] = 95.0
+    cols["close"][8] = 95.0
+
+    out = detect_displacement(_frame(cols), asset="AAA", atr_n=ATR_N)
+
+    assert set(out["event_id"]) == {"ev_disp_up", "ev_disp_dn"}
+    assert out["params_hash"].nunique() == 1
 
 
 def test_last_bar_has_no_execution() -> None:
@@ -135,7 +153,7 @@ def test_volume_gate_suppresses() -> None:
     cols["volume"][t] = 10_000.0
     out2 = detect_displacement(_frame(cols), atr_n=ATR_N, z_vol=2.0)
     assert len(out2) == 1
-    assert out2.iloc[0]["direction"] == "bullish"
+    assert out2.iloc[0]["event_id"] == "ev_disp_up"
 
 
 def test_prefix_invariant_no_future_leak() -> None:

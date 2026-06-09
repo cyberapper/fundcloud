@@ -1,4 +1,4 @@
-"""Bar-local displacement detector (``ev_disp_bar``).
+"""Bar-local displacement detector (``ev_disp_up`` / ``ev_disp_dn``).
 
 A displacement bar is a single decisive candle: its body spans more than a
 volatility-scaled threshold and it closes near the extreme it pushed toward.
@@ -10,13 +10,17 @@ For each bar ``t`` (with ``t >= atr_n`` so ``atr[t-1]`` exists):
 
 * ``rng = high - low``; bars with ``rng <= 0`` are skipped (no body to scale).
 * ``clv = (close - low) / rng`` — the close's location within the bar's range.
-* **bullish** when ``(close - open) > z_body * atr[t-1]`` and ``clv >= clv_min``,
-* **bearish** when ``(open - close) > z_body * atr[t-1]`` and ``clv <= 1 - clv_min``.
+* up bar (``ev_disp_up``) when ``(close - open) > z_body * atr[t-1]`` and
+  ``clv >= clv_min``,
+* down bar (``ev_disp_dn``) when ``(open - close) > z_body * atr[t-1]`` and
+  ``clv <= 1 - clv_min``.
 * optional volume gate (when ``z_vol`` is not ``None``):
   ``volume[t] / mean(volume[t-atr_n .. t-1]) >= z_vol``.
 
-Bullish and bearish are separate rows. The event carries no zone or stop
-(``zone_lo``/``zone_hi``/``stop_ref_price``/``quality`` are ``NaN``);
+The two geometric branches are distinct events (their ``event_id`` *is* the
+detection equation), emitted as separate rows that share one ``params_hash``
+(keyed on the detector base id :data:`BASE_EVENT_ID`). The event carries no zone
+or stop (``zone_lo``/``zone_hi``/``stop_ref_price``/``quality`` are ``NaN``);
 ``atr_at_confirm`` is ``atr[t]``. ``confirmed_ts == formation_end_ts == index[t]``;
 ``execution_ts``/``entry_ref_price`` read the next bar's open per the execution
 contract (``NaT``/``NaN`` when ``t`` is the last bar — the row is still emitted).
@@ -35,7 +39,13 @@ from fundcloud.research.events.schema import (
 
 __all__ = ["detect_displacement"]
 
-EVENT_ID = "ev_disp_bar"
+#: Event id for the up (bullish-geometry) branch.
+EVENT_ID_UP = "ev_disp_up"
+#: Event id for the down (bearish-geometry) branch.
+EVENT_ID_DN = "ev_disp_dn"
+#: Detector base id — used ONLY to key ``params_hash`` so both branches of one
+#: call share a single hash. It never appears as an emitted ``event_id``.
+BASE_EVENT_ID = "ev_disp_bar"
 
 
 def detect_displacement(
@@ -100,7 +110,7 @@ def detect_displacement(
         "clv_min": float(clv_min),
         "z_vol": None if z_vol is None else float(z_vol),
     }
-    phash = params_hash(EVENT_ID, params, logic_version)
+    phash = params_hash(BASE_EVENT_ID, params, logic_version)
 
     rows: list[dict[str, object]] = []
     for t in range(atr_n, n_bars):
@@ -135,7 +145,7 @@ def detect_displacement(
                     asset=asset,
                     confirmed_ts=index[t],
                     execution_ts=execution_ts,
-                    direction="bullish",
+                    event_id=EVENT_ID_UP,
                     params=params,
                     phash=phash,
                     logic_version=logic_version,
@@ -149,7 +159,7 @@ def detect_displacement(
                     asset=asset,
                     confirmed_ts=index[t],
                     execution_ts=execution_ts,
-                    direction="bearish",
+                    event_id=EVENT_ID_DN,
                     params=params,
                     phash=phash,
                     logic_version=logic_version,
@@ -166,7 +176,7 @@ def _row(
     asset: str,
     confirmed_ts: pd.Timestamp,
     execution_ts: pd.Timestamp | None,
-    direction: str,
+    event_id: str,
     params: dict[str, object],
     phash: str,
     logic_version: int,
@@ -175,13 +185,12 @@ def _row(
 ) -> dict[str, object]:
     """Assemble one observation dict for :func:`build_observations`."""
     return {
-        "event_id": EVENT_ID,
+        "event_id": event_id,
         "asset": asset,
         "timeframe": "1D",
         "formation_end_ts": confirmed_ts,
         "confirmed_ts": confirmed_ts,
         "execution_ts": execution_ts,
-        "direction": direction,
         "params": params,
         "logic_version": int(logic_version),
         "params_hash": phash,

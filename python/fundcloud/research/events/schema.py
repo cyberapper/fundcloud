@@ -12,7 +12,10 @@ columns coerced to ``datetime64[ns, UTC]``).
 ``long_entry`` / ``short_entry``, ``stop_price`` and ``quality`` — so a one-line
 rename feeds the existing evaluation engine with no engine change. ``confirmed_ts``
 maps to ``breakout_ts``, ``entry_ref_price`` splits into ``long_entry`` /
-``short_entry`` by direction, and ``stop_ref_price`` maps to ``stop_price``.
+``short_entry`` by the event_id orientation suffix (``_up`` → ``long_entry``,
+``_dn`` → ``short_entry``), and ``stop_ref_price`` maps to ``stop_price``. That
+suffix is a LEGACY geometric bridge only: it is the detection equation's branch,
+**not** a trade mandate — the evidence layer decides the actual side from data.
 
 :func:`params_hash` produces a short stable hex digest of ``(event_id, params,
 logic_version)`` so re-definitions never pool incomparable samples.
@@ -44,7 +47,6 @@ OBSERVATION_COLUMNS: tuple[str, ...] = (
     "formation_end_ts",
     "confirmed_ts",
     "execution_ts",
-    "direction",
     "params",
     "logic_version",
     "params_hash",
@@ -101,7 +103,9 @@ def params_hash(event_id: str, params: Mapping[str, Any], logic_version: int) ->
     Parameters
     ----------
     event_id
-        Catalog id (e.g. ``"ev_gap_imb_3c"``).
+        Catalog id (e.g. ``"ev_gap_up"``). For the geometric-branch detectors
+        the digest is keyed on the detector's *base* id (e.g. ``"ev_gap_imb_3c"``)
+        so both ``_up`` / ``_dn`` branches of one call share one ``params_hash``.
     params
         Resolved detector parameters.
     logic_version
@@ -124,12 +128,21 @@ def to_events_frame(obs: pd.DataFrame) -> pd.DataFrame:
     per-direction entry, so this maps:
 
     * ``confirmed_ts`` → ``breakout_ts`` (the leak-free anchor),
-    * ``entry_ref_price`` → ``long_entry`` where ``direction == "bullish"``,
-      else ``NaN``; → ``short_entry`` where ``direction == "bearish"``, else
+    * ``entry_ref_price`` → ``long_entry`` where ``event_id`` ends in ``"_up"``,
+      else ``NaN``; → ``short_entry`` where ``event_id`` ends in ``"_dn"``, else
       ``NaN`` (next-bar-open fill, per the execution contract),
     * ``stop_ref_price`` → ``stop_price``,
     * ``quality`` → ``quality``,
     * ``event_id`` → ``pattern`` (so per-event grouping survives).
+
+    The ``_up`` / ``_dn`` split is a **LEGACY** compatibility bridge to
+    ``feature_quality.evaluate`` (which reads ``long_entry`` for a long path and
+    ``short_entry`` for a short path). The suffix is the detection equation's
+    *geometric branch* — e.g. ``low[t] > high[t-2]`` is the up-gap branch — and is
+    **not** a trade direction. Downstream trade side is data-driven
+    (``side="auto"``) and the suffix must never drive a trade in the
+    evidence / portfolio layer. An ``event_id`` carrying neither suffix yields
+    ``NaN`` in both entry columns (such rows are dropped by ``evaluate``).
 
     Parameters
     ----------
@@ -148,15 +161,16 @@ def to_events_frame(obs: pd.DataFrame) -> pd.DataFrame:
         out["breakout_ts"] = pd.to_datetime(out["breakout_ts"], utc=True)
         return out
 
-    is_bull = obs["direction"] == "bullish"
-    is_bear = obs["direction"] == "bearish"
+    suffix = obs["event_id"].astype(str).str[-3:]
+    is_long = suffix == "_up"
+    is_short = suffix == "_dn"
     entry = obs["entry_ref_price"]
     return pd.DataFrame(
         {
             "asset": obs["asset"].to_numpy(),
             "breakout_ts": obs["confirmed_ts"].to_numpy(),
-            "long_entry": entry.where(is_bull),
-            "short_entry": entry.where(is_bear),
+            "long_entry": entry.where(is_long),
+            "short_entry": entry.where(is_short),
             "stop_price": obs["stop_ref_price"].to_numpy(),
             "quality": obs["quality"].to_numpy(),
             "pattern": obs["event_id"].to_numpy(),

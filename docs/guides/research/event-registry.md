@@ -57,22 +57,30 @@ Per-event specs below say `confirmed_ts = t` as shorthand for `observable_ts = t
 
 ## Catalog — summary
 
-| event_id | name | family | direction | status |
-|---|---|---|---|---|
-| `ev_disp_bar` | Displacement bar | price_action | both | **implemented** (`research.detect_displacement`) |
-| `ev_gap_imb_3c` | Fair Value Gap (3-candle imbalance) | price_action | both | **implemented** (`research.detect_fvg`) |
-| `ev_sweep_fail` | Liquidity sweep / failed breakout | price_action | both | **implemented** (`research.detect_sweep_fail`) |
-| `ev_ob_impulse_last_opp` | Order block (last opposing candle) | price_action | both | proposed |
-| `ev_vcp_contract` | Volatility contraction | volatility | long | proposed |
-| `ev_pivot_break` | Pivot/base breakout | volatility | long | proposed |
-| `ev_sr_touch_bounce` | Support/resistance touch + reject | structure | both | proposed |
-| `ev_sr_break_retest` | Break and retest | structure | both | proposed |
-| `ev_retrace_ratio` | Fibonacci/retracement-to-zone | structure | both | proposed |
-| `ev_cup_u` | Cup (rounded base) | classical | long | proposed |
-| `ev_cup_handle_break` | Cup and handle breakout | classical | long | proposed |
-| `ev_tline_compress` | Trendline / triangle compression | structure | both | proposed |
-| `ev_acc_range` / `ev_spring` / `ev_sos` | Accumulation / spring / sign-of-strength | structure | long | proposed |
-| `head_and_shoulders`, `inverse_head_and_shoulders`, `double_top`, `double_bottom`, `triple_top`, `triple_bottom`, `ascending_triangle`, `descending_triangle`, `symmetrical_triangle` | Classical chart patterns | classical | both | **implemented** (`features/patterns/`) |
+Each geometric branch is its own `event_id` (its identity **is** the detection
+equation, per contract rule 5 "Sides are separate records"); the detector's base
+id (kept here for reference) is used only to key `params_hash` so both branches of
+one detector call share one hash.
+
+| event_id | name | family | branch | base id | status |
+|---|---|---|---|---|---|
+| `ev_disp_up` | Displacement bar (up) | price_action | up | `ev_disp_bar` | **implemented** (`research.detect_displacement`) |
+| `ev_disp_dn` | Displacement bar (down) | price_action | down | `ev_disp_bar` | **implemented** (`research.detect_displacement`) |
+| `ev_gap_up` | Fair Value Gap up (3-candle imbalance) | price_action | up | `ev_gap_imb_3c` | **implemented** (`research.detect_fvg`) |
+| `ev_gap_dn` | Fair Value Gap down (3-candle imbalance) | price_action | down | `ev_gap_imb_3c` | **implemented** (`research.detect_fvg`) |
+| `ev_sweep_up` | Liquidity sweep / failed breakout (support) | price_action | up | `ev_sweep_fail` | **implemented** (`research.detect_sweep_fail`) |
+| `ev_sweep_dn` | Liquidity sweep / failed breakout (resistance) | price_action | down | `ev_sweep_fail` | **implemented** (`research.detect_sweep_fail`) |
+| `ev_ob_impulse_last_opp` | Order block (last opposing candle) | price_action | both | — | proposed |
+| `ev_vcp_contract` | Volatility contraction | volatility | long | — | proposed |
+| `ev_pivot_break` | Pivot/base breakout | volatility | long | — | proposed |
+| `ev_sr_touch_bounce` | Support/resistance touch + reject | structure | both | — | proposed |
+| `ev_sr_break_retest` | Break and retest | structure | both | — | proposed |
+| `ev_retrace_ratio` | Fibonacci/retracement-to-zone | structure | both | — | proposed |
+| `ev_cup_u` | Cup (rounded base) | classical | long | — | proposed |
+| `ev_cup_handle_break` | Cup and handle breakout | classical | long | — | proposed |
+| `ev_tline_compress` | Trendline / triangle compression | structure | both | — | proposed |
+| `ev_acc_range` / `ev_spring` / `ev_sos` | Accumulation / spring / sign-of-strength | structure | long | — | proposed |
+| `head_and_shoulders`, `inverse_head_and_shoulders`, `double_top`, `double_bottom`, `triple_top`, `triple_bottom`, `ascending_triangle`, `descending_triangle`, `symmetrical_triangle` | Classical chart patterns | classical | both | — | **implemented** (`features/patterns/`) |
 
 The 9 classical patterns already ship as Rust detectors (`fundcloud.features.patterns`); they
 are listed here so this page is the one registry. Their v1 `breakout_ts = formation_end`
@@ -183,16 +191,15 @@ consumes it unchanged. Columns are split by leak boundary.
 
 | column | dtype | notes |
 |---|---|---|
-| `event_id` | str | catalog id (e.g. `ev_gap_imb_3c`) |
+| `event_id` | str | catalog id (e.g. `ev_gap_up`); its `_up` / `_dn` suffix **is** the geometric branch (the two branches are distinct events) |
 | `asset` | str | symbol — **maps to `EVENTS_COLUMNS.asset`** |
 | `timeframe` | str | `"1D"` for now |
 | `formation_end_ts` | datetime64[ns, UTC] | last bar the pattern reads (charting anchor) |
 | `confirmed_ts` (≡ `observable_ts`) | datetime64[ns, UTC] | leak-free anchor — **maps to `EVENTS_COLUMNS.breakout_ts`** |
 | `execution_ts` (≡ `decision_ts`) | datetime64[ns, UTC] | `= confirmed_ts + 1`, assumed fill bar (next-bar open) |
-| `direction` | str | `bullish` / `bearish` |
 | `params` | str (JSON) | resolved parameters incl. pivot order / scale |
 | `logic_version` | int | bumped on any redefinition |
-| `params_hash` | str | hash of `(event_id, params, logic_version)` |
+| `params_hash` | str | hash of `(base_event_id, params, logic_version)` — both `_up` / `_dn` branches of one detector call share one hash (keyed on the detector base id, e.g. `ev_gap_imb_3c`) |
 | `entry_ref_price` | float | `open[execution_ts]` (the fill) — **maps to `long_entry` / `short_entry`** |
 | `stop_ref_price` | float | structural stop, NaN ⇒ ATR fallback — **maps to `stop_price`** |
 | `zone_lo`, `zone_hi` | float | gap/OB/level zone bounds (NaN for non-zone events) |
@@ -208,11 +215,15 @@ Per horizon `h ∈ {1,3,5,10,20,40,60}`: `return_h`, `net_return_h` (− 6 bps),
 ### Reuse mapping — feeds `feature_quality.evaluate()` with no engine change
 
 `feature_quality._build_event_paths` (`metrics/feature_quality.py:203`) reads exactly six
-fields: `asset`, `breakout_ts`, `long_entry`/`short_entry` (per direction), `stop_price`,
+fields: `asset`, `breakout_ts`, `long_entry`/`short_entry`, `stop_price`,
 `quality`. It anchors at `breakout_ts` and measures the forward path from the **next** bar.
 So a one-line projection (`confirmed_ts → breakout_ts`, `entry_ref_price → long_entry/short_entry`,
 `stop_ref_price → stop_price`) makes the path run from the entry bar against the next-bar-open
-entry. Extra columns ride along untouched (`evaluate` only `.get()`s what it needs). The
+entry. `entry_ref_price` routes to `long_entry` when the `event_id` ends in `_up` and to
+`short_entry` when it ends in `_dn` — a **LEGACY geometric bridge** only: the suffix is the
+detection equation's branch, **not** a trade mandate (the evidence layer picks the side from
+data via `side="auto"`). Extra columns ride along untouched (`evaluate` only `.get()`s what it
+needs). The
 engine already returns `hit_rate`, `expectancy`, `edge_ratio`, `mfe_atr`, `mae_atr`,
 `mae_p95_atr`, `ic`, `icir`, `baseline_hit`, `quality_buckets`, `per_asset`, `time_stability`;
 the only genuinely new metrics to add later are `time_to_peak`, `fill_frac`, and triple-barrier
@@ -225,6 +236,11 @@ labels.
 3. **(done)** Code the three immediate causal detectors (`ev_disp_bar`, `ev_gap_imb_3c`,
    `ev_sweep_fail`) in `fundcloud.research.events` — each gated by the **prefix-invariance test**
    (contract rule 3).
-4. Wire them through `feature_quality.evaluate()` + a frozen train/validation/holdout split.
+4. **(done)** Evidence layer — `research.scan_variants` (neutral multi-detector scan over the
+   pre-registered grid, no direction assigned) feeding the data-driven views in
+   `research.events.explore` (`forward_paths`, `outcome_profile`, `return_distribution`,
+   `event_portfolio`, `evidence_table`). Direction is decided from the measured forward path
+   (`side="auto"`), never from the geometric label. Frozen train/validation/holdout split via
+   `research.frozen_split`.
 5. Add the missing inference: triple-barrier, block bootstrap, permutation, Deflated Sharpe, PBO.
 6. Pivot-based families, interaction mining, then a portfolio decision layer over holdout survivors.

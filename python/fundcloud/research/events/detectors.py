@@ -55,8 +55,21 @@ def scan_panel(
         return build_observations([])
 
     symbols = panel.columns.get_level_values(-1).unique()
+    # Drop each symbol's leading/trailing NaN OHLC bars *before* detection. A
+    # symbol that lists after the panel start (or delists before its end) carries
+    # NaN-padded bars in the shared index; feeding those to a detector poisons
+    # Wilder's ATR seed (mean of a window containing NaN is NaN, and NaN then
+    # propagates through the whole recursion), so every event's ``atr_at_confirm``
+    # comes back NaN and the symbol is silently dropped downstream. Detecting on
+    # the dropna'd frame mirrors what ``forward_paths`` / ``feature_quality``
+    # consume, keeping bar positions consistent across the two.
     frames = [
-        detect(panel.xs(sym, level=-1, axis=1), asset=str(sym), **params) for sym in symbols
+        detect(
+            panel.xs(sym, level=-1, axis=1).dropna(subset=["open", "high", "low", "close"]),
+            asset=str(sym),
+            **params,
+        )
+        for sym in symbols
     ]
     frames = [f for f in frames if not f.empty]
     if not frames:
