@@ -80,7 +80,7 @@ jobs:
         run: uv run pytest -ra -m "not network and not docker"
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           flags: unit
@@ -107,7 +107,7 @@ jobs:
       - name: Run docker-marked tests
         run: uv run pytest -ra -m docker
       - name: Upload coverage
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: coverage.xml
           flags: docker
